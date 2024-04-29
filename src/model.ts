@@ -7,32 +7,32 @@ type MatchCaseDefinition = {
     pattern: SexprTemplate,
     template: SexprTemplate,
     fn_name_template: SexprTemplate,
-    next: "return" | MatchCaseDefinition[],
+    next: 'return' | MatchCaseDefinition[],
 };
 
 type SexprTemplate =
-    { type: "variable", value: string }
-    | { type: "atom", value: string }
-    | { type: "pair", left: SexprTemplate, right: SexprTemplate };
+    { type: 'variable', value: string }
+    | { type: 'atom', value: string }
+    | { type: 'pair', left: SexprTemplate, right: SexprTemplate };
 
 type SexprLiteral =
-    { type: "atom", value: string }
-    | { type: "pair", left: SexprLiteral, right: SexprLiteral };
+    { type: 'atom', value: string }
+    | { type: 'pair', left: SexprLiteral, right: SexprLiteral };
 
 export function assertLiteral(x: SexprTemplate): SexprLiteral {
-    if (x.type === "variable") throw new Error("Template is not fully resolved");
-    if (x.type === "pair") {
+    if (x.type === 'variable') throw new Error('Template is not fully resolved');
+    if (x.type === 'pair') {
         return {
-            type: "pair",
+            type: 'pair',
             left: assertLiteral(x.left),
-            right: assertLiteral(x.right)
+            right: assertLiteral(x.right),
         };
     }
     return x;
 }
 
-import grammar from "./sexpr.pegjs?raw";
-import * as peggy from "peggy";
+import grammar from './sexpr.pegjs?raw';
+import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
 
 export function parseSexprTemplate(input: string): SexprTemplate {
@@ -42,10 +42,12 @@ export function parseSexprTemplate(input: string): SexprTemplate {
     function helper(x: SexprLiteral): SexprTemplate {
         if (x.type === 'pair') {
             return { type: 'pair', left: helper(x.left), right: helper(x.right) };
-        } else {
+        }
+        else {
             if (x.value[0] === '@') {
                 return { type: 'variable', value: x.value.slice(1) };
-            } else {
+            }
+            else {
                 return x;
             }
         }
@@ -59,19 +61,20 @@ export function parseSexprLiteral(input: string): SexprLiteral {
 }
 
 export function toString(input: SexprTemplate): string {
-    if (input.type === "atom") return input.value;
-    if (input.type === "variable") return "@" + input.value;
+    if (input.type === 'atom') return input.value;
+    if (input.type === 'variable') return '@' + input.value;
     return `(${toString(input.left)} . ${toString(input.right)})`;
 }
 
 function clone(x: SexprTemplate): SexprTemplate {
-    if (x.type === "pair") {
+    if (x.type === 'pair') {
         return {
-            type: "pair",
+            type: 'pair',
             left: clone(x.left),
-            right: clone(x.right)
+            right: clone(x.right),
         };
-    } else {
+    }
+    else {
         return { type: x.type, value: x.value };
     }
 }
@@ -81,7 +84,7 @@ type Address = ('l' | 'r')[];
 function getAtAddress(haystack: SexprTemplate, address: Address): SexprTemplate | null {
     let result = haystack;
     for (let k = 0; k < address.length; k++) {
-        if (result.type !== "pair") return null;
+        if (result.type !== 'pair') return null;
         result = (address[k] === 'l') ? result.left : result.right;
     }
     return result;
@@ -89,36 +92,41 @@ function getAtAddress(haystack: SexprTemplate, address: Address): SexprTemplate 
 
 function setAtAddress(haystack: SexprTemplate, address: Address, needle: SexprTemplate): SexprTemplate {
     if (address.length === 0) return needle;
-    if (haystack.type !== "pair") throw new Error("can't setAtAddress, is not a pair");
+    if (haystack.type !== 'pair') throw new Error('can\'t setAtAddress, is not a pair');
     if (address[0] === 'l') {
         return { type: 'pair', right: haystack.right, left: setAtAddress(haystack.left, address.slice(1), needle) };
-    } else {
+    }
+    else {
         return { type: 'pair', left: haystack.left, right: setAtAddress(haystack.right, address.slice(1), needle) };
     }
 }
 
 type Binding = {
-    variable_name: string;
-    target_address: Address;
-    value: SexprLiteral;
+    variable_name: string,
+    target_address: Address,
+    value: SexprLiteral,
 };
 
 function generateBindings(argument: SexprLiteral, template: SexprTemplate): Binding[] | null {
-    if (template.type === "atom") {
-        if (argument.type === "atom" && argument.value === template.value) {
+    if (template.type === 'atom') {
+        if (argument.type === 'atom' && argument.value === template.value) {
             return [];
-        } else {
+        }
+        else {
             return null;
         }
-    } else if (template.type === "variable") {
+    }
+    else if (template.type === 'variable') {
         return [{ variable_name: template.value, target_address: [], value: structuredClone(argument) }];
-    } else {
-        if (argument.type !== "pair") return null;
+    }
+    else {
+        if (argument.type !== 'pair') return null;
         const left_match = generateBindings(argument.left, template.left);
         const right_match = generateBindings(argument.right, template.right);
         if (left_match === null || right_match === null) {
             return null;
-        } else {
+        }
+        else {
             return [
                 ...left_match.map(({ variable_name, target_address, value }) => ({
                     variable_name, value,
@@ -138,8 +146,8 @@ function concatAddresses(parent: Address, child: Address): Address {
 }
 
 export function equalSexprs(a: SexprLiteral, b: SexprLiteral): boolean {
-    if (a.type === "atom" && b.type === "atom") return a.value === b.value;
-    if (a.type === "pair" && b.type === "pair") {
+    if (a.type === 'atom' && b.type === 'atom') return a.value === b.value;
+    if (a.type === 'pair' && b.type === 'pair') {
         return equalSexprs(a.left, b.left) && equalSexprs(a.right, b.right);
     }
     return false;
@@ -149,7 +157,7 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     for (const fnk of all_fnks) {
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
-    throw new Error("Couldnt find the requrest funktion");
+    throw new Error('Couldnt find the requrest funktion');
 }
 
 export function applyFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
@@ -166,27 +174,30 @@ function applyMatchOptions(all_fnks: FunktionDefinition[], cases: MatchCaseDefin
         const next_fn_name = fillTemplate(match_case_definition.fn_name_template, all_bindings);
         const next_arg = fillTemplate(match_case_definition.template, all_bindings);
         const next_value = applyFunktion(all_fnks, next_fn_name, next_arg);
-        if (match_case_definition.next === "return") {
+        if (match_case_definition.next === 'return') {
             return next_value;
-        } else {
+        }
+        else {
             return applyMatchOptions(all_fnks, match_case_definition.next, next_value, all_bindings);
         }
     }
-    throw new Error("No matching cases");
+    throw new Error('No matching cases');
 }
 
 function fillTemplate(template: SexprTemplate, bindings: Binding[]): SexprLiteral {
     if (template.type === 'atom') {
         return template;
-    } else if (template.type === 'variable') {
+    }
+    else if (template.type === 'variable') {
         const binding = bindings.find(b => b.variable_name === template.value);
-        if (binding === undefined) throw new Error("Unbound variable while filling a template");
+        if (binding === undefined) throw new Error('Unbound variable while filling a template');
         return binding.value;
-    } else {
+    }
+    else {
         return {
             type: 'pair',
             left: fillTemplate(template.left, bindings),
-            right: fillTemplate(template.right, bindings)
+            right: fillTemplate(template.right, bindings),
         };
     }
 }

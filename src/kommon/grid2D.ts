@@ -1,6 +1,6 @@
-import { Vec2 } from "kanvas2d";
-import { inRange } from "./math";
-import { fromCount } from "./kommon";
+import { Vec2 } from 'kanvas2d';
+import { inRange } from './math';
+import { fromCount } from './kommon';
 
 function inBounds(pos: Vec2, bounds: Vec2) {
     return inRange(pos.x, 0, bounds.x) && inRange(pos.y, 0, bounds.y);
@@ -56,7 +56,7 @@ export class Grid2D<T> {
     }
 
     rows(): T[][] {
-        return fromCount(this.size.y, k => this.data.slice(k * this.size.x, (k+1) * this.size.x));
+        return fromCount(this.size.y, k => this.data.slice(k * this.size.x, (k + 1) * this.size.x));
     }
 
     // filter(discriminator: (i: number, j: number, element: T) => boolean): T[] {
@@ -82,7 +82,7 @@ export class Grid2D<T> {
     }
 
     static fromAscii(ascii: string): Grid2D<string> {
-        const ascii_lines = ascii.trim().split("\n").map(x => x.trim());
+        const ascii_lines = ascii.trim().split('\n').map(x => x.trim());
         const height = ascii_lines.length;
         const width = ascii_lines[0].length;
         if (ascii_lines.some(line => line.length !== width)) {

@@ -34,7 +34,7 @@ export function* pairwise<T>(arr: Iterable<T>): Generator<[T, T], void, void> {
     let a = iterator.next();
     if (a.done === true) return; // zero elements
     let b = iterator.next();
-    if (b.done === true) return; // one element 
+    if (b.done === true) return; // one element
     while (b.done !== true) {
         yield [a.value, b.value];
         a = b;
@@ -58,16 +58,16 @@ export function* zip2<T, S>(array1: Iterable<T>, array2: Iterable<S>): Generator
 function* zip<T extends Array<any>>(
     ...toZip: { [K in keyof T]: Iterable<T[K]> }
 ): Generator<T> {
-    const iterators = toZip.map(i => i[Symbol.iterator]())
+    const iterators = toZip.map(i => i[Symbol.iterator]());
 
     while (true) {
-        const results = iterators.map(i => i.next())
+        const results = iterators.map(i => i.next());
         // If any of the iterators are done, we should stop.
         if (results.some(({ done }) => done)) {
-            break
+            break;
         }
         // eslint-disable-next-line @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-return
-        yield results.map(({ value }) => value) as T
+        yield results.map(({ value }) => value) as T;
     }
 }
 
@@ -99,7 +99,6 @@ export class DefaultMap<K, V> {
     }
 }
 
-
 export class DefaultDict<T> {
     constructor(init_fn: () => T) {
         // typing doesn't work :(
@@ -108,12 +107,13 @@ export class DefaultDict<T> {
             get: (target, name): T => {
                 if (name in target) {
                     return target[name];
-                } else {
+                }
+                else {
                     target[name] = init_fn();
                     return target[name];
                 }
-            }
-        })
+            },
+        });
     }
 }
 
@@ -135,8 +135,7 @@ export function lerpHexColor(a: string, b: string, t: number): string {
         rg = ag + t * (bg - ag),
         rb = ab + t * (bb - ab);
 
-
-    return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`
+    return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`;
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */

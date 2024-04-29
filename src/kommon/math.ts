@@ -1,4 +1,4 @@
-import { Vec2 } from "kanvas2d";
+import { Vec2 } from 'kanvas2d';
 
 export function randomFloat(low_inclusive: number, high_exclusive: number): number {
     return low_inclusive + Math.random() * (high_exclusive - low_inclusive);
@@ -14,7 +14,7 @@ export function randomCentered(half_size: number): number {
 
 /** random float between -.5 & .5 */
 export function rand05(): number {
-    return Math.random() - .5;
+    return Math.random() - 0.5;
 }
 
 export function roundTo(value: number, digits: number): number {
@@ -24,14 +24,14 @@ export function roundTo(value: number, digits: number): number {
 
 export function max(arr: number[]) {
     if (arr.length === 0) {
-        return undefined
+        return undefined;
     }
     return arr[argmax(arr)!];
 }
 
 export function argmax(arr: number[]) {
     if (arr.length === 0) {
-        return undefined
+        return undefined;
     }
     let res = 0;
     let biggest = arr[0];
@@ -46,7 +46,7 @@ export function argmax(arr: number[]) {
 
 export function argmin(arr: number[]) {
     if (arr.length === 0) {
-        return undefined
+        return undefined;
     }
     let res = 0;
     let smallest = arr[0];
@@ -73,9 +73,11 @@ export function inverseLerp(a: number, b: number, value: number): number {
 export function towards(cur: number, target: number, max_delta: number): number {
     if (cur > target) {
         return Math.max(cur - max_delta, target);
-    } else if (cur < target) {
+    }
+    else if (cur < target) {
         return Math.min(cur + max_delta, target);
-    } else {
+    }
+    else {
         return target;
     }
 }
@@ -131,7 +133,7 @@ export function shuffle<T>(array: T[]) {
 
 export function randomChoice<T>(arr: T[]) {
     if (arr.length === 0) {
-        throw new Error("can't choose out of an empty array");
+        throw new Error('can\'t choose out of an empty array');
     }
     return arr[Math.floor(Math.random() * arr.length)];
 }

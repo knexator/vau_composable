@@ -38,7 +38,28 @@ export default tseslint.config(
         { assertionStyle: 'never' }
       ],
       '@typescript-eslint/no-unused-vars': 'off',
-      // '@stylistic/quotes': ['error', 'double']
+      '@stylistic/semi': ['error', 'always'],
+      '@stylistic/member-delimiter-style': [
+        'error',
+        {
+          multiline: {
+            delimiter: 'comma',
+            requireLast: true
+          },
+          singleline: {
+            delimiter: 'comma',
+            requireLast: false
+          },
+          multilineDetection: 'brackets'
+        }
+      ],
+      '@stylistic/indent': ['error', 4],
+      '@stylistic/indent-binary-ops': ['error', 4],
+      '@stylistic/brace-style': [
+        'error',
+        'stroustrup',
+        { allowSingleLine: true }
+      ]
     },
     plugins: {
       '@stylistic': stylistic
