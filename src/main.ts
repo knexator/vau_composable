@@ -1,84 +1,66 @@
 import * as twgl from 'twgl.js';
 import GUI from 'lil-gui';
-import { Grid2D } from './kommon/grid2D';
 import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, fromCount, fromRange, objectMap, repeat, zip2 } from './kommon/kommon';
-import { mod, towards as approach, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
-import { canvasFromAscii } from './kommon/spritePS';
-import { initGL2, IVec, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
+import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
+import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
+import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
+import { FunktionDefinition, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
+import { Drawer } from './drawer';
 
 const input = new Input();
-const canvas_ctx = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
-const ctx = canvas_ctx.getContext('2d')!;
-const canvas_gl = document.querySelector<HTMLCanvasElement>('#gl_canvas')!;
-const gl = initGL2(canvas_gl)!;
-gl.clearColor(0.5, 0.5, 0.5, 1);
+const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
+const drawer = new Drawer(canvas.getContext('2d')!);
 
 const CONFIG = {
 };
 
 const gui = new GUI();
 
-let last_timestamp = 0;
-// main loop; game logic lives here
-function every_frame(cur_timestamp: number) {
-    // in seconds
-    const delta_time = (cur_timestamp - last_timestamp) / 1000;
-    last_timestamp = cur_timestamp;
-    input.startFrame();
-    ctx.resetTransform();
-    ctx.clearRect(0, 0, canvas_ctx.width, canvas_ctx.height);
-    ctx.fillStyle = 'gray';
-    ctx.fillRect(0, 0, canvas_ctx.width, canvas_ctx.height);
-    if (or(twgl.resizeCanvasToDisplaySize(canvas_ctx), twgl.resizeCanvasToDisplaySize(canvas_gl))) {
-        // resizing stuff
-        gl.viewport(0, 0, canvas_gl.width, canvas_gl.height);
-    }
+const cur_fnk: FunktionDefinition = {
+    name: { type: 'atom', value: 'add' },
+    cases: [
+        {
+            pattern: parseSexprTemplate(`(0 . @y)`),
+            template: parseSexprTemplate(`@y`),
+            fn_name_template: parseSexprTemplate(`identity`),
+            next: 'return',
+        },
+        {
+            pattern: parseSexprTemplate(`((succ . @x) . @y)`),
+            template: parseSexprTemplate(`(@x . (succ . @y))`),
+            fn_name_template: parseSexprTemplate(`add`),
+            next: 'return',
+        },
+    ],
+};
 
-    const rect = canvas_ctx.getBoundingClientRect();
+let last_timestamp_millis = 0;
+// main loop; game logic lives here
+function every_frame(cur_timestamp_millis: number) {
+    const delta_time = (cur_timestamp_millis - last_timestamp_millis) / 1000;
+    last_timestamp_millis = cur_timestamp_millis;
+    input.startFrame();
+    twgl.resizeCanvasToDisplaySize(canvas);
+
+    const rect = canvas.getBoundingClientRect();
     const raw_mouse_pos = new Vec2(input.mouse.clientX - rect.left, input.mouse.clientY - rect.top);
+    const screen_size = new Vec2(canvas.width, canvas.height);
+
+    drawer.clear();
+
+    // drawMolecule(cur_fnk.cases[0].pattern, {
+    drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
+        pos: screen_size.scale(0.5),
+        halfside: screen_size.y / 5,
+    });
+
+    drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
+        // pos: screen_size.scale(.5).addXY(-100, -100),
+        pos: raw_mouse_pos,
+        halfside: screen_size.y / 5,
+    });
 
     animation_id = requestAnimationFrame(every_frame);
-}
-
-/// /// library stuff
-
-function single<T>(arr: T[]) {
-    if (arr.length === 0) {
-        throw new Error('the array was empty');
-    }
-    else if (arr.length > 1) {
-        throw new Error(`the array had more than 1 element: ${arr.toString()}`);
-    }
-    else {
-        return arr[0];
-    }
-}
-
-function at<T>(arr: T[], index: number): T {
-    if (arr.length === 0) throw new Error('can\'t call \'at\' with empty array');
-    return arr[mod(index, arr.length)];
-}
-
-function drawCircle(center: Vec2, radius: number) {
-    ctx.moveTo(center.x + radius, center.y);
-    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
-}
-
-function moveTo(pos: Vec2) {
-    ctx.moveTo(pos.x, pos.y);
-}
-
-function lineTo(pos: Vec2) {
-    ctx.lineTo(pos.x, pos.y);
-}
-
-function fillText(text: string, pos: Vec2) {
-    ctx.fillText(text, pos.x, pos.y);
-}
-
-function or(a: boolean, b: boolean) {
-    return a || b;
 }
 
 if (import.meta.hot) {

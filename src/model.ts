@@ -10,12 +10,12 @@ type MatchCaseDefinition = {
     next: 'return' | MatchCaseDefinition[],
 };
 
-type SexprTemplate =
+export type SexprTemplate =
     { type: 'variable', value: string }
     | { type: 'atom', value: string }
     | { type: 'pair', left: SexprTemplate, right: SexprTemplate };
 
-type SexprLiteral =
+export type SexprLiteral =
     { type: 'atom', value: string }
     | { type: 'pair', left: SexprLiteral, right: SexprLiteral };
 

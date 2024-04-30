@@ -8,6 +8,8 @@
 //     }
 // }
 
+import { mod } from './math';
+
 export function fromCount<T>(n: number, callback: (index: number) => T): T[] {
     const result: T[] = [];
     for (let k = 0; k < n; k++) {
@@ -27,6 +29,41 @@ export function fromRange<T>(lo: number, hi: number, callback: (index: number) =
         result.push(callback(k + lo));
     }
     return result;
+}
+
+export function eqArrays<T>(a: T[], b: T[]): boolean {
+    return a.length === b.length && a.every((v, k) => v === b[k]);
+}
+
+export function eqArraysWithFn<T>(a: T[], b: T[], equal: (x: T, y: T) => boolean): boolean {
+    return a.length === b.length && a.every((v, k) => equal(v, b[k]));
+}
+
+export function reversed<T>(array: T[]) {
+    return array.map((_item, idx) => array[array.length - 1 - idx]);
+}
+
+export function commonPrefixLen<T>(arr1: T[], arr2: T[]): number {
+    let result = 0;
+    while (result < Math.min(arr1.length, arr2.length)) {
+        if (arr1[result] !== arr2[result]) {
+            break;
+        }
+        result += 1;
+    }
+    return result;
+}
+
+export function reversedForEach<T>(arr: T[], callback: (value: T, index?: number, obj?: T[]) => void): void {
+    for (let k = arr.length - 1; k >= 0; k--) {
+        callback(arr[k], k, arr);
+    }
+}
+
+export function findIndex<T>(arr: T[], predicate: (value: T, index?: number, obj?: T[]) => boolean): number | null {
+    const index = arr.findIndex(predicate);
+    if (index < 0) return null;
+    return index;
 }
 
 export function* pairwise<T>(arr: Iterable<T>): Generator<[T, T], void, void> {
@@ -136,6 +173,27 @@ export function lerpHexColor(a: string, b: string, t: number): string {
         rb = ab + t * (bb - ab);
 
     return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`;
+}
+
+function single<T>(arr: T[]): T {
+    if (arr.length === 0) {
+        throw new Error('the array was empty');
+    }
+    else if (arr.length > 1) {
+        throw new Error(`the array had more than 1 element: ${arr.toString()}`);
+    }
+    else {
+        return arr[0];
+    }
+}
+
+function at<T>(arr: T[], index: number): T {
+    if (arr.length === 0) throw new Error('can\'t call \'at\' with empty array');
+    return arr[mod(index, arr.length)];
+}
+
+function or(a: boolean, b: boolean): boolean {
+    return a || b;
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */
