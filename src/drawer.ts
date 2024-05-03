@@ -1,15 +1,17 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, reversedForEach } from './kommon/kommon';
 import { lerp } from './kommon/math';
-import { SexprTemplate } from './model';
+import { FunktionDefinition, MatchCaseDefinition, SexprTemplate } from './model';
 
 const SPIKE_PERC = 1 / 2;
 type SexprView = { pos: Vec2, halfside: number, turns: number };
 
 const COLORS = {
     background: Color.fromInt(0x6e6e6e),
-    panel: Color.fromInt(0x505050),
+    chair: Color.fromInt(0x4e6ebe),
     cons: Color.fromInt(0x404040),
+    pole: Color.fromInt(0x404040),
+    return: Color.fromInt(0xc06060),
 };
 
 export class Drawer {
@@ -23,6 +25,43 @@ export class Drawer {
         this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
+    drawFunktion(fnk: FunktionDefinition, view: SexprView) {
+        const unit = view.halfside / 4;
+        this.drawMolecule(fnk.name, {
+            pos: view.pos.add(new Vec2(-unit * 5, -unit * 2).rotateTurns(view.turns)),
+            halfside: view.halfside,
+            turns: view.turns - 0.25,
+        });
+        { // initial chair
+            const points = [
+                new Vec2(-2, 0),
+                new Vec2(-1, -2),
+                new Vec2(-5, 0),
+                new Vec2(-5, 6),
+                new Vec2(-3, 7),
+                new Vec2(5, 7),
+                new Vec2(5, 6),
+                new Vec2(7, 7),
+                new Vec2(11, 5),
+                new Vec2(11, 4),
+                new Vec2(0, 4),
+            ].map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+
+            this.ctx.beginPath();
+            this.ctx.fillStyle = COLORS.chair.toHex();
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+        this.drawMatchers(fnk.cases, view);
+    }
+
     drawMolecule(data: SexprTemplate, view: SexprView) {
         this.drawMoleculeNonRecursive(data, view);
         if (data.type === 'pair') {
@@ -31,11 +70,120 @@ export class Drawer {
         }
     }
 
-    drawMatcher(data: SexprTemplate, view: SexprView) {
-        this.drawMatcherNonRecursive(data, view);
+    drawPattern(data: SexprTemplate, view: SexprView) {
+        this.drawPatternNonRecursive(data, view);
         if (data.type === 'pair') {
-            this.drawMatcher(data.left, getMatcherChildView(view, true));
-            this.drawMatcher(data.right, getMatcherChildView(view, false));
+            this.drawPattern(data.left, getPatternChildView(view, true));
+            this.drawPattern(data.right, getPatternChildView(view, false));
+        }
+    }
+
+    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView) {
+        if (cases.length === 0) return;
+        const unit = view.halfside / 4;
+        { // pole
+            const points = [
+                new Vec2(0, 0),
+                new Vec2(4, -2),
+                new Vec2(4, 1),
+                new Vec2(2, 5),
+                new Vec2(4, 9),
+                new Vec2(4, 16),
+                new Vec2(0, 18),
+                new Vec2(-2, 17),
+                new Vec2(-2, -1),
+            ].map(v => v.addXY(7, 7))
+                .map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+
+            this.ctx.beginPath();
+            this.ctx.fillStyle = COLORS.pole.toHex();
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+
+        this.drawSingleMatchCase(cases[0], {
+            pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
+            halfside: view.halfside,
+            turns: view.turns,
+        });
+
+        // TODO: draw rest of cases
+    }
+
+    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView) {
+        const unit = view.halfside / 4;
+        this.drawMolecule(match_case.template, view);
+        this.drawPattern(match_case.pattern, {
+            pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
+            halfside: view.halfside,
+            turns: view.turns,
+        });
+        this.drawMolecule(match_case.fn_name_template, {
+            pos: view.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(view.turns)),
+            halfside: view.halfside / 2,
+            turns: view.turns - 0.25,
+        });
+        { // chair
+            const points = [
+                new Vec2(-2, 0),
+                new Vec2(-1, -2),
+                new Vec2(-3, -1),
+                new Vec2(-5, -2),
+                new Vec2(-3, 2),
+                new Vec2(-5, 6),
+                new Vec2(-3, 7),
+                new Vec2(5, 7),
+                new Vec2(5, 6),
+                new Vec2(7, 7),
+                new Vec2(11, 5),
+                new Vec2(11, 4),
+                new Vec2(0, 4),
+            ].map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+
+            this.ctx.beginPath();
+            this.ctx.fillStyle = COLORS.chair.toHex();
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+        if (match_case.next === 'return') {
+            const points = [
+                new Vec2(0, 0),
+                new Vec2(-2, -1),
+                new Vec2(-2, 0),
+                new Vec2(-10, 0),
+                new Vec2(-8, 1),
+                new Vec2(-2, 1),
+            ].map(v => v.addXY(7, 7))
+                .map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+
+            this.ctx.beginPath();
+            this.ctx.fillStyle = COLORS.return.toHex();
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+        }
+        else {
+            // TODO
         }
     }
 
@@ -107,7 +255,7 @@ export class Drawer {
         }
     }
 
-    private drawMatcherNonRecursive(data: SexprTemplate, view: SexprView) {
+    private drawPatternNonRecursive(data: SexprTemplate, view: SexprView) {
         if (data.type === 'pair') {
             const halfside = view.halfside;
             const middle_right_pos = new Vec2(-halfside, 0);
@@ -188,7 +336,7 @@ function getSexprChildView(parent: SexprView, is_left: boolean): SexprView {
     };
 }
 
-function getMatcherChildView(parent: SexprView, is_left: boolean): SexprView {
+function getPatternChildView(parent: SexprView, is_left: boolean): SexprView {
     return {
         pos: parent.pos.add(new Vec2(-parent.halfside, (is_left ? -1 : 1) * parent.halfside / 2).rotateTurns(parent.turns)),
         halfside: parent.halfside / 2,

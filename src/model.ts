@@ -3,7 +3,7 @@ export type FunktionDefinition = {
     cases: MatchCaseDefinition[],
 };
 
-type MatchCaseDefinition = {
+export type MatchCaseDefinition = {
     pattern: SexprTemplate,
     template: SexprTemplate,
     fn_name_template: SexprTemplate,

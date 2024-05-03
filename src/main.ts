@@ -12,7 +12,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
 const drawer = new Drawer(canvas.getContext('2d')!);
 
 const CONFIG = {
-    _0_1: 0.5,
+    _0_1: 0.0,
 };
 
 const gui = new GUI();
@@ -50,22 +50,29 @@ function every_frame(cur_timestamp_millis: number) {
 
     drawer.clear();
 
-    // drawMolecule(cur_fnk.cases[0].pattern, {
-    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
-        pos: screen_size.mul(new Vec2(0.25, 0.5)),
-        halfside: screen_size.y / 5,
-        turns: CONFIG._0_1 + 0.5,
-        // turns: .25,
-    });
+    // // drawMolecule(cur_fnk.cases[0].pattern, {
+    // drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
+    //     pos: screen_size.mul(new Vec2(0.25, 0.5)),
+    //     halfside: screen_size.y / 5,
+    //     turns: CONFIG._0_1 + 0.5,
+    //     // turns: .25,
+    // });
 
-    drawer.drawMatcher(parseSexprTemplate('((@v1 . v1) . @v2)'), {
-        pos: screen_size.mul(new Vec2(0.75, 0.5)),
-        halfside: screen_size.y / 5,
-        turns: CONFIG._0_1 + 0.5,
-        // turns: .25,
-    });
+    // drawer.drawPattern(parseSexprTemplate('((@v1 . v1) . @v2)'), {
+    //     pos: screen_size.mul(new Vec2(0.75, 0.5)),
+    //     halfside: screen_size.y / 5,
+    //     turns: CONFIG._0_1 + 0.5,
+    //     // turns: .25,
+    // });
 
-    // drawer.drawFunktion(cur_fnk);
+    const view = {
+        pos: screen_size.mul(new Vec2(0.25, 0.3)),
+        halfside: screen_size.y / 10,
+        // turns: 0,
+        turns: CONFIG._0_1,
+    };
+    drawer.drawFunktion(cur_fnk, view);
+    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), view);
 
     // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
     //     // pos: screen_size.scale(.5).addXY(-100, -100),
