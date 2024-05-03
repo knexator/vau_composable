@@ -25,7 +25,7 @@ export class Drawer {
         this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
-    drawFunktion(fnk: FunktionDefinition, view: SexprView) {
+    drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[]) {
         const unit = view.halfside / 4;
         this.drawMolecule(fnk.name, {
             pos: view.pos.add(new Vec2(-unit * 5, -unit * 2).rotateTurns(view.turns)),
@@ -59,7 +59,7 @@ export class Drawer {
             this.ctx.fill();
             this.ctx.stroke();
         }
-        this.drawMatchers(fnk.cases, view);
+        this.drawMatchers(fnk.cases, view, collapsed);
     }
 
     drawMolecule(data: SexprTemplate, view: SexprView) {
@@ -78,9 +78,53 @@ export class Drawer {
         }
     }
 
-    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView) {
+    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[]) {
         if (cases.length === 0) return;
         const unit = view.halfside / 4;
+        if (collapsed[0].main) {
+            { // tiny pole
+                const points = [
+                    new Vec2(0, 0),
+                    new Vec2(4, -2),
+                    new Vec2(4, -1),
+                    new Vec2(3, 1),
+                    new Vec2(4, 3),
+                    new Vec2(4, 4),
+                    new Vec2(0, 6),
+                    new Vec2(-2, 5),
+                    new Vec2(-2, -1),
+                ].map(v => v.addXY(7, 7))
+                    .map(v => v.scale(unit))
+                    .map(v => v.rotateTurns(view.turns))
+                    .map(v => view.pos.add(v));
+
+                this.ctx.beginPath();
+                this.ctx.fillStyle = COLORS.pole.toHex();
+                this.moveTo(points[0]);
+                for (let k = 1; k < points.length; k++) {
+                    this.lineTo(points[k]);
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+
+            this.drawPattern(cases[0].pattern, {
+                pos: view.pos.add(new Vec2(17, 8).scale(unit).rotateTurns(view.turns)),
+                halfside: view.halfside / 2,
+                turns: view.turns,
+            });
+
+            if (cases.length > 1) {
+                this.drawMatchers(cases.slice(1), {
+                    pos: view.pos.add(new Vec2(0, 6 * unit).rotateTurns(view.turns)),
+                    halfside: view.halfside,
+                    turns: view.turns,
+                }, collapsed.slice(1));
+            }
+            return;
+        }
+
         { // dented pole
             const points = [
                 new Vec2(0, 0),
@@ -112,7 +156,7 @@ export class Drawer {
             pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside,
             turns: view.turns,
-        });
+        }, collapsed[0].inside);
 
         if (cases.length > 1) {
             const extra_poles = countExtraPolesNeeded(cases[0]);
@@ -142,12 +186,12 @@ export class Drawer {
             this.drawMatchers(cases.slice(1), {
                 pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
                 halfside: view.halfside,
-                turns: view.turns
-            });
+                turns: view.turns,
+            }, collapsed.slice(1));
         }
     }
 
-    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView) {
+    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[]) {
         const unit = view.halfside / 4;
         this.drawMolecule(match_case.template, view);
         this.drawPattern(match_case.pattern, {
@@ -213,7 +257,7 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            this.drawMatchers(match_case.next, view);
+            this.drawMatchers(match_case.next, view, collapsed);
         }
     }
 
@@ -358,6 +402,18 @@ export class Drawer {
     }
 }
 
+type Collapsed = { main: boolean, inside: Collapsed[] };
+
+export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
+    function helper(match_case: MatchCaseDefinition): Collapsed {
+        return {
+            main: false,
+            inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
+        };
+    }
+    return cases.map(helper);
+}
+
 function getSexprChildView(parent: SexprView, is_left: boolean): SexprView {
     return {
         pos: parent.pos.add(new Vec2(parent.halfside / 2, (is_left ? -1 : 1) * parent.halfside / 2).rotateTurns(parent.turns)),
@@ -375,7 +431,7 @@ function getPatternChildView(parent: SexprView, is_left: boolean): SexprView {
 }
 
 export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
-    if (match_case.next === "return") return 0;
+    if (match_case.next === 'return') return 0;
     if (match_case.next.length === 1) return 1;
     return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
 }
@@ -398,8 +454,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);

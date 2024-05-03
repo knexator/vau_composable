@@ -5,7 +5,7 @@ import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, z
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Drawer } from './drawer';
+import { Drawer, nothingCollapsed } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -38,7 +38,7 @@ const cur_fnk: FunktionDefinition = {
                             fn_name_template: x,
                             next: 'return',
                         },
-                    ]
+                    ],
                 },
                 {
                     pattern: x,
@@ -46,16 +46,17 @@ const cur_fnk: FunktionDefinition = {
                     fn_name_template: x,
                     next: 'return',
                 },
-            ]
+            ],
         },
         {
             pattern: x,
             template: x,
             fn_name_template: x,
-            next: "return",
+            next: 'return',
         },
     ],
 };
+const cur_collapse = nothingCollapsed(cur_fnk.cases);
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
@@ -92,8 +93,14 @@ function every_frame(cur_timestamp_millis: number) {
         // turns: 0,
         turns: CONFIG._0_1,
     };
-    drawer.drawFunktion(cur_fnk, view);
+    drawer.drawFunktion(cur_fnk, view, cur_collapse);
     drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) @v2)'), view);
+
+    drawer.drawMolecule(parseSexprTemplate('@x'), {
+        pos: screen_size.mul(new Vec2(0.625, 0.2125)),
+        halfside: screen_size.y / 5.5,
+        turns: 0,
+    });
 
     // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
     //     // pos: screen_size.scale(.5).addXY(-100, -100),
