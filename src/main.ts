@@ -18,20 +18,41 @@ const CONFIG = {
 const gui = new GUI();
 gui.add(CONFIG, '_0_1', 0, 1);
 
+const x = parseSexprTemplate(`@x`);
 const cur_fnk: FunktionDefinition = {
-    name: { type: 'atom', value: 'add' },
+    name: { type: 'atom', value: 'testing_view' },
     cases: [
         {
-            pattern: parseSexprTemplate(`(0 . @y)`),
-            template: parseSexprTemplate(`@y`),
-            fn_name_template: parseSexprTemplate(`identity`),
-            next: 'return',
+            pattern: x,
+            template: x,
+            fn_name_template: x,
+            next: [
+                {
+                    pattern: x,
+                    template: x,
+                    fn_name_template: x,
+                    next: [
+                        {
+                            pattern: x,
+                            template: x,
+                            fn_name_template: x,
+                            next: 'return',
+                        },
+                    ]
+                },
+                {
+                    pattern: x,
+                    template: x,
+                    fn_name_template: x,
+                    next: 'return',
+                },
+            ]
         },
         {
-            pattern: parseSexprTemplate(`((succ . @x) . @y)`),
-            template: parseSexprTemplate(`(@x . (succ . @y))`),
-            fn_name_template: parseSexprTemplate(`add`),
-            next: 'return',
+            pattern: x,
+            template: x,
+            fn_name_template: x,
+            next: "return",
         },
     ],
 };
@@ -66,13 +87,13 @@ function every_frame(cur_timestamp_millis: number) {
     // });
 
     const view = {
-        pos: screen_size.mul(new Vec2(0.25, 0.3)),
-        halfside: screen_size.y / 10,
+        pos: screen_size.mul(new Vec2(0.1, 0.15)),
+        halfside: screen_size.y / 20,
         // turns: 0,
         turns: CONFIG._0_1,
     };
     drawer.drawFunktion(cur_fnk, view);
-    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), view);
+    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) @v2)'), view);
 
     // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
     //     // pos: screen_size.scale(.5).addXY(-100, -100),

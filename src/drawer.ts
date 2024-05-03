@@ -81,7 +81,7 @@ export class Drawer {
     private drawMatchers(cases: MatchCaseDefinition[], view: SexprView) {
         if (cases.length === 0) return;
         const unit = view.halfside / 4;
-        { // pole
+        { // dented pole
             const points = [
                 new Vec2(0, 0),
                 new Vec2(4, -2),
@@ -114,7 +114,37 @@ export class Drawer {
             turns: view.turns,
         });
 
-        // TODO: draw rest of cases
+        if (cases.length > 1) {
+            const extra_poles = countExtraPolesNeeded(cases[0]);
+            for (let k = 0; k < extra_poles; k++) {
+                const points = [
+                    new Vec2(0, 0),
+                    new Vec2(4, -2),
+                    new Vec2(4, 16),
+                    new Vec2(0, 18),
+                    new Vec2(-2, 17),
+                    new Vec2(-2, -1),
+                ].map(v => v.addXY(7, 7 + (1 + k) * 18))
+                    .map(v => v.scale(unit))
+                    .map(v => v.rotateTurns(view.turns))
+                    .map(v => view.pos.add(v));
+
+                this.ctx.beginPath();
+                this.ctx.fillStyle = COLORS.pole.toHex();
+                this.moveTo(points[0]);
+                for (let k = 1; k < points.length; k++) {
+                    this.lineTo(points[k]);
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+            this.drawMatchers(cases.slice(1), {
+                pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns
+            });
+        }
     }
 
     private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView) {
@@ -183,7 +213,7 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            // TODO
+            this.drawMatchers(match_case.next, view);
         }
     }
 
@@ -344,6 +374,12 @@ function getPatternChildView(parent: SexprView, is_left: boolean): SexprView {
     };
 }
 
+export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
+    if (match_case.next === "return") return 0;
+    if (match_case.next.length === 1) return 1;
+    return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
+}
+
 const colorFromAtom: (atom: string) => Color = (() => {
     const generated = new Map<string, Color>();
     generated.set('nil', new Color(0.5, 0.5, 0.5));
@@ -362,8 +398,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
