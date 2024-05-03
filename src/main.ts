@@ -5,7 +5,7 @@ import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, z
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Drawer, nothingCollapsed } from './drawer';
+import { Drawer, nothingCollapsed, toggleCollapsed } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -56,7 +56,7 @@ const cur_fnk: FunktionDefinition = {
         },
     ],
 };
-const cur_collapse = nothingCollapsed(cur_fnk.cases);
+let cur_collapse = nothingCollapsed(cur_fnk.cases);
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
@@ -101,6 +101,11 @@ function every_frame(cur_timestamp_millis: number) {
         halfside: screen_size.y / 5.5,
         turns: 0,
     });
+
+    const asdf = drawer.getAtPosition(cur_fnk, view, cur_collapse, raw_mouse_pos);
+    if (asdf !== null && input.mouse.wasPressed(MouseButton.Left)) {
+        cur_collapse = toggleCollapsed(cur_collapse, asdf);
+    }
 
     // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
     //     // pos: screen_size.scale(.5).addXY(-100, -100),
