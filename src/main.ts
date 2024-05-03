@@ -52,7 +52,14 @@ function every_frame(cur_timestamp_millis: number) {
 
     // drawMolecule(cur_fnk.cases[0].pattern, {
     drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
-        pos: screen_size.scale(0.5),
+        pos: screen_size.mul(new Vec2(0.25, 0.5)),
+        halfside: screen_size.y / 5,
+        turns: CONFIG._0_1 + 0.5,
+        // turns: .25,
+    });
+
+    drawer.drawMatcher(parseSexprTemplate('((@v1 . v1) . @v2)'), {
+        pos: screen_size.mul(new Vec2(0.75, 0.5)),
         halfside: screen_size.y / 5,
         turns: CONFIG._0_1 + 0.5,
         // turns: .25,
