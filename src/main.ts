@@ -18,45 +18,71 @@ const CONFIG = {
 const gui = new GUI();
 gui.add(CONFIG, '_0_1', 0, 1);
 
-const x = parseSexprTemplate(`@x`);
+// const x = parseSexprTemplate(`@x`);
+// const cur_fnk: FunktionDefinition = {
+//     name: { type: 'atom', value: 'testing_view' },
+//     cases: [
+//         {
+//             pattern: x,
+//             template: x,
+//             fn_name_template: x,
+//             next: [
+//                 {
+//                     pattern: x,
+//                     template: x,
+//                     fn_name_template: x,
+//                     next: [
+//                         {
+//                             pattern: x,
+//                             template: x,
+//                             fn_name_template: x,
+//                             next: 'return',
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     pattern: x,
+//                     template: x,
+//                     fn_name_template: x,
+//                     next: 'return',
+//                 },
+//             ],
+//         },
+//         {
+//             pattern: x,
+//             template: x,
+//             fn_name_template: x,
+//             next: 'return',
+//         },
+//     ],
+// };
 const cur_fnk: FunktionDefinition = {
-    name: { type: 'atom', value: 'testing_view' },
+    name: { type: 'atom', value: 'bubbleUp' },
     cases: [
         {
-            pattern: x,
-            template: x,
-            fn_name_template: x,
+            pattern: parseSexprTemplate(`(X . @rest)`),
+            template: parseSexprTemplate(`(X . @rest)`),
+            fn_name_template: parseSexprTemplate(`identity`),
+            next: 'return',
+        },
+        {
+            pattern: parseSexprTemplate(`(@a . @b)`),
+            template: parseSexprTemplate(`@b`),
+            fn_name_template: parseSexprTemplate(`bubbleUp`),
             next: [
                 {
-                    pattern: x,
-                    template: x,
-                    fn_name_template: x,
-                    next: [
-                        {
-                            pattern: x,
-                            template: x,
-                            fn_name_template: x,
-                            next: 'return',
-                        },
-                    ],
-                },
-                {
-                    pattern: x,
-                    template: x,
-                    fn_name_template: x,
+                    pattern: parseSexprTemplate(`(X . @rest)`),
+                    template: parseSexprTemplate(`(X @a . @rest)`),
+                    fn_name_template: parseSexprTemplate(`identity`),
                     next: 'return',
                 },
             ],
         },
-        {
-            pattern: x,
-            template: x,
-            fn_name_template: x,
-            next: 'return',
-        },
     ],
 };
 let cur_collapse = nothingCollapsed(cur_fnk.cases);
+
+let cur_input = parseSexprLiteral('(1 2 X 3 4)');
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
@@ -94,13 +120,13 @@ function every_frame(cur_timestamp_millis: number) {
         turns: CONFIG._0_1,
     };
     drawer.drawFunktion(cur_fnk, view, cur_collapse);
-    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) @v2)'), view);
+    drawer.drawMolecule(cur_input, view);
 
-    drawer.drawMolecule(parseSexprTemplate('@x'), {
-        pos: screen_size.mul(new Vec2(0.625, 0.2125)),
-        halfside: screen_size.y / 5.5,
-        turns: 0,
-    });
+    // drawer.drawMolecule(parseSexprTemplate('@x'), {
+    //     pos: screen_size.mul(new Vec2(0.625, 0.2125)),
+    //     halfside: screen_size.y / 5.5,
+    //     turns: 0,
+    // });
 
     const asdf = drawer.getAtPosition(cur_fnk, view, cur_collapse, raw_mouse_pos);
     if (asdf !== null && input.mouse.wasPressed(MouseButton.Left)) {
