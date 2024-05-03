@@ -4,7 +4,7 @@ import { lerp } from './kommon/math';
 import { SexprTemplate } from './model';
 
 const SPIKE_PERC = 1 / 2;
-type MoleculeView = { pos: Vec2, halfside: number };
+type SexprView = { pos: Vec2, halfside: number, turns: number };
 
 const COLORS = {
     background: Color.fromInt(0x6e6e6e),
@@ -15,9 +15,7 @@ const COLORS = {
 export class Drawer {
     constructor(
         public ctx: CanvasRenderingContext2D,
-    ) {
-
-    }
+    ) { }
 
     clear() {
         this.ctx.resetTransform();
@@ -25,7 +23,7 @@ export class Drawer {
         this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
-    drawMolecule(data: SexprTemplate, view: MoleculeView) {
+    drawMolecule(data: SexprTemplate, view: SexprView) {
         this.drawMoleculeNonRecursive(data, view);
         if (data.type === 'pair') {
             this.drawMolecule(data.left, getChildView(view, true));
@@ -33,16 +31,23 @@ export class Drawer {
         }
     }
 
-    private drawMoleculeNonRecursive(data: SexprTemplate, view: MoleculeView) {
+    private drawMoleculeNonRecursive(data: SexprTemplate, view: SexprView) {
         if (data.type === 'variable') {
+            const points = [
+                new Vec2(-view.halfside * SPIKE_PERC, 0),
+                new Vec2(0, -view.halfside),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, view.halfside),
+                new Vec2(0, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
-            this.moveTo(view.pos.addX(-view.halfside * SPIKE_PERC));
-            this.lineTo(view.pos.addY(-view.halfside));
-            this.lineTo(view.pos.add(new Vec2(view.halfside * 3, -view.halfside)));
-            this.lineTo(view.pos.addX(view.halfside * (3 + SPIKE_PERC)));
-            this.lineTo(view.pos.add(new Vec2(view.halfside * 3, view.halfside)));
-            this.lineTo(view.pos.addY(view.halfside));
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
@@ -51,36 +56,43 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
-            this.moveTo(view.pos.addX(-view.halfside * SPIKE_PERC));
-            this.lineTo(view.pos.addY(-view.halfside));
-            this.lineTo(view.pos.add(new Vec2(view.halfside * 2, -view.halfside)));
+            this.moveTo(view.pos.add(new Vec2(-view.halfside * SPIKE_PERC, 0).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(0, -view.halfside).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(view.halfside * 2, -view.halfside).rotateTurns(view.turns)));
             profile.forEach(({ x: time, y: offset }) => {
                 const thing = new Vec2(view.halfside * 2 + offset * view.halfside, lerp(-view.halfside, 0, time));
-                this.lineTo(view.pos.add(thing));
+                this.lineTo(view.pos.add(thing.rotateTurns(view.turns)));
             });
             reversedForEach(profile, ({ x: time, y: offset }) => {
                 const thing = new Vec2(view.halfside * 2 - offset * view.halfside, lerp(view.halfside, 0, time));
-                this.lineTo(view.pos.add(thing));
+                this.lineTo(view.pos.add(thing.rotateTurns(view.turns)));
             });
-            this.lineTo(view.pos.add(new Vec2(view.halfside * 2, view.halfside)));
-            this.lineTo(view.pos.addY(view.halfside));
+            this.lineTo(view.pos.add(new Vec2(view.halfside * 2, view.halfside).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(0, view.halfside).rotateTurns(view.turns)));
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
         }
         else {
             const halfside = view.halfside;
+            const middle_right_pos = new Vec2(halfside / 2, 0);
+            const points = [
+                new Vec2(-halfside * SPIKE_PERC, 0),
+                new Vec2(0, -halfside),
+                middle_right_pos.add(new Vec2(0, -halfside)),
+                middle_right_pos.add(new Vec2(-SPIKE_PERC * halfside / 2, -halfside / 2)),
+                middle_right_pos,
+                middle_right_pos.add(new Vec2(-SPIKE_PERC * halfside / 2, halfside / 2)),
+                middle_right_pos.add(new Vec2(0, halfside)),
+                new Vec2(0, halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.cons.toHex();
-            this.moveTo(view.pos.addX(-halfside * SPIKE_PERC));
-            this.lineTo(view.pos.addY(-halfside));
-            const middle_right_pos = view.pos.addX(halfside / 2);
-            this.lineTo(middle_right_pos.add(new Vec2(0, -halfside)));
-            this.lineTo(middle_right_pos.add(new Vec2(-SPIKE_PERC * halfside / 2, -halfside / 2)));
-            this.lineTo(middle_right_pos);
-            this.lineTo(middle_right_pos.add(new Vec2(-SPIKE_PERC * halfside / 2, halfside / 2)));
-            this.lineTo(middle_right_pos.add(new Vec2(0, halfside)));
-            this.lineTo(view.pos.addY(halfside));
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
@@ -105,10 +117,13 @@ export class Drawer {
     }
 }
 
-function getChildView(parent: MoleculeView, is_left: boolean): MoleculeView {
+function getChildView(parent: SexprView, is_left: boolean): SexprView {
+    const right = Vec2.fromTurns(parent.turns);
+    const up = Vec2.fromTurns(parent.turns - 0.25);
     return {
-        pos: parent.pos.add(new Vec2(parent.halfside / 2, (is_left ? -1 : 1) * parent.halfside / 2)),
+        pos: parent.pos.add(new Vec2(parent.halfside / 2, (is_left ? -1 : 1) * parent.halfside / 2).rotateTurns(parent.turns)),
         halfside: parent.halfside / 2,
+        turns: parent.turns,
     };
 }
 

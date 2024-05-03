@@ -12,9 +12,11 @@ const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
 const drawer = new Drawer(canvas.getContext('2d')!);
 
 const CONFIG = {
+    _0_1: 0.5,
 };
 
 const gui = new GUI();
+gui.add(CONFIG, '_0_1', 0, 1);
 
 const cur_fnk: FunktionDefinition = {
     name: { type: 'atom', value: 'add' },
@@ -49,16 +51,20 @@ function every_frame(cur_timestamp_millis: number) {
     drawer.clear();
 
     // drawMolecule(cur_fnk.cases[0].pattern, {
-    drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
+    drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
         pos: screen_size.scale(0.5),
         halfside: screen_size.y / 5,
+        turns: CONFIG._0_1 + 0.5,
+        // turns: .25,
     });
 
-    drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
-        // pos: screen_size.scale(.5).addXY(-100, -100),
-        pos: raw_mouse_pos,
-        halfside: screen_size.y / 5,
-    });
+    // drawer.drawFunktion(cur_fnk);
+
+    // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
+    //     // pos: screen_size.scale(.5).addXY(-100, -100),
+    //     pos: raw_mouse_pos,
+    //     halfside: screen_size.y / 5,
+    // });
 
     animation_id = requestAnimationFrame(every_frame);
 }
