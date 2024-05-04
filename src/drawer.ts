@@ -304,6 +304,8 @@ export class Drawer {
                 new Vec2(-5, -2),
                 new Vec2(-3, 2),
                 new Vec2(-5, 6),
+                new Vec2(-17, 6),
+                new Vec2(-17, 7),
                 new Vec2(-3, 7),
                 new Vec2(5, 7),
                 new Vec2(5, 6),

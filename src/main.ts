@@ -114,13 +114,17 @@ function every_frame(cur_timestamp_millis: number) {
     // });
 
     const view = {
-        pos: screen_size.mul(new Vec2(0.1, 0.15)),
-        halfside: screen_size.y / 20,
-        // turns: 0,
-        turns: CONFIG._0_1,
+        pos: screen_size.mul(new Vec2(0.1, 0.175)),
+        halfside: screen_size.y / 17,
+        turns: 0,
+        // turns: CONFIG._0_1,
     };
     drawer.drawFunktion(cur_fnk, view, cur_collapse);
-    drawer.drawMolecule(cur_input, view);
+    drawer.drawMolecule(cur_input, {
+        pos: view.pos.addY(CONFIG._0_1 * 600),
+        halfside: view.halfside,
+        turns: view.turns,
+    });
 
     // drawer.drawMolecule(parseSexprTemplate('@x'), {
     //     pos: screen_size.mul(new Vec2(0.625, 0.2125)),
