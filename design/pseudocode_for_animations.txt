@@ -1,0 +1,14 @@
+(move input down until case 1)
+(try and fail to match input with case 1)
+(move input down until case 2)
+(match input with case 2)
+(parallel
+    (move input yellow to yellow)
+    (move input pink to pink)
+)
+(parallel
+    (dissolve yellow at ...)
+    (dissolve pink at ...)
+    (move function name at ... offscreen)
+)
+(bring new scren ...)
