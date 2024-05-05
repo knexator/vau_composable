@@ -5,7 +5,7 @@ import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, z
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Drawer, nothingCollapsed, toggleCollapsed } from './drawer';
+import { Drawer, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -81,6 +81,7 @@ const cur_fnk: FunktionDefinition = {
     ],
 };
 let cur_collapse = nothingCollapsed(cur_fnk.cases);
+let cur_matched = nothingMatched(cur_fnk.cases);
 
 const cur_input = parseSexprLiteral('(1 2 X 3 4)');
 
@@ -119,7 +120,7 @@ function every_frame(cur_timestamp_millis: number) {
         turns: 0,
         // turns: CONFIG._0_1,
     };
-    drawer.drawFunktion(cur_fnk, view, cur_collapse, cur_timestamp_millis / 1000);
+    drawer.drawFunktion(cur_fnk, view, cur_collapse, cur_timestamp_millis / 1000, cur_matched);
     drawer.drawMolecule(cur_input, {
         pos: view.pos.addY(CONFIG._0_1 * 600),
         halfside: view.halfside,

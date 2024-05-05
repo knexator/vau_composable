@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, reversedForEach, zip2 } from './kommon/kommon';
 import { in01, inRange, lerp, remap } from './kommon/math';
-import { FunktionDefinition, MatchCaseDefinition, SexprTemplate } from './model';
+import { FunktionDefinition, MatchCaseDefinition, SexprLiteral, SexprTemplate } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -118,7 +118,7 @@ export class Drawer {
         return helper(cases, view, collapsed, position);
     }
 
-    drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number): void {
+    drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]): void {
         const unit = view.halfside / 4;
         this.drawMolecule(fnk.name, {
             pos: view.pos.add(new Vec2(-unit * 5, -unit * 2).rotateTurns(view.turns)),
@@ -152,7 +152,7 @@ export class Drawer {
             this.ctx.fill();
             this.ctx.stroke();
         }
-        this.drawMatchers(fnk.cases, view, collapsed, cur_time);
+        this.drawMatchers(fnk.cases, view, collapsed, cur_time, matched);
     }
 
     drawMolecule(data: SexprTemplate, view: SexprView) {
@@ -171,7 +171,7 @@ export class Drawer {
         }
     }
 
-    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], cur_time: number) {
+    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]) {
         if (cases.length === 0) return;
         const unit = view.halfside / 4;
         const collapsed_t = (cur_time - collapsed[0].main.changedAt) / COLLAPSE_DURATION;
@@ -237,7 +237,7 @@ export class Drawer {
                     pos: view.pos.add(new Vec2(0, lerp(18, 6, collapse_amount) * unit).rotateTurns(view.turns)),
                     halfside: view.halfside,
                     turns: view.turns,
-                }, collapsed.slice(1), cur_time);
+                }, collapsed.slice(1), cur_time, matched.slice(1));
             }
             return;
         }
@@ -280,7 +280,7 @@ export class Drawer {
                     pos: view.pos.add(new Vec2(0, 6 * unit).rotateTurns(view.turns)),
                     halfside: view.halfside,
                     turns: view.turns,
-                }, collapsed.slice(1), cur_time);
+                }, collapsed.slice(1), cur_time, matched.slice(1));
             }
             return;
         }
@@ -312,11 +312,14 @@ export class Drawer {
             this.ctx.stroke();
         }
 
+        if (matched[0].main !== null) {
+            // TODO
+        }
         this.drawSingleMatchCase(cases[0], {
             pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside,
             turns: view.turns,
-        }, collapsed[0].inside, cur_time);
+        }, collapsed[0].inside, cur_time, matched[0].inside);
 
         if (cases.length > 1) {
             const extra_poles = countExtraPolesNeeded(cases[0]);
@@ -347,11 +350,11 @@ export class Drawer {
                 pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
-            }, collapsed.slice(1), cur_time);
+            }, collapsed.slice(1), cur_time, matched.slice(1));
         }
     }
 
-    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number) {
+    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]) {
         const unit = view.halfside / 4;
         this.drawMolecule(match_case.template, view);
         this.drawPattern(match_case.pattern, {
@@ -419,7 +422,7 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            this.drawMatchers(match_case.next, view, collapsed, cur_time);
+            this.drawMatchers(match_case.next, view, collapsed, cur_time, matched);
         }
     }
 
@@ -564,6 +567,18 @@ export class Drawer {
     }
 }
 
+type MatchedInput = { main: null | SexprLiteral, inside: MatchedInput[] };
+
+export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
+    function helper(match_case: MatchCaseDefinition): MatchedInput {
+        return {
+            main: null,
+            inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
+        };
+    }
+    return cases.map(helper);
+}
+
 type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
@@ -633,8 +648,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
