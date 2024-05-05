@@ -112,6 +112,10 @@ export function inRange(value: number, min_inclusive: number, max_exclusive: num
     return value >= min_inclusive && value < max_exclusive;
 }
 
+export function in01(value: number): boolean {
+    return value >= 0 && value <= 1;
+}
+
 export function onBorder(value: number, min_inclusive: number, max_exclusive: number): boolean {
     return value == min_inclusive || (value + 1) === max_exclusive;
 }

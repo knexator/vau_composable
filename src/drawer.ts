@@ -1,8 +1,9 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, fromCount, reversedForEach } from './kommon/kommon';
-import { lerp } from './kommon/math';
+import { DefaultMap, fromCount, reversedForEach, zip2 } from './kommon/kommon';
+import { in01, inRange, lerp, remap } from './kommon/math';
 import { FunktionDefinition, MatchCaseDefinition, SexprTemplate } from './model';
 
+const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
 type SexprView = { pos: Vec2, halfside: number, turns: number };
 
@@ -32,7 +33,7 @@ export class Drawer {
         function helper(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], position: Vec2): PoleAdress | null {
             if (cases.length === 0) return null;
             const unit = view.halfside / 4;
-            if (collapsed[0].main) {
+            if (collapsed[0].main.value) {
                 { // tiny pole
                     const points = [
                         new Vec2(0, 0),
@@ -117,7 +118,7 @@ export class Drawer {
         return helper(cases, view, collapsed, position);
     }
 
-    drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[]): void {
+    drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number): void {
         const unit = view.halfside / 4;
         this.drawMolecule(fnk.name, {
             pos: view.pos.add(new Vec2(-unit * 5, -unit * 2).rotateTurns(view.turns)),
@@ -151,7 +152,7 @@ export class Drawer {
             this.ctx.fill();
             this.ctx.stroke();
         }
-        this.drawMatchers(fnk.cases, view, collapsed);
+        this.drawMatchers(fnk.cases, view, collapsed, cur_time);
     }
 
     drawMolecule(data: SexprTemplate, view: SexprView) {
@@ -170,10 +171,77 @@ export class Drawer {
         }
     }
 
-    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[]) {
+    private drawMatchers(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], cur_time: number) {
         if (cases.length === 0) return;
         const unit = view.halfside / 4;
-        if (collapsed[0].main) {
+        const collapsed_t = (cur_time - collapsed[0].main.changedAt) / COLLAPSE_DURATION;
+        if (in01(collapsed_t)) {
+            const collapse_amount = collapsed[0].main.value ? collapsed_t : 1 - collapsed_t;
+
+            {
+                const points_tiny = [
+                    new Vec2(0, 0),
+                    new Vec2(4, -2),
+                    new Vec2(4, -1),
+                    new Vec2(3, 1),
+                    new Vec2(4, 3),
+                    new Vec2(4, 4),
+                    new Vec2(0, 6),
+                    new Vec2(-2, 5),
+                    new Vec2(-2, -1),
+                ].map(v => v.addXY(7, 7))
+                    .map(v => v.scale(unit))
+                    .map(v => v.rotateTurns(view.turns))
+                    .map(v => view.pos.add(v));
+
+                const points_full = [
+                    new Vec2(0, 0),
+                    new Vec2(4, -2),
+                    new Vec2(4, 1),
+                    new Vec2(2, 5),
+                    new Vec2(4, 9),
+                    new Vec2(4, 16),
+                    new Vec2(0, 18),
+                    new Vec2(-2, 17),
+                    new Vec2(-2, -1),
+                ].map(v => v.addXY(7, 7))
+                    .map(v => v.scale(unit))
+                    .map(v => v.rotateTurns(view.turns))
+                    .map(v => view.pos.add(v));
+
+                const points = Array(...zip2(points_full, points_tiny)).map(([a, b]) => Vec2.lerp(a, b, collapse_amount));
+
+                this.ctx.beginPath();
+                this.ctx.fillStyle = COLORS.pole.toHex();
+                this.moveTo(points[0]);
+                for (let k = 1; k < points.length; k++) {
+                    this.lineTo(points[k]);
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+
+            this.drawPattern(cases[0].pattern, {
+                pos: view.pos.add(Vec2.lerp(
+                    new Vec2(23, 12),
+                    new Vec2(17, 8),
+                    collapse_amount,
+                ).scale(unit).rotateTurns(view.turns)),
+                halfside: lerp(view.halfside, view.halfside / 2, collapse_amount),
+                turns: view.turns,
+            });
+
+            if (cases.length > 1) {
+                this.drawMatchers(cases.slice(1), {
+                    pos: view.pos.add(new Vec2(0, lerp(18, 6, collapse_amount) * unit).rotateTurns(view.turns)),
+                    halfside: view.halfside,
+                    turns: view.turns,
+                }, collapsed.slice(1), cur_time);
+            }
+            return;
+        }
+        if (collapsed[0].main.value) {
             { // tiny pole
                 const points = [
                     new Vec2(0, 0),
@@ -212,7 +280,7 @@ export class Drawer {
                     pos: view.pos.add(new Vec2(0, 6 * unit).rotateTurns(view.turns)),
                     halfside: view.halfside,
                     turns: view.turns,
-                }, collapsed.slice(1));
+                }, collapsed.slice(1), cur_time);
             }
             return;
         }
@@ -248,7 +316,7 @@ export class Drawer {
             pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside,
             turns: view.turns,
-        }, collapsed[0].inside);
+        }, collapsed[0].inside, cur_time);
 
         if (cases.length > 1) {
             const extra_poles = countExtraPolesNeeded(cases[0]);
@@ -279,11 +347,11 @@ export class Drawer {
                 pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
-            }, collapsed.slice(1));
+            }, collapsed.slice(1), cur_time);
         }
     }
 
-    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[]) {
+    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number) {
         const unit = view.halfside / 4;
         this.drawMolecule(match_case.template, view);
         this.drawPattern(match_case.pattern, {
@@ -351,7 +419,7 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            this.drawMatchers(match_case.next, view, collapsed);
+            this.drawMatchers(match_case.next, view, collapsed, cur_time);
         }
     }
 
@@ -496,12 +564,12 @@ export class Drawer {
     }
 }
 
-type Collapsed = { main: boolean, inside: Collapsed[] };
+type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
     function helper(match_case: MatchCaseDefinition): Collapsed {
         return {
-            main: false,
+            main: { value: false, changedAt: -Infinity },
             inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
         };
     }
@@ -510,16 +578,17 @@ export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
 
 type PoleAdress = number[];
 
-export function toggleCollapsed(collapsed: Collapsed[], which: PoleAdress): Collapsed[] {
+export function toggleCollapsed(collapsed: Collapsed[], which: PoleAdress, cur_time: number): Collapsed[] {
     if (which.length === 0) throw new Error('bad address at toggleCollapsed');
     if (which.length === 1) {
         const result = structuredClone(collapsed);
-        result[which[0]].main = !result[which[0]].main;
+        result[which[0]].main.value = !result[which[0]].main.value;
+        result[which[0]].main.changedAt = cur_time;
         return result;
     }
     else {
         const result = structuredClone(collapsed);
-        result[which[0]].inside = toggleCollapsed(collapsed[which[0]].inside, which.slice(1));
+        result[which[0]].inside = toggleCollapsed(collapsed[which[0]].inside, which.slice(1), cur_time);
         return result;
     }
 }

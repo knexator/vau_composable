@@ -82,7 +82,7 @@ const cur_fnk: FunktionDefinition = {
 };
 let cur_collapse = nothingCollapsed(cur_fnk.cases);
 
-let cur_input = parseSexprLiteral('(1 2 X 3 4)');
+const cur_input = parseSexprLiteral('(1 2 X 3 4)');
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
@@ -119,7 +119,7 @@ function every_frame(cur_timestamp_millis: number) {
         turns: 0,
         // turns: CONFIG._0_1,
     };
-    drawer.drawFunktion(cur_fnk, view, cur_collapse);
+    drawer.drawFunktion(cur_fnk, view, cur_collapse, cur_timestamp_millis / 1000);
     drawer.drawMolecule(cur_input, {
         pos: view.pos.addY(CONFIG._0_1 * 600),
         halfside: view.halfside,
@@ -134,7 +134,7 @@ function every_frame(cur_timestamp_millis: number) {
 
     const asdf = drawer.getAtPosition(cur_fnk, view, cur_collapse, raw_mouse_pos);
     if (asdf !== null && input.mouse.wasPressed(MouseButton.Left)) {
-        cur_collapse = toggleCollapsed(cur_collapse, asdf);
+        cur_collapse = toggleCollapsed(cur_collapse, asdf, cur_timestamp_millis / 1000);
     }
 
     // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
