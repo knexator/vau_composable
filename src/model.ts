@@ -19,6 +19,13 @@ export type SexprLiteral =
     { type: 'atom', value: string }
     | { type: 'pair', left: SexprLiteral, right: SexprLiteral };
 
+export type SexprNullable =
+    { type: 'null' }
+    | { type: 'variable', value: string }
+    | { type: 'atom', value: string }
+    | { type: 'pair', left: SexprNullable, right: SexprNullable };
+
+
 export function assertLiteral(x: SexprTemplate): SexprLiteral {
     if (x.type === 'variable') throw new Error('Template is not fully resolved');
     if (x.type === 'pair') {

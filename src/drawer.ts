@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, reversedForEach, zip2 } from './kommon/kommon';
 import { in01, inRange, lerp, remap } from './kommon/math';
-import { FunktionDefinition, MatchCaseDefinition, SexprLiteral, SexprTemplate } from './model';
+import { FunktionDefinition, MatchCaseDefinition, SexprLiteral, SexprNullable, SexprTemplate } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -155,7 +155,7 @@ export class Drawer {
         this.drawMatchers(fnk.cases, view, collapsed, cur_time, matched);
     }
 
-    drawMolecule(data: SexprTemplate, view: SexprView) {
+    drawMolecule(data: SexprNullable, view: SexprView) {
         this.drawMoleculeNonRecursive(data, view);
         if (data.type === 'pair') {
             this.drawMolecule(data.left, getSexprChildView(view, true));
@@ -168,6 +168,15 @@ export class Drawer {
         if (data.type === 'pair') {
             this.drawPattern(data.left, getPatternChildView(view, true));
             this.drawPattern(data.right, getPatternChildView(view, false));
+        }
+    }
+
+    private drawPatternWithoutVariables(data: SexprTemplate, view: SexprView) {
+        if (data.type === 'variable') return;
+        this.drawPatternNonRecursive(data, view);
+        if (data.type === 'pair') {
+            this.drawPatternWithoutVariables(data.left, getPatternChildView(view, true));
+            this.drawPatternWithoutVariables(data.right, getPatternChildView(view, false));
         }
     }
 
@@ -312,14 +321,11 @@ export class Drawer {
             this.ctx.stroke();
         }
 
-        if (matched[0].main !== null) {
-            // TODO
-        }
         this.drawSingleMatchCase(cases[0], {
             pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside,
             turns: view.turns,
-        }, collapsed[0].inside, cur_time, matched[0].inside);
+        }, collapsed[0].inside, cur_time, matched[0]);
 
         if (cases.length > 1) {
             const extra_poles = countExtraPolesNeeded(cases[0]);
@@ -354,14 +360,29 @@ export class Drawer {
         }
     }
 
-    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]) {
+    private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput) {
         const unit = view.halfside / 4;
+
+        if (matched.main !== null) {
+            this.drawMolecule(matched.main, {
+                pos: view.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            });
+            this.drawPatternWithoutVariables(match_case.pattern, {
+                pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            });
+        } else {
+            this.drawPattern(match_case.pattern, {
+                pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            });
+        }
+
         this.drawMolecule(match_case.template, view);
-        this.drawPattern(match_case.pattern, {
-            pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
-            halfside: view.halfside,
-            turns: view.turns,
-        });
         this.drawMolecule(match_case.fn_name_template, {
             pos: view.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside / 2,
@@ -422,11 +443,11 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            this.drawMatchers(match_case.next, view, collapsed, cur_time, matched);
+            this.drawMatchers(match_case.next, view, collapsed, cur_time, matched.inside);
         }
     }
 
-    private drawMoleculeNonRecursive(data: SexprTemplate, view: SexprView) {
+    private drawMoleculeNonRecursive(data: SexprNullable, view: SexprView) {
         if (data.type === 'variable') {
             const points = [
                 new Vec2(-view.halfside * SPIKE_PERC, 0),
@@ -467,6 +488,9 @@ export class Drawer {
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
+        }
+        else if (data.type === 'null') {
+            return;
         }
         else {
             const halfside = view.halfside;
@@ -567,7 +591,7 @@ export class Drawer {
     }
 }
 
-type MatchedInput = { main: null | SexprLiteral, inside: MatchedInput[] };
+type MatchedInput = { main: null | SexprNullable, inside: MatchedInput[] };
 
 export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
     function helper(match_case: MatchCaseDefinition): MatchedInput {

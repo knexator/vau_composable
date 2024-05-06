@@ -84,6 +84,7 @@ let cur_collapse = nothingCollapsed(cur_fnk.cases);
 let cur_matched = nothingMatched(cur_fnk.cases);
 
 const cur_input = parseSexprLiteral('(1 2 X 3 4)');
+cur_matched[1].main = {type: 'pair', left: {type: 'null'}, right: {type: 'null'}};
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
