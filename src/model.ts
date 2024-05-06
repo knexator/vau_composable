@@ -86,7 +86,7 @@ function clone(x: SexprTemplate): SexprTemplate {
     }
 }
 
-type Address = ('l' | 'r')[];
+export type Address = ('l' | 'r')[];
 
 function getAtAddress(haystack: SexprTemplate, address: Address): SexprTemplate | null {
     let result = haystack;
@@ -114,7 +114,7 @@ type Binding = {
     value: SexprLiteral,
 };
 
-function generateBindings(argument: SexprLiteral, template: SexprTemplate): Binding[] | null {
+export function generateBindings(argument: SexprLiteral, template: SexprTemplate): Binding[] | null {
     if (template.type === 'atom') {
         if (argument.type === 'atom' && argument.value === template.value) {
             return [];

@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, reversedForEach, zip2 } from './kommon/kommon';
 import { in01, inRange, lerp, remap } from './kommon/math';
-import { FunktionDefinition, MatchCaseDefinition, SexprLiteral, SexprNullable, SexprTemplate } from './model';
+import { Address, FunktionDefinition, MatchCaseDefinition, SexprLiteral, SexprNullable, SexprTemplate, generateBindings } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -168,6 +168,44 @@ export class Drawer {
         if (data.type === 'pair') {
             this.drawPattern(data.left, getPatternChildView(view, true));
             this.drawPattern(data.right, getPatternChildView(view, false));
+        }
+    }
+
+    drawBindings(bindings: FloatingBinding[], t: number) {
+        bindings.forEach(x => {
+            let cur_view = lerpSexprView(x.source_view, x.target_view, t);
+            this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, {
+                pos: cur_view.pos.add(new Vec2(cur_view.halfside * 3, 0).rotateTurns(cur_view.turns)),
+                halfside: cur_view.halfside,
+                turns: cur_view.turns
+            });
+            this.drawMolecule(x.value, cur_view);
+        }, this);
+    }
+
+    generateFloatingBindings(input: SexprLiteral, cases: MatchCaseDefinition[], view: SexprView): FloatingBinding[] | null {
+        if (cases.length === 0) return null;
+        const unit = view.halfside / 4;
+        let bindings = generateBindings(input, cases[0].pattern);
+        if (bindings === null) {
+            const extra_poles = countExtraPolesNeeded(cases[0]);
+            return this.generateFloatingBindings(input, cases.slice(1), {
+                pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            });
+        } else {
+            // TODO: target_view, multiple copies of each binding
+            return bindings.map(x => ({
+                source_view: getSexprGrandChildView({
+                    pos: view.pos.add(new Vec2(11, 12).scale(unit).rotateTurns(view.turns)),
+                    halfside: view.halfside,
+                    turns: view.turns
+                }, x.target_address),
+                target_view: view,
+                variable_name: x.variable_name,
+                value: x.value
+            }));
         }
     }
 
@@ -591,6 +629,21 @@ export class Drawer {
     }
 }
 
+function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView {
+    return {
+        pos: Vec2.lerp(a.pos, b.pos, t),
+        halfside: lerp(a.halfside, b.halfside, t),
+        turns: lerp(a.turns, b.turns, t)
+    };
+}
+
+export type FloatingBinding = {
+    source_view: SexprView,
+    target_view: SexprView,
+    variable_name: string,
+    value: SexprLiteral,
+};
+
 type MatchedInput = { main: null | SexprNullable, inside: MatchedInput[] };
 
 export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
@@ -646,6 +699,11 @@ function getPatternChildView(parent: SexprView, is_left: boolean): SexprView {
         halfside: parent.halfside / 2,
         turns: parent.turns,
     };
+}
+
+function getSexprGrandChildView(parent: SexprView, path: Address): SexprView {
+    if (path.length === 0) return parent;
+    return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
 export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {

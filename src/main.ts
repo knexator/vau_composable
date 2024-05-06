@@ -5,7 +5,7 @@ import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, z
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Drawer, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
+import { Drawer, FloatingBinding, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -84,7 +84,10 @@ let cur_collapse = nothingCollapsed(cur_fnk.cases);
 let cur_matched = nothingMatched(cur_fnk.cases);
 
 const cur_input = parseSexprLiteral('(1 2 X 3 4)');
-cur_matched[1].main = {type: 'pair', left: {type: 'null'}, right: {type: 'null'}};
+cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
+
+const screen_size = new Vec2(canvas.width, canvas.height);
+let cur_bindings: FloatingBinding[] | null = null;
 
 let last_timestamp_millis = 0;
 // main loop; game logic lives here
@@ -127,6 +130,12 @@ function every_frame(cur_timestamp_millis: number) {
         halfside: view.halfside,
         turns: view.turns,
     });
+
+    if (cur_bindings === null) {
+        cur_bindings = drawer.generateFloatingBindings(cur_input, cur_fnk.cases, view)!;
+    }
+
+    drawer.drawBindings(cur_bindings!, CONFIG._0_1);
 
     // drawer.drawMolecule(parseSexprTemplate('@x'), {
     //     pos: screen_size.mul(new Vec2(0.625, 0.2125)),
