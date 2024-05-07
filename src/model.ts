@@ -25,7 +25,6 @@ export type SexprNullable =
     | { type: 'atom', value: string }
     | { type: 'pair', left: SexprNullable, right: SexprNullable };
 
-
 export function assertLiteral(x: SexprTemplate): SexprLiteral {
     if (x.type === 'variable') throw new Error('Template is not fully resolved');
     if (x.type === 'pair') {
@@ -86,9 +85,11 @@ function clone(x: SexprTemplate): SexprTemplate {
     }
 }
 
-export type Address = ('l' | 'r')[];
+export type SexprAddress = ('l' | 'r')[];
+export type MatchCaseAddress = number[];
+export type FullAddress = { type: 'fn_name' | 'pattern' | 'template', major: MatchCaseAddress, minor: SexprAddress };
 
-function getAtAddress(haystack: SexprTemplate, address: Address): SexprTemplate | null {
+function getAtAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemplate | null {
     let result = haystack;
     for (let k = 0; k < address.length; k++) {
         if (result.type !== 'pair') return null;
@@ -97,7 +98,7 @@ function getAtAddress(haystack: SexprTemplate, address: Address): SexprTemplate 
     return result;
 }
 
-function setAtAddress(haystack: SexprTemplate, address: Address, needle: SexprTemplate): SexprTemplate {
+function setAtAddress(haystack: SexprTemplate, address: SexprAddress, needle: SexprTemplate): SexprTemplate {
     if (address.length === 0) return needle;
     if (haystack.type !== 'pair') throw new Error('can\'t setAtAddress, is not a pair');
     if (address[0] === 'l') {
@@ -110,7 +111,7 @@ function setAtAddress(haystack: SexprTemplate, address: Address, needle: SexprTe
 
 type Binding = {
     variable_name: string,
-    target_address: Address,
+    target_address: SexprAddress,
     value: SexprLiteral,
 };
 
@@ -148,7 +149,7 @@ export function generateBindings(argument: SexprLiteral, template: SexprTemplate
     }
 }
 
-function concatAddresses(parent: Address, child: Address): Address {
+function concatAddresses(parent: SexprAddress, child: SexprAddress): SexprAddress {
     return [...parent, ...child];
 }
 
@@ -207,4 +208,55 @@ function fillTemplate(template: SexprTemplate, bindings: Binding[]): SexprLitera
             right: fillTemplate(template.right, bindings),
         };
     }
+}
+
+function addressesOfVariableInSexpr(haystack: SexprTemplate, needle_name: string): SexprAddress[] {
+    if (haystack.type === 'atom') {
+        return [];
+    }
+    else if (haystack.type === 'variable') {
+        return haystack.value === needle_name ? [[]] : [];
+    }
+    else if (haystack.type === 'pair') {
+        return [
+            ...addressesOfVariableInSexpr(haystack.left, needle_name).map(x => concatAddresses(['l'], x)),
+            ...addressesOfVariableInSexpr(haystack.right, needle_name).map(x => concatAddresses(['r'], x)),
+        ];
+    }
+    else {
+        throw new Error('unreachable');
+    }
+}
+
+export function addressesOfVariableInTemplates(haystack: MatchCaseDefinition[], needle_name: string): FullAddress[] {
+    if (haystack.length === 0) return [];
+
+    function local(address: SexprAddress, place: 'template' | 'fn_name'): FullAddress {
+        return { type: place, major: [], minor: address };
+    }
+
+    const local_results: FullAddress[] = [
+        ...addressesOfVariableInSexpr(haystack[0].template, needle_name).map(x => local(x, 'template')),
+        ...addressesOfVariableInSexpr(haystack[0].fn_name_template, needle_name).map(x => local(x, 'fn_name')),
+    ];
+
+    const inner_results: FullAddress[] = haystack[0].next === "return" ? []
+        : addressesOfVariableInTemplates(haystack[0].next, needle_name).map(x => ({
+            type: x.type, minor: x.minor, major: [0, ...x.major]
+        }));
+
+    // const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map(x => ({
+    //         type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major]
+    //     }));
+    const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map(x => {
+        if (x.major.length === 0) throw new Error("???");
+        return { type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major.slice(1)] };
+    });
+
+    for (const asdf of addressesOfVariableInTemplates(haystack.slice(1), needle_name)) {
+        if (asdf.major.length === 0) throw new Error("???");
+        console.log('major: ', asdf.major);
+    }
+
+    return [...local_results, ...inner_results, ...next_results];
 }

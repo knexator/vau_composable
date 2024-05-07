@@ -81,7 +81,7 @@ const cur_fnk: FunktionDefinition = {
     ],
 };
 let cur_collapse = nothingCollapsed(cur_fnk.cases);
-let cur_matched = nothingMatched(cur_fnk.cases);
+const cur_matched = nothingMatched(cur_fnk.cases);
 
 const cur_input = parseSexprLiteral('(1 2 X 3 4)');
 cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
@@ -131,11 +131,12 @@ function every_frame(cur_timestamp_millis: number) {
         turns: view.turns,
     });
 
-    if (cur_bindings === null) {
+    // if (cur_bindings === null) {
         cur_bindings = drawer.generateFloatingBindings(cur_input, cur_fnk.cases, view)!;
-    }
+        console.log(cur_bindings!.length); // xq 1??
+    // }
 
-    drawer.drawBindings(cur_bindings!, CONFIG._0_1);
+    drawer.drawBindings(cur_bindings, CONFIG._0_1);
 
     // drawer.drawMolecule(parseSexprTemplate('@x'), {
     //     pos: screen_size.mul(new Vec2(0.625, 0.2125)),
