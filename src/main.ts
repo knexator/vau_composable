@@ -65,7 +65,9 @@ class Asdfasdf {
         private collapse: Collapsed[],
         private matched: MatchedInput[],
         private input: SexprLiteral,
-        private animation: { type: 'input_moving_to_next_option', source: number },
+        private animation:
+            { type: 'input_moving_to_next_option', source: number } // TODO: rename source to target
+            | { type: 'failing_to_match', which: number }
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -75,6 +77,7 @@ class Asdfasdf {
             nothingMatched(fnk.cases),
             input,
             { type: 'input_moving_to_next_option', source: 0 },
+            // { type: 'failing_to_match', which: 0 },
         );
     }
 
@@ -100,7 +103,11 @@ class Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'input_moving_to_next_option', source: this.animation.source + 1 });
+                    { type: 'failing_to_match', which: this.animation.source });
+            }
+            case 'failing_to_match': {
+                return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
+                    { type: 'input_moving_to_next_option', source: this.animation.which + 1 });
             }
             default:
                 throw new Error('unhandled');
@@ -113,6 +120,15 @@ class Asdfasdf {
         drawer.drawFunktion(this.fnk, view, this.collapse, global_t, this.matched);
         if (this.animation.type === 'input_moving_to_next_option') {
             drawer.drawMolecule(this.input, this.getViewOfMovingInput(view, this.animation.source + anim_t));
+        }
+        else if (this.animation.type === 'failing_to_match') {
+            const base_view = this.getViewOfMovingInput(view, this.animation.which + 1);
+            const unit = base_view.halfside / 4;
+            drawer.drawMolecule(this.input, {
+                pos: base_view.pos.addX((anim_t - 1) * (anim_t - 0) * 4 * -unit * 11),
+                halfside: base_view.halfside,
+                turns: base_view.turns
+            });
         }
         else {
             drawer.drawMolecule(this.input, {
