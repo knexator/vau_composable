@@ -5,7 +5,7 @@ import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
-type SexprView = { pos: Vec2, halfside: number, turns: number };
+export type SexprView = { pos: Vec2, halfside: number, turns: number };
 
 const COLORS = {
     background: Color.fromInt(0x6e6e6e),
@@ -633,7 +633,7 @@ export class Drawer {
     }
 }
 
-function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView {
+export function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView {
     return {
         pos: Vec2.lerp(a.pos, b.pos, t),
         halfside: lerp(a.halfside, b.halfside, t),
@@ -648,7 +648,7 @@ export type FloatingBinding = {
     value: SexprLiteral,
 };
 
-type MatchedInput = { main: null | SexprNullable, inside: MatchedInput[] };
+export type MatchedInput = { main: null | SexprNullable, inside: MatchedInput[] };
 
 export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
     function helper(match_case: MatchCaseDefinition): MatchedInput {
@@ -660,7 +660,7 @@ export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
     return cases.map(helper);
 }
 
-type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
+export type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
     function helper(match_case: MatchCaseDefinition): Collapsed {
@@ -734,10 +734,11 @@ function getView(parent: SexprView, path: FullAddress): SexprView {
                     turns: parent.turns,
                 }, path.minor);
             default:
-                throw new Error("unreachable");
+                throw new Error('unreachable');
         }
         return getSexprGrandChildView(parent, path.minor);
-    } else {
+    }
+    else {
         const extra_poles = 0; // TODO
         return getView({
             pos: parent.pos.add(new Vec2(28 * unit, 10 * unit + path.major[0] * 18 * unit * (1 + extra_poles)).rotateTurns(parent.turns)),
@@ -772,8 +773,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);

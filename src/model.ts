@@ -240,23 +240,19 @@ export function addressesOfVariableInTemplates(haystack: MatchCaseDefinition[], 
         ...addressesOfVariableInSexpr(haystack[0].fn_name_template, needle_name).map(x => local(x, 'fn_name')),
     ];
 
-    const inner_results: FullAddress[] = haystack[0].next === "return" ? []
+    const inner_results: FullAddress[] = haystack[0].next === 'return'
+        ? []
         : addressesOfVariableInTemplates(haystack[0].next, needle_name).map(x => ({
-            type: x.type, minor: x.minor, major: [0, ...x.major]
+            type: x.type, minor: x.minor, major: [0, ...x.major],
         }));
 
     // const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map(x => ({
     //         type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major]
     //     }));
-    const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map(x => {
-        if (x.major.length === 0) throw new Error("???");
+    const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map((x) => {
+        if (x.major.length === 0) throw new Error('???');
         return { type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major.slice(1)] };
     });
-
-    for (const asdf of addressesOfVariableInTemplates(haystack.slice(1), needle_name)) {
-        if (asdf.major.length === 0) throw new Error("???");
-        console.log('major: ', asdf.major);
-    }
 
     return [...local_results, ...inner_results, ...next_results];
 }
