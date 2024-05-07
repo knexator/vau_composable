@@ -13,10 +13,12 @@ const drawer = new Drawer(canvas.getContext('2d')!);
 
 const CONFIG = {
     _0_1: 0.0,
+    nextAnim: nextAnim,
 };
 
 const gui = new GUI();
-gui.add(CONFIG, '_0_1', 0, 1);
+gui.add(CONFIG, '_0_1', 0, 1).listen();
+gui.add(CONFIG, 'nextAnim');
 
 // const x = parseSexprTemplate(`@x`);
 // const cur_fnk: FunktionDefinition = {
@@ -94,6 +96,17 @@ class Asdfasdf {
         }
     }
 
+    next(): Asdfasdf {
+        switch (this.animation.type) {
+            case 'input_moving_to_next_option': {
+                return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
+                    { type: 'input_moving_to_next_option', source: this.animation.source + 1 });
+            }
+            default:
+                throw new Error('unhandled');
+        }
+    }
+
     draw(drawer: Drawer, anim_t: number, global_t: number) {
         const view = this.getMainView();
 
@@ -134,7 +147,7 @@ class Asdfasdf {
     }
 }
 
-const cur_asdfasdf = Asdfasdf.init({
+let cur_asdfasdf = Asdfasdf.init({
     name: { type: 'atom', value: 'bubbleUp' },
     cases: [
         {
@@ -158,6 +171,11 @@ const cur_asdfasdf = Asdfasdf.init({
         },
     ],
 }, parseSexprLiteral('(1 2 X 3 4)'));
+
+function nextAnim() {
+    CONFIG._0_1 = 0;
+    cur_asdfasdf = cur_asdfasdf.next();
+}
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
