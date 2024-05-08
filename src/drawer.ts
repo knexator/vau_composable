@@ -166,8 +166,8 @@ export class Drawer {
     drawPattern(data: SexprTemplate, view: SexprView) {
         this.drawPatternNonRecursive(data, view);
         if (data.type === 'pair') {
-            this.drawPattern(data.left, getPatternChildView(view, true));
-            this.drawPattern(data.right, getPatternChildView(view, false));
+            this.drawPattern(data.left, getSexprChildView(view, true));
+            this.drawPattern(data.right, getSexprChildView(view, false));
         }
     }
 
@@ -216,8 +216,8 @@ export class Drawer {
         if (data.type === 'variable') return;
         this.drawPatternNonRecursive(data, view);
         if (data.type === 'pair') {
-            this.drawPatternWithoutVariables(data.left, getPatternChildView(view, true));
-            this.drawPatternWithoutVariables(data.right, getPatternChildView(view, false));
+            this.drawPatternWithoutVariables(data.left, getSexprChildView(view, true));
+            this.drawPatternWithoutVariables(data.right, getSexprChildView(view, false));
         }
     }
 
@@ -272,10 +272,11 @@ export class Drawer {
                 this.ctx.stroke();
             }
 
+            // TODO
             this.drawPattern(cases[0].pattern, {
                 pos: view.pos.add(Vec2.lerp(
-                    new Vec2(23, 12),
-                    new Vec2(17, 8),
+                    new Vec2(11, 12),
+                    new Vec2(11, 8),
                     collapse_amount,
                 ).scale(unit).rotateTurns(view.turns)),
                 halfside: lerp(view.halfside, view.halfside / 2, collapse_amount),
@@ -320,7 +321,7 @@ export class Drawer {
             }
 
             this.drawPattern(cases[0].pattern, {
-                pos: view.pos.add(new Vec2(17, 8).scale(unit).rotateTurns(view.turns)),
+                pos: view.pos.add(new Vec2(11, 8).scale(unit).rotateTurns(view.turns)),
                 halfside: view.halfside / 2,
                 turns: view.turns,
             });
@@ -411,14 +412,14 @@ export class Drawer {
                 turns: view.turns,
             });
             this.drawPatternWithoutVariables(match_case.pattern, {
-                pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
+                pos: view.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
             });
         }
         else {
             this.drawPattern(match_case.pattern, {
-                pos: view.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(view.turns)),
+                pos: view.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
             });
@@ -563,16 +564,16 @@ export class Drawer {
     private drawPatternNonRecursive(data: SexprTemplate, view: SexprView) {
         if (data.type === 'pair') {
             const halfside = view.halfside;
-            const middle_right_pos = new Vec2(-halfside, 0);
+            const middle_right_pos = new Vec2(halfside * 2, 0);
             const points = [
-                new Vec2(halfside * SPIKE_PERC, 0),
-                new Vec2(0, -halfside),
+                new Vec2((3 + SPIKE_PERC) * halfside, 0),
+                new Vec2(3 * halfside, -halfside),
                 middle_right_pos.add(new Vec2(0, -halfside)),
                 middle_right_pos.add(new Vec2(SPIKE_PERC * halfside / 2, -halfside / 2)),
                 middle_right_pos,
                 middle_right_pos.add(new Vec2(SPIKE_PERC * halfside / 2, halfside / 2)),
                 middle_right_pos.add(new Vec2(0, halfside)),
-                new Vec2(0, halfside),
+                new Vec2(3 * halfside, halfside),
             ].map(v => v.rotateTurns(view.turns))
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
@@ -589,26 +590,27 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
-            this.moveTo(view.pos.add(new Vec2(view.halfside * SPIKE_PERC, 0).rotateTurns(view.turns)));
-            this.lineTo(view.pos.add(new Vec2(0, -view.halfside).rotateTurns(view.turns)));
-            this.lineTo(view.pos.add(new Vec2(-view.halfside, -view.halfside).rotateTurns(view.turns)));
+            this.moveTo(view.pos.add(new Vec2(view.halfside * SPIKE_PERC + view.halfside * 3, 0).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(-view.halfside + view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
             profile.forEach(({ x: time, y: offset }) => {
-                const thing = new Vec2(-view.halfside + offset * view.halfside, lerp(-view.halfside, 0, time));
+                const thing = new Vec2(-view.halfside + view.halfside * 3 + offset * view.halfside, lerp(-view.halfside, 0, time));
                 this.lineTo(view.pos.add(thing.rotateTurns(view.turns)));
             });
             reversedForEach(profile, ({ x: time, y: offset }) => {
-                const thing = new Vec2(-view.halfside - offset * view.halfside, lerp(view.halfside, 0, time));
+                const thing = new Vec2(-view.halfside + view.halfside * 3 - offset * view.halfside, lerp(view.halfside, 0, time));
                 this.lineTo(view.pos.add(thing.rotateTurns(view.turns)));
             });
-            this.lineTo(view.pos.add(new Vec2(-view.halfside, view.halfside).rotateTurns(view.turns)));
-            this.lineTo(view.pos.add(new Vec2(0, view.halfside).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(-view.halfside + view.halfside * 3, view.halfside).rotateTurns(view.turns)));
+            this.lineTo(view.pos.add(new Vec2(view.halfside * 3, view.halfside).rotateTurns(view.turns)));
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
         }
         else {
+            const unit = view.halfside / 4;
             this.drawMoleculeNonRecursive(data, {
-                pos: view.pos,
+                pos: view.pos.addX(unit * 12),
                 halfside: view.halfside,
                 turns: view.turns + 0.5,
             });
@@ -700,19 +702,6 @@ function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprVie
     return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
-function getPatternChildView(parent: SexprView, is_left: boolean): SexprView {
-    return {
-        pos: parent.pos.add(new Vec2(-parent.halfside, (is_left ? -1 : 1) * parent.halfside / 2).rotateTurns(parent.turns)),
-        halfside: parent.halfside / 2,
-        turns: parent.turns,
-    };
-}
-
-function getPatternGrandChildView(parent: SexprView, path: SexprAddress): SexprView {
-    if (path.length === 0) return parent;
-    return getPatternGrandChildView(getPatternChildView(parent, path[0] === 'l'), path.slice(1));
-}
-
 export function getView(parent: SexprView, path: FullAddress): SexprView {
     // TODO: fails for parent fn_name
     const unit = parent.halfside / 4;
@@ -723,10 +712,8 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
                 throw new Error('unimplemented');
                 break;
             case 'pattern':
-                return getPatternGrandChildView({
-                    pos: parent.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(parent.turns)),
-                    // TODO: change everywhere the Pattern view
-                    // pos: parent.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(parent.turns)),
+                return getSexprGrandChildView({
+                    pos: parent.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(parent.turns)),
                     halfside: parent.halfside,
                     turns: parent.turns,
                 }, path.minor);
@@ -744,7 +731,6 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
             turns: parent.turns,
         }, { type: path.type, minor: path.minor, major: path.major.slice(1) });
     }
-    return parent;
 }
 
 export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
@@ -771,8 +757,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
