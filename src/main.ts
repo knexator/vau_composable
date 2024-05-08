@@ -1,11 +1,11 @@
 import * as twgl from 'twgl.js';
 import GUI from 'lil-gui';
 import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, fromCount, fromRange, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
+import { DefaultMap, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, SexprLiteral, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
+import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -66,8 +66,8 @@ class Asdfasdf {
         private matched: MatchedInput[],
         private input: SexprLiteral,
         private animation:
-            { type: 'input_moving_to_next_option', source: number } // TODO: rename source to target
-            | { type: 'failing_to_match', which: number }
+            { type: 'input_moving_to_next_option', target: MatchCaseAddress }
+            | { type: 'failing_to_match', which: MatchCaseAddress },
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -76,38 +76,33 @@ class Asdfasdf {
             nothingCollapsed(fnk.cases),
             nothingMatched(fnk.cases),
             input,
-            { type: 'input_moving_to_next_option', source: 0 },
-            // { type: 'failing_to_match', which: 0 },
+            // { type: 'input_moving_to_next_option', target: [0] },
+            { type: 'failing_to_match', which: [1, 0] },
         );
     }
 
-    private getViewOfMovingInput(view: SexprView, y: number): SexprView {
+    private getViewOfMovingInput(view: SexprView, address: MatchCaseAddress): SexprView {
+        const chair_view = getView(view, {
+            type: 'pattern',
+            major: address,
+            minor: [],
+        });
         const unit = view.halfside / 4;
-        if (y < 1) {
-            return {
-                pos: view.pos.addY(y * 12 * unit),
-                halfside: view.halfside,
-                turns: view.turns,
-            };
-        }
-        else {
-            return {
-                pos: view.pos.addY(unit * 12 + (y - 1) * 18 * unit),
-                halfside: view.halfside,
-                turns: view.turns,
-            };
-        }
+        return {
+            pos: chair_view.pos.add(new Vec2(-unit * 23, 0).rotateTurns(chair_view.turns)),
+            halfside: chair_view.halfside, turns: chair_view.turns,
+        };
     }
 
     next(): Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'failing_to_match', which: this.animation.source });
+                    { type: 'failing_to_match', which: this.animation.target });
             }
             case 'failing_to_match': {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'input_moving_to_next_option', source: this.animation.which + 1 });
+                    { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
             default:
                 throw new Error('unhandled');
@@ -119,15 +114,27 @@ class Asdfasdf {
 
         drawer.drawFunktion(this.fnk, view, this.collapse, global_t, this.matched);
         if (this.animation.type === 'input_moving_to_next_option') {
-            drawer.drawMolecule(this.input, this.getViewOfMovingInput(view, this.animation.source + anim_t));
+            const source_view = (last(this.animation.target) === 0)
+                ? getView(view, {
+                    type: 'template',
+                    major: this.animation.target.slice(0, -1),
+                    minor: [],
+                })
+                : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1]);
+            drawer.drawMolecule(this.input, lerpSexprView(
+                source_view,
+                this.getViewOfMovingInput(view, this.animation.target),
+                anim_t,
+            ));
         }
         else if (this.animation.type === 'failing_to_match') {
-            const base_view = this.getViewOfMovingInput(view, this.animation.which + 1);
+            const base_view = this.getViewOfMovingInput(view, this.animation.which);
+            // const base_view = this.getViewOfMovingInput(view, this.animation.which + 1);
             const unit = base_view.halfside / 4;
             drawer.drawMolecule(this.input, {
                 pos: base_view.pos.addX((anim_t - 1) * (anim_t - 0) * 4 * -unit * 11),
                 halfside: base_view.halfside,
-                turns: base_view.turns
+                turns: base_view.turns,
             });
         }
         else {

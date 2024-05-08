@@ -175,7 +175,7 @@ export function lerpHexColor(a: string, b: string, t: number): string {
     return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`;
 }
 
-function single<T>(arr: T[]): T {
+export function single<T>(arr: T[]): T {
     if (arr.length === 0) {
         throw new Error('the array was empty');
     }
@@ -187,13 +187,18 @@ function single<T>(arr: T[]): T {
     }
 }
 
-function at<T>(arr: T[], index: number): T {
+export function at<T>(arr: T[], index: number): T {
     if (arr.length === 0) throw new Error('can\'t call \'at\' with empty array');
     return arr[mod(index, arr.length)];
 }
 
-function or(a: boolean, b: boolean): boolean {
+export function or(a: boolean, b: boolean): boolean {
     return a || b;
+}
+
+export function last<T>(arr: T[]): T {
+    if (arr.length === 0) throw new Error('can\'t call \'last\' with empty array');
+    return arr[arr.length - 1];
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */

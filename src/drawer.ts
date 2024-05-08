@@ -713,26 +713,23 @@ function getPatternGrandChildView(parent: SexprView, path: SexprAddress): SexprV
     return getPatternGrandChildView(getPatternChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
-function getView(parent: SexprView, path: FullAddress): SexprView {
+export function getView(parent: SexprView, path: FullAddress): SexprView {
     // TODO: fails for parent fn_name
     const unit = parent.halfside / 4;
     if (path.major.length === 0) {
         switch (path.type) {
             case 'fn_name':
                 // TODO
+                throw new Error('unimplemented');
                 break;
             case 'pattern':
                 return getPatternGrandChildView({
-                    pos: parent.pos.add(new Vec2(23, 12).scale(unit).rotateTurns(parent.turns)),
+                    pos: parent.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(parent.turns)),
                     halfside: parent.halfside,
                     turns: parent.turns,
                 }, path.minor);
             case 'template':
-                return getSexprGrandChildView({
-                    pos: parent.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(parent.turns)),
-                    halfside: parent.halfside,
-                    turns: parent.turns,
-                }, path.minor);
+                return getSexprGrandChildView(parent, path.minor);
             default:
                 throw new Error('unreachable');
         }
