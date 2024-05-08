@@ -725,6 +725,8 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
             case 'pattern':
                 return getPatternGrandChildView({
                     pos: parent.pos.add(new Vec2(-5, 2).scale(unit).rotateTurns(parent.turns)),
+                    // TODO: change everywhere the Pattern view
+                    // pos: parent.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(parent.turns)),
                     halfside: parent.halfside,
                     turns: parent.turns,
                 }, path.minor);
@@ -733,7 +735,6 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
             default:
                 throw new Error('unreachable');
         }
-        return getSexprGrandChildView(parent, path.minor);
     }
     else {
         const extra_poles = 0; // TODO

@@ -67,7 +67,8 @@ class Asdfasdf {
         private input: SexprLiteral,
         private animation:
             { type: 'input_moving_to_next_option', target: MatchCaseAddress }
-            | { type: 'failing_to_match', which: MatchCaseAddress },
+            | { type: 'failing_to_match', which: MatchCaseAddress }
+            | { type: 'matching', which: MatchCaseAddress },
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -77,7 +78,8 @@ class Asdfasdf {
             nothingMatched(fnk.cases),
             input,
             // { type: 'input_moving_to_next_option', target: [0] },
-            { type: 'failing_to_match', which: [1, 0] },
+            // { type: 'failing_to_match', which: [1, 0] },
+            { type: 'matching', which: [1, 0] },
         );
     }
 
@@ -104,6 +106,8 @@ class Asdfasdf {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
                     { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
+            case 'matching':
+                throw new Error('TODO');
             default:
                 throw new Error('unhandled');
         }
@@ -128,21 +132,29 @@ class Asdfasdf {
             ));
         }
         else if (this.animation.type === 'failing_to_match') {
+            // drawer.drawMolecule(this.input, lerpSexprView(
+            //     this.getViewOfMovingInput(view, this.animation.which),
+            //     getView(view, { type: 'pattern', major: this.animation.which, minor: [] }),
+            //     // (anim_t - 1) * (anim_t - 0) * 4,
+            //     anim_t
+            // ));
             const base_view = this.getViewOfMovingInput(view, this.animation.which);
-            // const base_view = this.getViewOfMovingInput(view, this.animation.which + 1);
             const unit = base_view.halfside / 4;
             drawer.drawMolecule(this.input, {
                 pos: base_view.pos.addX((anim_t - 1) * (anim_t - 0) * 4 * -unit * 11),
                 halfside: base_view.halfside,
                 turns: base_view.turns,
             });
-        }
-        else {
+        } else if (this.animation.type === 'matching') {
+            const base_view = this.getViewOfMovingInput(view, this.animation.which);
+            const unit = base_view.halfside / 4;
             drawer.drawMolecule(this.input, {
-                pos: view.pos,
-                halfside: view.halfside,
-                turns: view.turns,
+                pos: base_view.pos.addX(anim_t * unit * 11),
+                halfside: base_view.halfside,
+                turns: base_view.turns,
             });
+        } else {
+            throw new Error("unimplemented");
         }
     }
 
