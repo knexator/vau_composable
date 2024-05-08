@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, parseSexprLiteral, parseSexprTemplate } from './model';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, generateBindings, getAt, parseSexprLiteral, parseSexprTemplate } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
 
 const input = new Input();
@@ -99,8 +99,9 @@ class Asdfasdf {
     next(): Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
+                let asdf = generateBindings(this.input, getAt(this.fnk.cases, {type: 'pattern', minor: [], major: this.animation.target})!);
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'failing_to_match', which: this.animation.target });
+                    { type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
             }
             case 'failing_to_match': {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,

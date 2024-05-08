@@ -37,6 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
+import { single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -89,7 +90,7 @@ export type SexprAddress = ('l' | 'r')[];
 export type MatchCaseAddress = number[];
 export type FullAddress = { type: 'fn_name' | 'pattern' | 'template', major: MatchCaseAddress, minor: SexprAddress };
 
-function getAtAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemplate | null {
+function getAtLocalAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemplate | null {
     let result = haystack;
     for (let k = 0; k < address.length; k++) {
         if (result.type !== 'pair') return null;
@@ -98,14 +99,14 @@ function getAtAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemp
     return result;
 }
 
-function setAtAddress(haystack: SexprTemplate, address: SexprAddress, needle: SexprTemplate): SexprTemplate {
+function setAtLocalAddress(haystack: SexprTemplate, address: SexprAddress, needle: SexprTemplate): SexprTemplate {
     if (address.length === 0) return needle;
     if (haystack.type !== 'pair') throw new Error('can\'t setAtAddress, is not a pair');
     if (address[0] === 'l') {
-        return { type: 'pair', right: haystack.right, left: setAtAddress(haystack.left, address.slice(1), needle) };
+        return { type: 'pair', right: haystack.right, left: setAtLocalAddress(haystack.left, address.slice(1), needle) };
     }
     else {
-        return { type: 'pair', left: haystack.left, right: setAtAddress(haystack.right, address.slice(1), needle) };
+        return { type: 'pair', left: haystack.left, right: setAtLocalAddress(haystack.right, address.slice(1), needle) };
     }
 }
 
@@ -255,4 +256,28 @@ export function addressesOfVariableInTemplates(haystack: MatchCaseDefinition[], 
     });
 
     return [...local_results, ...inner_results, ...next_results];
+}
+
+export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): SexprTemplate | null {
+    if (address.major.length === 0) throw new Error('unimplented');
+    if (address.major.length === 1) {
+        const match_case = haystack[single(address.major)];
+        switch (address.type) {
+            case 'fn_name':
+                return getAtLocalAddress(match_case.fn_name_template, address.minor);
+            case 'pattern':
+                return getAtLocalAddress(match_case.pattern, address.minor);
+            case 'template':
+                return getAtLocalAddress(match_case.template, address.minor);
+            default:
+                throw new Error("unreachable");
+        }
+    }
+    const next = haystack[address.major[0]].next;
+    if (next === 'return') return null;
+    return getAt(next, {
+        type: address.type,
+        major: address.major.slice(1),
+        minor: address.minor,
+    });
 }
