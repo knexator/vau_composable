@@ -112,7 +112,7 @@ function setAtLocalAddress(haystack: SexprTemplate, address: SexprAddress, needl
 
 type Binding = {
     variable_name: string,
-    target_address: SexprAddress,
+    variable_address: SexprAddress,
     value: SexprLiteral,
 };
 
@@ -126,7 +126,7 @@ export function generateBindings(argument: SexprLiteral, template: SexprTemplate
         }
     }
     else if (template.type === 'variable') {
-        return [{ variable_name: template.value, target_address: [], value: structuredClone(argument) }];
+        return [{ variable_name: template.value, variable_address: [], value: structuredClone(argument) }];
     }
     else {
         if (argument.type !== 'pair') return null;
@@ -137,13 +137,13 @@ export function generateBindings(argument: SexprLiteral, template: SexprTemplate
         }
         else {
             return [
-                ...left_match.map(({ variable_name, target_address, value }) => ({
+                ...left_match.map(({ variable_name, variable_address, value }) => ({
                     variable_name, value,
-                    target_address: concatAddresses(['l'], target_address),
+                    variable_address: concatAddresses(['l'], variable_address),
                 })),
-                ...right_match.map(({ variable_name, target_address, value }) => ({
+                ...right_match.map(({ variable_name, variable_address, value }) => ({
                     variable_name, value,
-                    target_address: concatAddresses(['r'], target_address),
+                    variable_address: concatAddresses(['r'], variable_address),
                 })),
             ];
         }

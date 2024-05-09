@@ -109,11 +109,7 @@ class Asdfasdf {
                     { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
             case 'matching': {
-                const bindings = generateFloatingBindings(this.input, getCaseAt(this.fnk, this.animation.which), getView(this.getMainView(), {
-                    type: 'template',
-                    major: this.animation.which,
-                    minor: [],
-                }));
+                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getMainView());
                 const new_matched = updateMatched(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
                 return new Asdfasdf(this.fnk, this.collapse, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings });
@@ -156,7 +152,7 @@ class Asdfasdf {
             ));
         }
         else if (this.animation.type === 'floating_bindings') {
-            drawer.drawBindings(this.animation.bindings, anim_t);
+            drawer.drawBindings(this.getMainView(), this.animation.bindings, anim_t);
         }
         else {
             throw new Error('unimplemented');

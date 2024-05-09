@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull } from './model';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -171,9 +171,9 @@ export class Drawer {
         }
     }
 
-    drawBindings(bindings: FloatingBinding[], t: number) {
+    drawBindings(parent_view: SexprView, bindings: FloatingBinding[], t: number) {
         bindings.forEach((x) => {
-            const cur_view = lerpSexprView(x.source_view, x.target_view, t);
+            const cur_view = lerpSexprView(x.source_view, getView(parent_view, x.target_address), t);
             this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
             this.drawMolecule(x.value, cur_view);
         }, this);
@@ -611,7 +611,7 @@ export function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView 
 
 export type FloatingBinding = {
     source_view: SexprView,
-    target_view: SexprView,
+    target_address: FullAddress,
     variable_name: string,
     value: SexprLiteral,
 };
@@ -805,18 +805,22 @@ function findTransformationWithFixedOrigin({ source, target }: { source: Vec2, t
     return (v: Vec2) => transform.globalFromLocal(v);
 }
 
-export function generateFloatingBindings(input: SexprLiteral, match_case: MatchCaseDefinition, view: SexprView): FloatingBinding[] {
+export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefinition, address: MatchCaseAddress, parent_view: SexprView): FloatingBinding[] {
+    const match_case = getCaseAt(fnk, address);
     const bindings = generateBindings(input, match_case.pattern);
     if (bindings === null) throw new Error('no bindings');
     return bindings.flatMap((x) => {
         const target_addresses = addressesOfVariableInTemplates(match_case, x.variable_name);
         return target_addresses.map(target => ({
-            source_view: getView(view, {
+            source_view: getView(parent_view, {
                 type: 'pattern',
-                major: [],
-                minor: x.target_address,
+                major: address,
+                minor: x.variable_address,
             }),
-            target_view: getView(view, target),
+            target_address: {
+                type: target.type, minor: target.minor,
+                major: [...address, ...target.major],
+            },
             variable_name: x.variable_name,
             value: x.value,
         }));
