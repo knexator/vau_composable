@@ -1,13 +1,3 @@
-// export function deepcopy<T>(thing: T): T {
-//     // TODO: lots to do
-//     if (Array.isArray(thing)) {
-//         // @ts-ignore
-//         return thing.map(x => deepcopy(x));
-//     } else {
-//         return thing;
-//     }
-// }
-
 import { mod } from './math';
 
 export function fromCount<T>(n: number, callback: (index: number) => T): T[] {
@@ -199,6 +189,13 @@ export function or(a: boolean, b: boolean): boolean {
 export function last<T>(arr: T[]): T {
     if (arr.length === 0) throw new Error('can\'t call \'last\' with empty array');
     return arr[arr.length - 1];
+}
+
+// Return new array with element [index] changed to new_element
+export function replace<T>(arr: T[], new_element: T, index: number): T[] {
+    const result = [...arr];
+    result[index] = new_element;
+    return result;
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */

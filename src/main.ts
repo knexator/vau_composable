@@ -4,8 +4,8 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, generateBindings, getAt, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed } from './drawer';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate } from './model';
+import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatched } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -68,7 +68,8 @@ class Asdfasdf {
         private animation:
             { type: 'input_moving_to_next_option', target: MatchCaseAddress }
             | { type: 'failing_to_match', which: MatchCaseAddress }
-            | { type: 'matching', which: MatchCaseAddress },
+            | { type: 'matching', which: MatchCaseAddress }
+            | { type: 'floating_bindings', bindings: FloatingBinding[] },
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -77,9 +78,9 @@ class Asdfasdf {
             nothingCollapsed(fnk.cases),
             nothingMatched(fnk.cases),
             input,
-            { type: 'input_moving_to_next_option', target: [0] },
+            // { type: 'input_moving_to_next_option', target: [0] },
             // { type: 'failing_to_match', which: [1, 0] },
-            // { type: 'matching', which: [0] },
+            { type: 'matching', which: [1] },
         );
     }
 
@@ -99,7 +100,7 @@ class Asdfasdf {
     next(): Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
-                let asdf = generateBindings(this.input, getAt(this.fnk.cases, {type: 'pattern', minor: [], major: this.animation.target})!);
+                const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
                     { type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
             }
@@ -107,8 +108,16 @@ class Asdfasdf {
                 return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
                     { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
-            case 'matching':
-                throw new Error('TODO');
+            case 'matching': {
+                const bindings = generateFloatingBindings(this.input, getCaseAt(this.fnk, this.animation.which), getView(this.getMainView(), {
+                    type: 'template',
+                    major: this.animation.which,
+                    minor: [],
+                }));
+                const new_matched = updateMatched(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
+                return new Asdfasdf(this.fnk, this.collapse, new_matched, this.input,
+                    { type: 'floating_bindings', bindings: bindings });
+            }
             default:
                 throw new Error('unhandled');
         }
@@ -136,16 +145,21 @@ class Asdfasdf {
             drawer.drawMolecule(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
                 getView(view, { type: 'pattern', major: this.animation.which, minor: [] }),
-                (anim_t - 1) * (anim_t - 0) * -4
+                (anim_t - 1) * (anim_t - 0) * -4,
             ));
-        } else if (this.animation.type === 'matching') {
+        }
+        else if (this.animation.type === 'matching') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
                 getView(view, { type: 'pattern', major: this.animation.which, minor: [] }),
-                anim_t
+                anim_t,
             ));
-        } else {
-            throw new Error("unimplemented");
+        }
+        else if (this.animation.type === 'floating_bindings') {
+            drawer.drawBindings(this.animation.bindings, anim_t);
+        }
+        else {
+            throw new Error('unimplemented');
         }
     }
 

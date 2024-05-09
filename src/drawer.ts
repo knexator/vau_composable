@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, fromCount, reversedForEach, zip2 } from './kommon/kommon';
-import { in01, inRange, lerp, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress } from './model';
+import { DefaultMap, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { in01, inRange, isPointInPolygon, lerp, remap } from './kommon/math';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -174,42 +174,9 @@ export class Drawer {
     drawBindings(bindings: FloatingBinding[], t: number) {
         bindings.forEach((x) => {
             const cur_view = lerpSexprView(x.source_view, x.target_view, t);
-            this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, {
-                pos: cur_view.pos.add(new Vec2(cur_view.halfside * 3, 0).rotateTurns(cur_view.turns)),
-                halfside: cur_view.halfside,
-                turns: cur_view.turns,
-            });
+            this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
             this.drawMolecule(x.value, cur_view);
         }, this);
-    }
-
-    generateFloatingBindings(input: SexprLiteral, cases: MatchCaseDefinition[], view: SexprView): FloatingBinding[] | null {
-        if (cases.length === 0) return null;
-        const unit = view.halfside / 4;
-        const bindings = generateBindings(input, cases[0].pattern);
-        if (bindings === null) {
-            const extra_poles = countExtraPolesNeeded(cases[0]);
-            return this.generateFloatingBindings(input, cases.slice(1), {
-                pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
-                halfside: view.halfside,
-                turns: view.turns,
-            });
-        }
-        else {
-            return bindings.flatMap((x) => {
-                const target_addresses = addressesOfVariableInTemplates(cases, x.variable_name);
-                return target_addresses.map(target => ({
-                    source_view: getSexprGrandChildView({
-                        pos: view.pos.add(new Vec2(11, 12).scale(unit).rotateTurns(view.turns)),
-                        halfside: view.halfside,
-                        turns: view.turns,
-                    }, x.target_address),
-                    target_view: getView(view, target),
-                    variable_name: x.variable_name,
-                    value: x.value,
-                }));
-            });
-        }
     }
 
     private drawPatternWithoutVariables(data: SexprTemplate, view: SexprView) {
@@ -272,7 +239,6 @@ export class Drawer {
                 this.ctx.stroke();
             }
 
-            // TODO
             this.drawPattern(cases[0].pattern, {
                 pos: view.pos.add(Vec2.lerp(
                     new Vec2(11, 12),
@@ -662,6 +628,22 @@ export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
     return cases.map(helper);
 }
 
+export function updateMatched(cur: MatchedInput[], address: MatchCaseAddress, pattern: SexprTemplate): MatchedInput[] {
+    if (address.length === 0) throw new Error('bad address');
+    if (address.length === 1) {
+        return replace(cur, {
+            main: changeVariablesToNull(pattern),
+            inside: cur[single(address)].inside,
+        }, single(address));
+    }
+    else {
+        return replace(cur, {
+            main: cur[address[0]].main,
+            inside: updateMatched(cur[address[0]].inside, address.slice(1), pattern),
+        }, address[0]);
+    }
+}
+
 export type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
@@ -708,7 +690,6 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
     if (path.major.length === 0) {
         switch (path.type) {
             case 'fn_name':
-                // TODO
                 throw new Error('unimplemented');
                 break;
             case 'pattern':
@@ -757,8 +738,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -824,19 +805,20 @@ function findTransformationWithFixedOrigin({ source, target }: { source: Vec2, t
     return (v: Vec2) => transform.globalFromLocal(v);
 }
 
-// generated by GPT
-function isPointInPolygon(point: Vec2, polygon: Vec2[]): boolean {
-    let inside = false;
-    const { x: px, y: py } = point;
-
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const { x: pxi, y: pyi } = polygon[i];
-        const { x: pxj, y: pyj } = polygon[j];
-
-        const intersect = ((pyi > py) !== (pyj > py))
-            && (px < (pxj - pxi) * (py - pyi) / (pyj - pyi) + pxi);
-        if (intersect) inside = !inside;
-    }
-
-    return inside;
+export function generateFloatingBindings(input: SexprLiteral, match_case: MatchCaseDefinition, view: SexprView): FloatingBinding[] {
+    const bindings = generateBindings(input, match_case.pattern);
+    if (bindings === null) throw new Error('no bindings');
+    return bindings.flatMap((x) => {
+        const target_addresses = addressesOfVariableInTemplates(match_case, x.variable_name);
+        return target_addresses.map(target => ({
+            source_view: getView(view, {
+                type: 'pattern',
+                major: [],
+                minor: x.target_address,
+            }),
+            target_view: getView(view, target),
+            variable_name: x.variable_name,
+            value: x.value,
+        }));
+    });
 }

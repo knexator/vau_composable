@@ -229,33 +229,25 @@ function addressesOfVariableInSexpr(haystack: SexprTemplate, needle_name: string
     }
 }
 
-export function addressesOfVariableInTemplates(haystack: MatchCaseDefinition[], needle_name: string): FullAddress[] {
-    if (haystack.length === 0) return [];
-
+export function addressesOfVariableInTemplates(haystack: MatchCaseDefinition, needle_name: string): FullAddress[] {
     function local(address: SexprAddress, place: 'template' | 'fn_name'): FullAddress {
         return { type: place, major: [], minor: address };
     }
 
     const local_results: FullAddress[] = [
-        ...addressesOfVariableInSexpr(haystack[0].template, needle_name).map(x => local(x, 'template')),
-        ...addressesOfVariableInSexpr(haystack[0].fn_name_template, needle_name).map(x => local(x, 'fn_name')),
+        ...addressesOfVariableInSexpr(haystack.template, needle_name).map(x => local(x, 'template')),
+        ...addressesOfVariableInSexpr(haystack.fn_name_template, needle_name).map(x => local(x, 'fn_name')),
     ];
 
-    const inner_results: FullAddress[] = haystack[0].next === 'return'
+    const inner_results: FullAddress[] = haystack.next === 'return'
         ? []
-        : addressesOfVariableInTemplates(haystack[0].next, needle_name).map(x => ({
-            type: x.type, minor: x.minor, major: [0, ...x.major],
-        }));
+        : haystack.next.flatMap((next_case, k) => {
+            return addressesOfVariableInTemplates(next_case, needle_name).map(x => ({
+                type: x.type, minor: x.minor, major: [k, ...x.major],
+            }));
+        });
 
-    // const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map(x => ({
-    //         type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major]
-    //     }));
-    const next_results: FullAddress[] = addressesOfVariableInTemplates(haystack.slice(1), needle_name).map((x) => {
-        if (x.major.length === 0) throw new Error('???');
-        return { type: x.type, minor: x.minor, major: [x.major[0] + 1, ...x.major.slice(1)] };
-    });
-
-    return [...local_results, ...inner_results, ...next_results];
+    return [...local_results, ...inner_results];
 }
 
 export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): SexprTemplate | null {
@@ -270,7 +262,7 @@ export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): Se
             case 'template':
                 return getAtLocalAddress(match_case.template, address.minor);
             default:
-                throw new Error("unreachable");
+                throw new Error('unreachable');
         }
     }
     const next = haystack[address.major[0]].next;
@@ -280,4 +272,28 @@ export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): Se
         major: address.major.slice(1),
         minor: address.minor,
     });
+}
+
+export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
+    if (address.length === 0) throw new Error('bad address');
+    return getGrandChildCase(fnk.cases[address[0]], address.slice(1));
+}
+
+export function getGrandChildCase(parent_case: MatchCaseDefinition, address: MatchCaseAddress): MatchCaseDefinition {
+    if (address.length === 0) return parent_case;
+    if (parent_case.next === 'return') throw new Error('invalid address');
+    return getGrandChildCase(parent_case.next[address[0]], address.slice(1));
+}
+
+export function changeVariablesToNull(thing: SexprTemplate): SexprNullable {
+    switch (thing.type) {
+        case 'variable':
+            return { type: 'null' };
+        case 'atom':
+            return thing;
+        case 'pair':
+            return { type: 'pair', left: changeVariablesToNull(thing.left), right: changeVariablesToNull(thing.right) };
+        default:
+            throw new Error('unreachable');
+    }
 }
