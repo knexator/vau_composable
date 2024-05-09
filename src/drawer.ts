@@ -371,8 +371,8 @@ export class Drawer {
     private drawSingleMatchCase(match_case: MatchCaseDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput) {
         const unit = view.halfside / 4;
 
-        if (matched.main !== null) {
-            this.drawMolecule(matched.main, {
+        if (matched.new_pattern !== null) {
+            this.drawMolecule(matched.new_pattern, {
                 pos: view.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
@@ -391,7 +391,10 @@ export class Drawer {
             });
         }
 
-        this.drawMolecule(match_case.template, view);
+        if (!matched.missing_template) {
+            this.drawMolecule(match_case.template, view);
+        }
+
         this.drawMolecule(match_case.fn_name_template, {
             pos: view.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside / 2,
@@ -616,30 +619,51 @@ export type FloatingBinding = {
     value: SexprLiteral,
 };
 
-export type MatchedInput = { main: null | SexprNullable, inside: MatchedInput[] };
+export type MatchedInput = { new_pattern: null | SexprNullable, missing_template: boolean, inside: MatchedInput[] };
 
 export function nothingMatched(cases: MatchCaseDefinition[]): MatchedInput[] {
     function helper(match_case: MatchCaseDefinition): MatchedInput {
         return {
-            main: null,
+            new_pattern: null,
+            missing_template: false,
             inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
         };
     }
     return cases.map(helper);
 }
 
-export function updateMatched(cur: MatchedInput[], address: MatchCaseAddress, pattern: SexprTemplate): MatchedInput[] {
+export function updateMatchedForNewPattern(cur: MatchedInput[], address: MatchCaseAddress, pattern: SexprTemplate): MatchedInput[] {
     if (address.length === 0) throw new Error('bad address');
     if (address.length === 1) {
         return replace(cur, {
-            main: changeVariablesToNull(pattern),
+            new_pattern: changeVariablesToNull(pattern),
+            missing_template: cur[single(address)].missing_template,
             inside: cur[single(address)].inside,
         }, single(address));
     }
     else {
         return replace(cur, {
-            main: cur[address[0]].main,
-            inside: updateMatched(cur[address[0]].inside, address.slice(1), pattern),
+            new_pattern: cur[address[0]].new_pattern,
+            missing_template: cur[address[0]].missing_template,
+            inside: updateMatchedForNewPattern(cur[address[0]].inside, address.slice(1), pattern),
+        }, address[0]);
+    }
+}
+
+export function updateMatchedForMissingTemplate(cur: MatchedInput[], address: MatchCaseAddress): MatchedInput[] {
+    if (address.length === 0) throw new Error('bad address');
+    if (address.length === 1) {
+        return replace(cur, {
+            new_pattern: cur[single(address)].new_pattern,
+            missing_template: true,
+            inside: cur[single(address)].inside,
+        }, single(address));
+    }
+    else {
+        return replace(cur, {
+            new_pattern: cur[address[0]].new_pattern,
+            missing_template: cur[address[0]].missing_template,
+            inside: updateMatchedForMissingTemplate(cur[address[0]].inside, address.slice(1)),
         }, address[0]);
     }
 }
@@ -738,8 +762,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);

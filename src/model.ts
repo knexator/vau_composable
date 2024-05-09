@@ -37,7 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
-import { single } from './kommon/kommon';
+import { or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -193,7 +193,7 @@ function applyMatchOptions(all_fnks: FunktionDefinition[], cases: MatchCaseDefin
     throw new Error('No matching cases');
 }
 
-function fillTemplate(template: SexprTemplate, bindings: Binding[]): SexprLiteral {
+export function fillTemplate(template: SexprTemplate, bindings: { variable_name: string, value: SexprLiteral }[]): SexprLiteral {
     if (template.type === 'atom') {
         return template;
     }
@@ -274,6 +274,46 @@ export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): Se
     });
 }
 
+function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: SexprLiteral): MatchCaseDefinition[] {
+    if (address.major.length === 0) throw new Error('unimplented');
+    if (address.major.length === 1) {
+        const old_match_case = haystack[single(address.major)];
+        let new_match_case: MatchCaseDefinition = {
+            pattern: old_match_case.pattern,
+            template: old_match_case.template,
+            fn_name_template: old_match_case.fn_name_template,
+            next: old_match_case.next
+        };
+        switch (address.type) {
+            case 'fn_name':
+                new_match_case.fn_name_template = setAtLocalAddress(old_match_case.fn_name_template, address.minor, value);
+                break;
+            case 'pattern':
+                new_match_case.pattern = setAtLocalAddress(old_match_case.pattern, address.minor, value);
+                break;
+            case 'template':
+                new_match_case.template = setAtLocalAddress(old_match_case.template, address.minor, value);
+                break;
+            default:
+                throw new Error('unreachable');
+        }
+        return replace(haystack, new_match_case, single(address.major));
+    }
+    const match_case = haystack[address.major[0]];
+    if (match_case.next === 'return') throw new Error("bad address");
+    const index = address.major[0];
+    return replace(haystack, {
+        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+        next: setAt(match_case.next, {
+            type: address.type,
+            major: address.major.slice(1),
+            minor: address.minor,
+        }, value)
+    }, index);
+}
+
+// setAt(haystack[index], 
+
 export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) throw new Error('bad address');
     return getGrandChildCase(fnk.cases[address[0]], address.slice(1));
@@ -296,4 +336,12 @@ export function changeVariablesToNull(thing: SexprTemplate): SexprNullable {
         default:
             throw new Error('unreachable');
     }
+}
+
+export function fillFnkBindings(original: FunktionDefinition, bindings: { value: SexprLiteral, target_address: FullAddress }[]): FunktionDefinition {
+    let new_cases = original.cases;
+    for (const binding of bindings) {
+        new_cases = setAt(new_cases, binding.target_address, binding.value);
+    }
+    return { name: original.name, cases: new_cases };
 }

@@ -4,8 +4,8 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate } from './model';
-import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatched } from './drawer';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, fillFnkBindings, fillTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate } from './model';
+import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -69,7 +69,8 @@ class Asdfasdf {
             { type: 'input_moving_to_next_option', target: MatchCaseAddress }
             | { type: 'failing_to_match', which: MatchCaseAddress }
             | { type: 'matching', which: MatchCaseAddress }
-            | { type: 'floating_bindings', bindings: FloatingBinding[] },
+            | { type: 'floating_bindings', bindings: FloatingBinding[], next_input_address: MatchCaseAddress }
+            | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress },
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -110,10 +111,20 @@ class Asdfasdf {
             }
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getMainView());
-                const new_matched = updateMatched(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
+                const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
                 return new Asdfasdf(this.fnk, this.collapse, new_matched, this.input,
-                    { type: 'floating_bindings', bindings: bindings });
+                    { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
             }
+            case 'floating_bindings':
+                const new_input = fillTemplate(
+                    getCaseAt(this.fnk, this.animation.next_input_address).template,
+                    this.animation.bindings);
+                const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
+                const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
+                return new Asdfasdf(new_fnk, this.collapse, new_matched, new_input,
+                    { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
+            case 'dissolve_bindings':
+                throw new Error('unhandled');
             default:
                 throw new Error('unhandled');
         }
@@ -153,6 +164,21 @@ class Asdfasdf {
         }
         else if (this.animation.type === 'floating_bindings') {
             drawer.drawBindings(this.getMainView(), this.animation.bindings, anim_t);
+        }
+        else if (this.animation.type === 'dissolve_bindings') {
+            this.animation.bindings.forEach(binding => {
+                const base_view = getView(view, binding.target_address);
+                drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
+                    pos: base_view.pos, turns: base_view.turns,
+                    halfside: base_view.halfside * (1 - anim_t),
+                });
+                // draw twice to match the opacity
+                drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
+                    pos: base_view.pos, turns: base_view.turns,
+                    halfside: base_view.halfside * (1 - anim_t),
+                });
+            });
+            drawer.drawMolecule(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }));
         }
         else {
             throw new Error('unimplemented');
