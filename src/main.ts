@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, fillFnkBindings, fillTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate } from './model';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 
 const input = new Input();
@@ -79,9 +79,9 @@ class Asdfasdf {
             nothingCollapsed(fnk.cases),
             nothingMatched(fnk.cases),
             input,
-            // { type: 'input_moving_to_next_option', target: [0] },
+            { type: 'input_moving_to_next_option', target: [0] },
             // { type: 'failing_to_match', which: [1, 0] },
-            { type: 'matching', which: [1] },
+            // { type: 'matching', which: [1] },
         );
     }
 
@@ -124,7 +124,14 @@ class Asdfasdf {
                 return new Asdfasdf(new_fnk, this.collapse, new_matched, new_input,
                     { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
             case 'dissolve_bindings':
-                throw new Error('unhandled');
+                // TODO: handle {next: "return"} case
+                const fn_name = assertLiteral(getCaseAt(this.fnk, this.animation.input_address).fn_name_template);
+                if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
+                    return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
+                        { type: 'input_moving_to_next_option' , target: [...this.animation.input_address, 0] });
+                } else {
+                    throw new Error('unhandled');
+                }
             default:
                 throw new Error('unhandled');
         }
@@ -232,7 +239,8 @@ let cur_asdfasdf = Asdfasdf.init({
             ],
         },
     ],
-}, parseSexprLiteral('(1 2 X 3 4)'));
+// }, parseSexprLiteral('(1 2 X 3 4)'));
+}, parseSexprLiteral('(X 3 4)'));
 
 function nextAnim() {
     CONFIG._0_1 = 0;
