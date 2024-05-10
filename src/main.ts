@@ -121,7 +121,7 @@ class Asdfasdf {
                 return new Asdfasdf(this.parent, this.fnk, this.collapse, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
             }
-            case 'floating_bindings':
+            case 'floating_bindings': {
                 const new_input = fillTemplate(
                     getCaseAt(this.fnk, this.animation.next_input_address).template,
                     this.animation.bindings);
@@ -129,26 +129,30 @@ class Asdfasdf {
                 const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
                 return new Asdfasdf(this.parent, new_fnk, this.collapse, new_matched, new_input,
                     { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
-            case 'dissolve_bindings':
+            }
+            case 'dissolve_bindings': {
                 // TODO: handle {next: "return"} case
                 const match_case = getCaseAt(this.fnk, this.animation.input_address);
                 const fn_name = assertLiteral(match_case.fn_name_template);
                 if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
                     if (match_case.next === 'return') {
                         if (this.parent === null) {
-                            throw new Error("finished the thing; unhandled");
-                        } else {
-                            if (this.parent.animation.type !== 'fading_out_to_child') throw new Error("unreachable");
+                            throw new Error('finished the thing; unhandled');
+                        }
+                        else {
+                            if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
                             // TODO: respect read only
                             this.parent.animation = { type: 'fading_in_from_child', return_address: this.parent.animation.return_address };
                             return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
                                 { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
-                    } else {
+                    }
+                    else {
                         return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
                             { type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
                     }
-                } else {
+                }
+                else {
                     // TODO:
                     // const next_fnk = lookup(fn_name, ...)
                     const next_fnk = bubbleUpFnk;
@@ -157,40 +161,72 @@ class Asdfasdf {
                     return new Asdfasdf(this, next_fnk, nothingCollapsed(next_fnk.cases), nothingMatched(next_fnk.cases), this.input,
                         { type: 'fading_in_from_parent', source_address: input_address });
                 }
+            }
             case 'fading_out_to_child':
-                throw new Error("TODO");
+                throw new Error('TODO');
             case 'fading_in_from_parent':
                 return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
                     { type: 'input_moving_to_next_option', target: [0] });
+            case 'fading_out_to_parent': {
+                if (this.parent === null) throw new Error('unreachable');
+                const match_case = getCaseAt(this.parent.fnk, this.animation.parent_address);
+
+                // TODO: merge with the logic above
+                if (match_case.next === 'return') {
+                    if (this.parent.parent === null) {
+                        throw new Error('finished the thing; unhandled');
+                    }
+                    else {
+                        if (this.parent.animation.type !== 'fading_in_from_child') throw new Error('unreachable');
+
+                        // TODO: respect read only
+                        // this.parent.animation = { type: 'fading_out_to_parent',  }
+                        // return this.parent;
+                        throw new Error('TODO');
+                    }
+                }
+                else {
+                    // TODO: respect read only
+                    this.parent.animation = { type: 'input_moving_to_next_option', target: [...this.animation.parent_address, 0] };
+                    return this.parent;
+                }
+            }
+            case 'fading_in_from_child': {
+                throw new Error('unreachable');
+            }
             default:
                 throw new Error('unhandled');
         }
     }
 
     draw(drawer: Drawer, anim_t: number, global_t: number) {
-        let view = this.getMainView();
+        const view = this.getMainView();
 
         if (this.animation.type === 'fading_out_to_child') {
             view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
             drawer.ctx.globalAlpha = 1 - anim_t;
-        } else if (this.animation.type === 'fading_in_from_child') {
+        }
+        else if (this.animation.type === 'fading_in_from_child') {
             view.pos = view.pos.add(Vec2.both((1 - anim_t) * view.halfside));
             drawer.ctx.globalAlpha = anim_t;
-        } else if (this.animation.type === 'fading_in_from_parent') {
-            if (this.parent === null) throw new Error("unreachable");
+        }
+        else if (this.animation.type === 'fading_in_from_parent') {
+            if (this.parent === null) throw new Error('unreachable');
             this.parent.draw(drawer, anim_t, global_t);
             drawer.ctx.globalAlpha = 1;
 
             view.pos = view.pos.add(new Vec2(0, (1 - anim_t) * 18 * view.halfside));
             // drawer.ctx.globalAlpha = anim_t;
-        } else if (this.animation.type === 'fading_out_to_parent') {
-            if (this.parent === null) throw new Error("unreachable");
+        }
+        else if (this.animation.type === 'fading_out_to_parent') {
+            if (this.parent === null) throw new Error('unreachable');
             this.parent.draw(drawer, anim_t, global_t);
             drawer.ctx.globalAlpha = 1;
 
             view.pos = view.pos.add(new Vec2(0, anim_t * 18 * view.halfside));
             // drawer.ctx.globalAlpha = anim_t;
-        } else {
+        }
+        else {
             drawer.ctx.globalAlpha = 1;
         }
         // if (is_child) {
@@ -236,7 +272,7 @@ class Asdfasdf {
             drawer.drawBindings(this.getMainView(), this.animation.bindings, anim_t);
         }
         else if (this.animation.type === 'dissolve_bindings') {
-            this.animation.bindings.forEach(binding => {
+            this.animation.bindings.forEach((binding) => {
                 const base_view = getView(view, binding.target_address);
                 drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
                     pos: base_view.pos, turns: base_view.turns,
@@ -261,14 +297,14 @@ class Asdfasdf {
             drawer.drawMolecule(this.input, lerpSexprView(
                 getView(this.getMainView(), { type: 'template', major: this.animation.source_address, minor: [] }),
                 getView(view, { type: 'template', major: [], minor: [] }),
-                anim_t
+                anim_t,
             ));
         }
         else if (this.animation.type === 'fading_out_to_parent') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 getView(this.getMainView(), { type: 'template', major: this.animation.child_address, minor: [] }),
                 getView(this.getMainView(), { type: 'template', major: this.animation.parent_address, minor: [] }),
-                anim_t
+                anim_t,
             ));
         }
         else {
@@ -323,7 +359,7 @@ const bubbleUpFnk: FunktionDefinition = {
             ],
         },
     ],
-}
+};
 
 let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
     parseSexprLiteral('(2 X 3 4)'));

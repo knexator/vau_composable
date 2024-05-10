@@ -278,11 +278,11 @@ function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: Sex
     if (address.major.length === 0) throw new Error('unimplented');
     if (address.major.length === 1) {
         const old_match_case = haystack[single(address.major)];
-        let new_match_case: MatchCaseDefinition = {
+        const new_match_case: MatchCaseDefinition = {
             pattern: old_match_case.pattern,
             template: old_match_case.template,
             fn_name_template: old_match_case.fn_name_template,
-            next: old_match_case.next
+            next: old_match_case.next,
         };
         switch (address.type) {
             case 'fn_name':
@@ -300,7 +300,7 @@ function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: Sex
         return replace(haystack, new_match_case, single(address.major));
     }
     const match_case = haystack[address.major[0]];
-    if (match_case.next === 'return') throw new Error("bad address");
+    if (match_case.next === 'return') throw new Error('bad address');
     const index = address.major[0];
     return replace(haystack, {
         pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
@@ -308,11 +308,11 @@ function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: Sex
             type: address.type,
             major: address.major.slice(1),
             minor: address.minor,
-        }, value)
+        }, value),
     }, index);
 }
 
-// setAt(haystack[index], 
+// setAt(haystack[index],
 
 export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) throw new Error('bad address');
