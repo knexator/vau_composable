@@ -61,6 +61,7 @@ gui.add(CONFIG, 'nextAnim');
 
 class Asdfasdf {
     private constructor(
+        private parent: Asdfasdf | null,
         private fnk: FunktionDefinition,
         private collapse: Collapsed[],
         private matched: MatchedInput[],
@@ -70,18 +71,21 @@ class Asdfasdf {
             | { type: 'failing_to_match', which: MatchCaseAddress }
             | { type: 'matching', which: MatchCaseAddress }
             | { type: 'floating_bindings', bindings: FloatingBinding[], next_input_address: MatchCaseAddress }
-            | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress },
+            | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress }
+            | { type: 'fading_out_to_child' }
+            | { type: 'fading_in', source_address: MatchCaseAddress },
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
         return new Asdfasdf(
+            null,
             fnk,
             nothingCollapsed(fnk.cases),
             nothingMatched(fnk.cases),
             input,
-            { type: 'input_moving_to_next_option', target: [0] },
+            // { type: 'input_moving_to_next_option', target: [0] },
             // { type: 'failing_to_match', which: [1, 0] },
-            // { type: 'matching', which: [1] },
+            { type: 'matching', which: [1] },
         );
     }
 
@@ -102,17 +106,17 @@ class Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
-                return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
+                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
                     { type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
             }
             case 'failing_to_match': {
-                return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
+                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
                     { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getMainView());
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
-                return new Asdfasdf(this.fnk, this.collapse, new_matched, this.input,
+                return new Asdfasdf(this.parent, this.fnk, this.collapse, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
             }
             case 'floating_bindings':
@@ -121,24 +125,58 @@ class Asdfasdf {
                     this.animation.bindings);
                 const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
                 const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
-                return new Asdfasdf(new_fnk, this.collapse, new_matched, new_input,
+                return new Asdfasdf(this.parent, new_fnk, this.collapse, new_matched, new_input,
                     { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
             case 'dissolve_bindings':
                 // TODO: handle {next: "return"} case
                 const fn_name = assertLiteral(getCaseAt(this.fnk, this.animation.input_address).fn_name_template);
                 if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
-                    return new Asdfasdf(this.fnk, this.collapse, this.matched, this.input,
-                        { type: 'input_moving_to_next_option' , target: [...this.animation.input_address, 0] });
+                    return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                        { type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
                 } else {
-                    throw new Error('unhandled');
+                    // TODO:
+                    // const next_fnk = lookup(fn_name, ...)
+                    const next_fnk = bubbleUpFnk;
+                    const input_address = this.animation.input_address;
+                    this.animation = { type: 'fading_out_to_child' };
+                    return new Asdfasdf(this, next_fnk, nothingCollapsed(next_fnk.cases), nothingMatched(next_fnk.cases), this.input,
+                        { type: 'fading_in', source_address: input_address });
                 }
+            case 'fading_out_to_child':
+                throw new Error("TODO");
+            case 'fading_in':
+                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                    { type: 'input_moving_to_next_option', target: [0] });
             default:
                 throw new Error('unhandled');
         }
     }
 
     draw(drawer: Drawer, anim_t: number, global_t: number) {
-        const view = this.getMainView();
+        let view = this.getMainView();
+
+        if (this.animation.type === 'fading_out_to_child') {
+            view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
+            drawer.ctx.globalAlpha = 1 - anim_t;
+        } else if (this.animation.type === 'fading_in') {
+            if (this.parent === null) throw new Error("unreachable");
+            this.parent.draw(drawer, anim_t, global_t);
+            drawer.ctx.globalAlpha = 1;
+
+            view.pos = view.pos.add(new Vec2(0, (1 - anim_t) * 18 * view.halfside));
+            // drawer.ctx.globalAlpha = anim_t;
+        } else {
+            drawer.ctx.globalAlpha = 1;
+        }
+        // if (is_child) {
+        //     view.pos = view.pos.add(Vec2.both(view.halfside));
+        //     drawer.ctx.globalAlpha = .2;
+        // } else {
+        //     if (this.parent !== null) {
+        //         this.parent.draw(drawer, 1, global_t, true);
+        //     }
+        //     drawer.ctx.globalAlpha = 1;
+        // }
 
         drawer.drawFunktion(this.fnk, view, this.collapse, global_t, this.matched);
         if (this.animation.type === 'input_moving_to_next_option') {
@@ -187,6 +225,17 @@ class Asdfasdf {
             });
             drawer.drawMolecule(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }));
         }
+        else if (this.animation.type === 'fading_out_to_child') {
+            // nothing
+        }
+        else if (this.animation.type === 'fading_in') {
+            //  view = ;
+            drawer.drawMolecule(this.input, lerpSexprView(
+                getView(this.getMainView(), { type: 'template', major: this.animation.source_address, minor: [] }),
+                getView(view, { type: 'template', major: [], minor: [] }),
+                anim_t
+            ));
+        }
         else {
             throw new Error('unimplemented');
         }
@@ -196,10 +245,10 @@ class Asdfasdf {
         const view = this.getMainView();
 
         const rect = canvas.getBoundingClientRect();
-        const raw_mouse_pos = new Vec2(input.mouse.clientX - rect.left, input.mouse.clientY - rect.top);
+        const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
         const asdf = drawer.getAtPosition(this.fnk, view, this.collapse, raw_mouse_pos);
-        if (asdf !== null && input.mouse.wasPressed(MouseButton.Left)) {
+        if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
             this.collapse = toggleCollapsed(this.collapse, asdf, global_t);
         }
     }
@@ -216,7 +265,7 @@ class Asdfasdf {
     }
 }
 
-let cur_asdfasdf = Asdfasdf.init({
+const bubbleUpFnk: FunktionDefinition = {
     name: { type: 'atom', value: 'bubbleUp' },
     cases: [
         {
@@ -239,8 +288,11 @@ let cur_asdfasdf = Asdfasdf.init({
             ],
         },
     ],
-// }, parseSexprLiteral('(1 2 X 3 4)'));
-}, parseSexprLiteral('(X 3 4)'));
+}
+
+let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
+    // parseSexprLiteral('(1 2 X 3 4)'));
+    parseSexprLiteral('(X 3 4)'));
 
 function nextAnim() {
     CONFIG._0_1 = 0;
