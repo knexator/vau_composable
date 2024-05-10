@@ -21,6 +21,7 @@ export class Drawer {
     ) { }
 
     clear() {
+        this.ctx.globalAlpha = 1;
         this.ctx.resetTransform();
         this.ctx.fillStyle = 'gray';
         this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
