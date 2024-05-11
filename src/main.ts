@@ -175,34 +175,26 @@ class Asdfasdf {
                     { type: 'input_moving_to_next_option', target: [0] });
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                const match_case = getCaseAt(this.parent.fnk, this.animation.parent_address);
-
-                // TODO: merge with the logic above
+                return this.parent.next();
+            }
+            case 'fading_in_from_child': {
+                const match_case = getCaseAt(this.fnk, this.animation.return_address);
                 if (match_case.next === 'return') {
-                    if (this.parent.parent === null) {
+                    if (this.parent === null) {
                         return null;
                     }
                     else {
-                        if (this.parent.animation.type !== 'fading_in_from_child') throw new Error('unreachable');
-
+                        if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
                         // TODO: respect read only
-                        // this.parent.animation = { type: 'fading_out_to_parent',  }
-                        // return this.parent;
-                        throw new Error('TODO');
-                        // this.parent.animation = { type: 'fading_in_from_child', return_address: this.parent.animation.return_address };
-                        // return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                        //     { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
+                        this.parent.animation = { type: 'fading_in_from_child', return_address: this.parent.animation.return_address };
+                        return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                            { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.return_address });
                     }
                 }
                 else {
-                    // TODO: respect read only
-                    this.parent.animation = { type: 'input_moving_to_next_option', target: [...this.animation.parent_address, 0] };
-                    this.parent.input = this.input;
-                    return this.parent;
+                    return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                        { type: 'input_moving_to_next_option', target: [...this.animation.return_address, 0] });
                 }
-            }
-            case 'fading_in_from_child': {
-                throw new Error('unreachable');
             }
             default:
                 throw new Error('unhandled');
@@ -391,8 +383,8 @@ const bubbleUpFnk: FunktionDefinition = {
 
 let all_fnks = [asdfTest, bubbleUpFnk];
 
-// let cur_asdfasdf = Asdfasdf.init(asdfTest,
-let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
+let cur_asdfasdf = Asdfasdf.init(asdfTest,
+// let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
 
@@ -418,7 +410,7 @@ function every_frame(cur_timestamp_millis: number) {
     if (input.keyboard.wasPressed(KeyCode.Space)) {
         paused = !paused;
     }
-    
+
     if (!paused) {
         anim_t = CONFIG._0_1;
         anim_t += delta_time;
