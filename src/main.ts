@@ -59,6 +59,16 @@ gui.add(CONFIG, 'nextAnim');
 //     ],
 // };
 
+type AsdfasdfAnimationState =
+    { type: 'input_moving_to_next_option', target: MatchCaseAddress }
+    | { type: 'failing_to_match', which: MatchCaseAddress }
+    | { type: 'matching', which: MatchCaseAddress }
+    | { type: 'floating_bindings', bindings: FloatingBinding[], next_input_address: MatchCaseAddress }
+    | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress }
+    | { type: 'fading_out_to_child', return_address: MatchCaseAddress }
+    | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
+    | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
+    | { type: 'fading_in_from_child', return_address: MatchCaseAddress };
 class Asdfasdf {
     private constructor(
         private parent: Asdfasdf | null,
@@ -66,16 +76,7 @@ class Asdfasdf {
         private collapse: Collapsed[],
         private matched: MatchedInput[],
         private input: SexprLiteral,
-        private animation:
-            { type: 'input_moving_to_next_option', target: MatchCaseAddress }
-            | { type: 'failing_to_match', which: MatchCaseAddress }
-            | { type: 'matching', which: MatchCaseAddress }
-            | { type: 'floating_bindings', bindings: FloatingBinding[], next_input_address: MatchCaseAddress }
-            | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress }
-            | { type: 'fading_out_to_child', return_address: MatchCaseAddress }
-            | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
-            | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
-            | { type: 'fading_in_from_child', return_address: MatchCaseAddress },
+        private animation: AsdfasdfAnimationState,
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): Asdfasdf {
@@ -108,12 +109,10 @@ class Asdfasdf {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
-                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                    { type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
+                return this.withAnimation({ type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
             }
             case 'failing_to_match': {
-                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
+                return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getMainView());
@@ -140,15 +139,12 @@ class Asdfasdf {
                         }
                         else {
                             if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                            // TODO: respect read only
-                            this.parent.animation = { type: 'fading_in_from_child', return_address: this.parent.animation.return_address };
-                            return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                            return new Asdfasdf(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapse, this.matched, this.input,
                                 { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
                     }
                     else {
-                        return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                            { type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
+                        return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
                     }
                 }
                 else {
@@ -163,16 +159,15 @@ class Asdfasdf {
                         // TODO: how to handle this user error?
                         throw new Error(`can't find function of name ${sexprToString(fn_name)}`);
                     }
-                    this.animation = { type: 'fading_out_to_child', return_address: input_address }; // TODO: respect read only
-                    return new Asdfasdf(this, next_fnk, nothingCollapsed(next_fnk.cases), nothingMatched(next_fnk.cases), this.input,
+                    return new Asdfasdf(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
+                        next_fnk, nothingCollapsed(next_fnk.cases), nothingMatched(next_fnk.cases), this.input,
                         { type: 'fading_in_from_parent', source_address: input_address });
                 }
             }
             case 'fading_out_to_child':
                 throw new Error('unreachable');
             case 'fading_in_from_parent':
-                return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                    { type: 'input_moving_to_next_option', target: [0] });
+                return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] });
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
                 return this.parent.next();
@@ -185,20 +180,21 @@ class Asdfasdf {
                     }
                     else {
                         if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                        // TODO: respect read only
-                        this.parent.animation = { type: 'fading_in_from_child', return_address: this.parent.animation.return_address };
-                        return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
+                        return new Asdfasdf(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapse, this.matched, this.input,
                             { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.return_address });
                     }
                 }
                 else {
-                    return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input,
-                        { type: 'input_moving_to_next_option', target: [...this.animation.return_address, 0] });
+                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.return_address, 0] });
                 }
             }
             default:
                 throw new Error('unhandled');
         }
+    }
+
+    withAnimation(new_animation: AsdfasdfAnimationState): Asdfasdf | null {
+        return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input, new_animation);
     }
 
     draw(drawer: Drawer, anim_t: number, global_t: number) {
@@ -384,7 +380,7 @@ const bubbleUpFnk: FunktionDefinition = {
 let all_fnks = [asdfTest, bubbleUpFnk];
 
 let cur_asdfasdf = Asdfasdf.init(asdfTest,
-// let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
+    // let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
 
