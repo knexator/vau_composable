@@ -67,10 +67,10 @@ export function parseSexprLiteral(input: string): SexprLiteral {
     return assertLiteral(parseSexprTemplate(input));
 }
 
-export function toString(input: SexprTemplate): string {
+export function sexprToString(input: SexprTemplate): string {
     if (input.type === 'atom') return input.value;
     if (input.type === 'variable') return '@' + input.value;
-    return `(${toString(input.left)} . ${toString(input.right)})`;
+    return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
 }
 
 function clone(x: SexprTemplate): SexprTemplate {

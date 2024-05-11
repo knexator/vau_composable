@@ -710,12 +710,11 @@ function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprVie
 }
 
 export function getView(parent: SexprView, path: FullAddress): SexprView {
-    // TODO: fails for parent fn_name
     const unit = parent.halfside / 4;
     if (path.major.length === 0) {
         switch (path.type) {
             case 'fn_name':
-                throw new Error('unimplemented');
+                throw new Error('TODO: implement');
                 break;
             case 'pattern':
                 return getSexprGrandChildView({

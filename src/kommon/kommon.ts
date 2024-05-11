@@ -198,6 +198,11 @@ export function replace<T>(arr: T[], new_element: T, index: number): T[] {
     return result;
 }
 
+export function assertNotNull<T>(element: T | null): T {
+    if (element === null) throw new Error("assertNotNull got a null");
+    return element;
+}
+
 /** Only for Vite, and only for reference! you must paste it into your script :( */
 // function absoluteUrl(url: string): string {
 //     return new URL(url, import.meta.url).href;
