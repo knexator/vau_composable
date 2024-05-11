@@ -85,9 +85,9 @@ class Asdfasdf {
             nothingCollapsed(fnk.cases),
             nothingMatched(fnk.cases),
             input,
-            // { type: 'input_moving_to_next_option', target: [0] },
+            { type: 'input_moving_to_next_option', target: [0] },
             // { type: 'failing_to_match', which: [1, 0] },
-            { type: 'matching', which: [1] },
+            // { type: 'matching', which: [1] },
         );
     }
 
@@ -188,6 +188,7 @@ class Asdfasdf {
                 else {
                     // TODO: respect read only
                     this.parent.animation = { type: 'input_moving_to_next_option', target: [...this.animation.parent_address, 0] };
+                    this.parent.input = this.input;
                     return this.parent;
                 }
             }
@@ -362,13 +363,16 @@ const bubbleUpFnk: FunktionDefinition = {
 };
 
 let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
-    parseSexprLiteral('(2 X 3 4)'));
+    parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
 
 function nextAnim() {
     CONFIG._0_1 = 0;
     cur_asdfasdf = cur_asdfasdf.next();
 }
+
+let paused = true;
+let anim_t = 0;
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
@@ -380,6 +384,20 @@ function every_frame(cur_timestamp_millis: number) {
     last_timestamp_millis = cur_timestamp_millis;
     input.startFrame();
     twgl.resizeCanvasToDisplaySize(canvas);
+
+    if (input.keyboard.wasPressed(KeyCode.Space)) {
+        paused = !paused;
+    }
+    
+    if (!paused) {
+        anim_t = CONFIG._0_1;
+        anim_t += delta_time;
+        while (anim_t >= 1) {
+            anim_t -= 1;
+            cur_asdfasdf = cur_asdfasdf.next();
+        }
+        CONFIG._0_1 = anim_t;
+    }
 
     drawer.clear();
 
