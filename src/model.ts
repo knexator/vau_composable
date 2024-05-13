@@ -345,3 +345,16 @@ export function fillFnkBindings(original: FunktionDefinition, bindings: { value:
     }
     return { name: original.name, cases: new_cases };
 }
+
+export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCaseAddress = []): Generator<{
+    address: MatchCaseAddress,
+    match_case: MatchCaseDefinition,
+}, void, void> {
+    for (let k = 0; k < cases.length; k++) {
+        const match_case = cases[k];
+        yield {match_case, address: [...parent_address, k]};
+        if (match_case.next !== 'return') {
+            yield* allCases(match_case.next, [...parent_address, k]);
+        }
+    }
+}

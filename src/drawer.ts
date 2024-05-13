@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt } from './model';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases } from './model';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -856,4 +856,87 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
     }
 
     return helper(cases, view, collapsed, position);
+}
+
+export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): FullAddress | null {
+
+    for (const { address, match_case } of allCases(fnk.cases)) {
+        for (const [sexpr, type] of zip2([match_case.template, match_case.pattern, match_case.fn_name_template], ['template', 'pattern', 'fn_name'] as const)) {
+            const fn = type === 'pattern' ? patternAdressFromScreenPosition : sexprAdressFromScreenPosition;
+            let minor_address = fn(position, sexpr, getView(view, {
+                type: type,
+                major: address,
+                minor: []
+            }));
+            if (minor_address !== null) return {
+                type: type,
+                major: address,
+                minor: minor_address
+            };
+        }
+    }
+    return null;
+}
+
+function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
+    const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
+    if (!inRange(delta_pos.y, -1, 1)) return null;
+    if (data.type === "atom") {
+        let max_x = 2;
+        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
+            return []
+        } else {
+            return null;
+        }
+    } else if (data.type === 'variable') {
+        let max_x = 3 + (1 - Math.abs(delta_pos.y)) * SPIKE_PERC;
+        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
+            return []
+        } else {
+            return null;
+        }
+    } else {
+        // are we selecting a subchild?
+        if (data.type === "pair" && delta_pos.x >= .5 - SPIKE_PERC / 2) {
+            const is_left = delta_pos.y <= 0;
+            const maybe_child = sexprAdressFromScreenPosition(screen_pos, is_left ? data.left : data.right, getSexprChildView(view, is_left));
+            if (maybe_child !== null) {
+                return [is_left ? 'l' : 'r', ...maybe_child];
+            }
+        }
+        // no subchild, stricter selection than atom:
+        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, .5)) {
+            // path to this
+            return [];
+        } else {
+            return null;
+        }
+    }
+}
+
+function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
+    // TODO: fix ranges
+    const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
+    if (!inRange(delta_pos.y, -1, 1)) return null;
+    if (data.type === "atom") {
+        return inRange(delta_pos.x, -1, -(Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
+    } else if (data.type === 'variable') {
+        return inRange(delta_pos.x, -3 + (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, -(Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
+    } else {
+        // are we selecting a subchild?
+        if (data.type === "pair" && -delta_pos.x >= .5 - SPIKE_PERC / 2) {
+            const is_left = delta_pos.y <= 0;
+            const maybe_child = patternAdressFromScreenPosition(screen_pos, is_left ? data.left : data.right, getSexprChildView(view, is_left));
+            if (maybe_child !== null) {
+                return [is_left ? 'l' : 'r', ...maybe_child];
+            }
+        }
+        // no subchild, stricter selection than atom:
+        if (inRange(-delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 1)) {
+            // path to this
+            return [];
+        } else {
+            return null;
+        }
+    }
 }

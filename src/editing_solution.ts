@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate } from './model';
@@ -29,14 +29,11 @@ export class EditingSolution {
         drawer.drawFunktion(this.fnk, main_view, this.collapsed, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
-
-        drawer.drawMolecule({
-            type: 'atom', value: 'v1'
-        }, getView(main_view, {
-            type: 'fn_name',
-            major: [0],
-            minor: []
-        }));
+        if (this.mouse_location !== null) {
+            drawer.drawMolecule({
+                type: 'atom', value: 'v1'
+            }, getView(main_view, this.mouse_location));
+        }
     }
 
     update(drawer: Drawer, mouse: Mouse, global_t: number) {
@@ -47,8 +44,11 @@ export class EditingSolution {
 
         const asdf = getPoleAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
         if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
+            console.log(asdf)
             this.collapsed = toggleCollapsed(this.collapsed, asdf, global_t);
         }
+
+        this.mouse_location = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
     }
 
     private getMainView(screen_size: Vec2): SexprView {
