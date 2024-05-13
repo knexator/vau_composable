@@ -31,98 +31,6 @@ export class Drawer {
         this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
 
-    getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
-        // just return the address of the pole at position
-        const cases = fnk.cases;
-
-        function helper(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
-            if (cases.length === 0) return null;
-            const unit = view.halfside / 4;
-            if (collapsed[0].main.value) {
-                { // tiny pole
-                    const points = [
-                        new Vec2(0, 0),
-                        new Vec2(4, -2),
-                        new Vec2(4, -1),
-                        new Vec2(3, 1),
-                        new Vec2(4, 3),
-                        new Vec2(4, 4),
-                        new Vec2(0, 6),
-                        new Vec2(-2, 5),
-                        new Vec2(-2, -1),
-                    ].map(v => v.addXY(7, 7))
-                        .map(v => v.scale(unit))
-                        .map(v => v.rotateTurns(view.turns))
-                        .map(v => view.pos.add(v));
-
-                    if (isPointInPolygon(position, points)) {
-                        return [0];
-                    }
-                }
-
-                if (cases.length > 1) {
-                    const asdf = helper(cases.slice(1), {
-                        pos: view.pos.add(new Vec2(0, 6 * unit).rotateTurns(view.turns)),
-                        halfside: view.halfside,
-                        turns: view.turns,
-                    }, collapsed.slice(1), position);
-                    if (asdf === null) return null;
-                    asdf[0] += 1;
-                    return asdf;
-                }
-                return null;
-            }
-
-            { // dented pole
-                const points = [
-                    new Vec2(0, 0),
-                    new Vec2(4, -2),
-                    new Vec2(4, 1),
-                    new Vec2(2, 5),
-                    new Vec2(4, 9),
-                    new Vec2(4, 16),
-                    new Vec2(0, 18),
-                    new Vec2(-2, 17),
-                    new Vec2(-2, -1),
-                ].map(v => v.addXY(7, 7))
-                    .map(v => v.scale(unit))
-                    .map(v => v.rotateTurns(view.turns))
-                    .map(v => view.pos.add(v));
-
-                if (isPointInPolygon(position, points)) {
-                    return [0];
-                }
-            }
-
-            if (cases[0].next !== 'return') {
-                const asdf = helper(cases[0].next, {
-                    pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
-                    halfside: view.halfside,
-                    turns: view.turns,
-                }, collapsed[0].inside, position);
-                if (asdf !== null) {
-                    return [0, ...asdf];
-                }
-            }
-
-            if (cases.length > 1) {
-                const extra_poles = countExtraPolesNeeded(cases[0]);
-                const asdf = helper(cases.slice(1), {
-                    pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
-                    halfside: view.halfside,
-                    turns: view.turns,
-                }, collapsed.slice(1), position);
-                if (asdf === null) return null;
-                asdf[0] += 1;
-                return asdf;
-            }
-
-            return null;
-        }
-
-        return helper(cases, view, collapsed, position);
-    }
-
     drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]): void {
         const unit = view.halfside / 4;
         this.drawMolecule(fnk.name, {
@@ -766,8 +674,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -853,4 +761,96 @@ export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefin
             value: x.value,
         }));
     });
+}
+
+export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
+    // just return the address of the pole at position
+    const cases = fnk.cases;
+
+    function helper(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
+        if (cases.length === 0) return null;
+        const unit = view.halfside / 4;
+        if (collapsed[0].main.value) {
+            { // tiny pole
+                const points = [
+                    new Vec2(0, 0),
+                    new Vec2(4, -2),
+                    new Vec2(4, -1),
+                    new Vec2(3, 1),
+                    new Vec2(4, 3),
+                    new Vec2(4, 4),
+                    new Vec2(0, 6),
+                    new Vec2(-2, 5),
+                    new Vec2(-2, -1),
+                ].map(v => v.addXY(7, 7))
+                    .map(v => v.scale(unit))
+                    .map(v => v.rotateTurns(view.turns))
+                    .map(v => view.pos.add(v));
+
+                if (isPointInPolygon(position, points)) {
+                    return [0];
+                }
+            }
+
+            if (cases.length > 1) {
+                const asdf = helper(cases.slice(1), {
+                    pos: view.pos.add(new Vec2(0, 6 * unit).rotateTurns(view.turns)),
+                    halfside: view.halfside,
+                    turns: view.turns,
+                }, collapsed.slice(1), position);
+                if (asdf === null) return null;
+                asdf[0] += 1;
+                return asdf;
+            }
+            return null;
+        }
+
+        { // dented pole
+            const points = [
+                new Vec2(0, 0),
+                new Vec2(4, -2),
+                new Vec2(4, 1),
+                new Vec2(2, 5),
+                new Vec2(4, 9),
+                new Vec2(4, 16),
+                new Vec2(0, 18),
+                new Vec2(-2, 17),
+                new Vec2(-2, -1),
+            ].map(v => v.addXY(7, 7))
+                .map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+
+            if (isPointInPolygon(position, points)) {
+                return [0];
+            }
+        }
+
+        if (cases[0].next !== 'return') {
+            const asdf = helper(cases[0].next, {
+                pos: view.pos.add(new Vec2(28, 10).scale(unit).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            }, collapsed[0].inside, position);
+            if (asdf !== null) {
+                return [0, ...asdf];
+            }
+        }
+
+        if (cases.length > 1) {
+            const extra_poles = countExtraPolesNeeded(cases[0]);
+            const asdf = helper(cases.slice(1), {
+                pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
+                halfside: view.halfside,
+                turns: view.turns,
+            }, collapsed.slice(1), position);
+            if (asdf === null) return null;
+            asdf[0] += 1;
+            return asdf;
+        }
+
+        return null;
+    }
+
+    return helper(cases, view, collapsed, position);
 }

@@ -1,12 +1,16 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getAtPosition } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed[];
     private matched: MatchedInput[];
+
+    private mouse_location: FullAddress | null;
+    private mouse_holding: SexprTemplate | null;
+
     constructor(
         private all_fnks: FunktionDefinition[],
         private fnk: FunktionDefinition,
@@ -14,6 +18,8 @@ export class EditingSolution {
     ) {
         this.collapsed = nothingCollapsed(fnk.cases);
         this.matched = nothingMatched(fnk.cases);
+        this.mouse_location = null;
+        this.mouse_holding = null;
     }
 
     draw(drawer: Drawer, global_t: number) {
@@ -30,7 +36,7 @@ export class EditingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const asdf = drawer.getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+        const asdf = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
         if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
             this.collapsed = toggleCollapsed(this.collapsed, asdf, global_t);
         }
