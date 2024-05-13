@@ -170,7 +170,7 @@ class Asdfasdf {
                 return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] });
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                return this.parent.next();
+                return this.parent.withInput(this.input).next();
             }
             case 'fading_in_from_child': {
                 const match_case = getCaseAt(this.fnk, this.animation.return_address);
@@ -193,8 +193,12 @@ class Asdfasdf {
         }
     }
 
-    withAnimation(new_animation: AsdfasdfAnimationState): Asdfasdf | null {
+    withAnimation(new_animation: AsdfasdfAnimationState): Asdfasdf {
         return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, this.input, new_animation);
+    }
+
+    withInput(new_input: SexprLiteral): Asdfasdf {
+        return new Asdfasdf(this.parent, this.fnk, this.collapse, this.matched, new_input, this.animation);
     }
 
     draw(drawer: Drawer, anim_t: number, global_t: number) {
@@ -379,8 +383,8 @@ const bubbleUpFnk: FunktionDefinition = {
 
 let all_fnks = [asdfTest, bubbleUpFnk];
 
-let cur_asdfasdf = Asdfasdf.init(asdfTest,
-    // let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
+// let cur_asdfasdf = Asdfasdf.init(asdfTest,
+let cur_asdfasdf = Asdfasdf.init(bubbleUpFnk,
     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
 
