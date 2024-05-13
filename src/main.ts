@@ -7,6 +7,7 @@ import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, 
 import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 import { ExecutingSolution } from './executing_solution';
+import { EditingSolution } from './editing_solution';
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;
@@ -103,10 +104,11 @@ const bubbleUpFnk: FunktionDefinition = {
 
 const all_fnks = [asdfTest, bubbleUpFnk];
 
-// let cur_asdfasdf = Asdfasdf.init(asdfTest,
-const cur_view = new ExecutingSolution(all_fnks, bubbleUpFnk,
-    parseSexprLiteral('(v1 v2 X v3 v1)'));
+// const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
+//     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
+
+const cur_editing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
@@ -121,8 +123,10 @@ function every_frame(cur_timestamp_millis: number) {
 
     drawer.clear();
 
-    cur_view.update(delta_time, drawer);
-    cur_view.draw(drawer);
+    // cur_execution.update(delta_time, drawer);
+    // cur_execution.draw(drawer);
+    cur_editing.update(drawer, input.mouse, cur_timestamp_millis / 1000);
+    cur_editing.draw(drawer, cur_timestamp_millis / 1000);
 
     // // drawMolecule(cur_fnk.cases[0].pattern, {
     // drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
