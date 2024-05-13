@@ -766,7 +766,7 @@ export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefin
     });
 }
 
-export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
+export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
     // just return the address of the pole at position
     const cases = fnk.cases;
 

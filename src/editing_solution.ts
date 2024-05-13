@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getAtPosition } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate } from './model';
@@ -45,7 +45,7 @@ export class EditingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const asdf = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+        const asdf = getPoleAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
         if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
             this.collapsed = toggleCollapsed(this.collapsed, asdf, global_t);
         }

@@ -253,18 +253,6 @@ class ExecutionState {
             throw new Error('unimplemented');
         }
     }
-
-    // update(drawer: Drawer, mouse: Mouse, global_t: number) {
-    //     const view = this.getMainView();
-
-    //     const rect = canvas.getBoundingClientRect();
-    //     const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
-
-    //     const asdf = drawer.getAtPosition(this.fnk, view, this.collapse, raw_mouse_pos);
-    //     if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
-    //         this.collapse = toggleCollapsed(this.collapse, asdf, global_t);
-    //     }
-    // }
 }
 
 export class ExecutingSolution {
