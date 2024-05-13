@@ -626,8 +626,11 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
     if (path.major.length === 0) {
         switch (path.type) {
             case 'fn_name':
-                throw new Error('TODO: implement');
-                break;
+                return getSexprGrandChildView({
+                    pos: parent.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(parent.turns)),
+                    halfside: parent.halfside / 2,
+                    turns: parent.turns - .25,
+                }, path.minor);
             case 'pattern':
                 return getSexprGrandChildView({
                     pos: parent.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(parent.turns)),

@@ -28,6 +28,15 @@ export class EditingSolution {
 
         drawer.drawFunktion(this.fnk, main_view, this.collapsed, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
+
+
+        drawer.drawMolecule({
+            type: 'atom', value: 'v1'
+        }, getView(main_view, {
+            type: 'fn_name',
+            major: [0],
+            minor: []
+        }));
     }
 
     update(drawer: Drawer, mouse: Mouse, global_t: number) {
