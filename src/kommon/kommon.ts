@@ -199,7 +199,7 @@ export function replace<T>(arr: T[], new_element: T, index: number): T[] {
 }
 
 export function assertNotNull<T>(element: T | null): T {
-    if (element === null) throw new Error("assertNotNull got a null");
+    if (element === null) throw new Error('assertNotNull got a null');
     return element;
 }
 

@@ -20,6 +20,10 @@ export class Drawer {
         public ctx: CanvasRenderingContext2D,
     ) { }
 
+    getScreenSize(): Vec2 {
+        return new Vec2(this.ctx.canvas.width, this.ctx.canvas.height);
+    }
+
     clear() {
         this.ctx.globalAlpha = 1;
         this.ctx.resetTransform();
