@@ -37,7 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
-import { or, replace, single } from './kommon/kommon';
+import { deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -312,7 +312,25 @@ export function setAt(haystack: MatchCaseDefinition[], address: FullAddress, val
     }, index);
 }
 
-// setAt(haystack[index],
+export function deletePole(haystack: MatchCaseDefinition[], address: MatchCaseAddress): MatchCaseDefinition[] | 'return' {
+    if (address.length === 0) throw new Error('unimplented');
+    if (address.length === 1) {
+        if (haystack.length === 1) {
+            if (single(address) !== 0) throw new Error('bad address');
+            return 'return';
+        } else {
+            return deleteAt(haystack, single(address));
+        }
+    }
+    const index = address[0];
+    const match_case = haystack[index];
+    if (match_case.next === 'return') throw new Error('bad address');
+    return replace(haystack, {
+        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+        next: deletePole(match_case.next, address.slice(1)),
+    }, index);
+}
+
 
 export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) throw new Error('bad address');
@@ -352,7 +370,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
 }, void, void> {
     for (let k = 0; k < cases.length; k++) {
         const match_case = cases[k];
-        yield {match_case, address: [...parent_address, k]};
+        yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
             yield* allCases(match_case.next, [...parent_address, k]);
         }

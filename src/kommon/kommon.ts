@@ -198,6 +198,13 @@ export function replace<T>(arr: T[], new_element: T, index: number): T[] {
     return result;
 }
 
+// Return new array without element [index]
+export function deleteAt<T>(arr: T[], index: number): T[] {
+    const result = [...arr];
+    result.splice(index, 1);
+    return result;
+}
+
 export function assertNotNull<T>(element: T | null): T {
     if (element === null) throw new Error('assertNotNull got a null');
     return element;

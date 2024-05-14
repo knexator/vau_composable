@@ -2,7 +2,7 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed[];
@@ -55,10 +55,19 @@ export class EditingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const asdf = getPoleAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
-        if (asdf !== null && mouse.wasPressed(MouseButton.Left)) {
-            console.log(asdf)
-            this.collapsed = toggleCollapsed(this.collapsed, asdf, global_t);
+        const pole = getPoleAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+        if (pole !== null) {
+            if (mouse.wasPressed(MouseButton.Left)) {
+                this.collapsed = toggleCollapsed(this.collapsed, pole, global_t);
+            } else if (mouse.wasPressed(MouseButton.Right)) {
+                const new_cases = deletePole(this.fnk.cases, pole);
+                if (new_cases !== 'return') {
+                    this.fnk.cases = new_cases;
+                    // TODO: respect collapsed & matched
+                    this.collapsed = nothingCollapsed(this.fnk.cases);
+                    this.matched = nothingMatched(this.fnk.cases);
+                }
+            }
         }
 
         this.mouse_location = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
