@@ -2,7 +2,7 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed[];
@@ -36,6 +36,10 @@ export class EditingSolution {
                 drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
             }
         }
+
+        if (this.mouse_holding !== null) {
+            drawer.drawMolecule(this.mouse_holding, main_view);
+        }
     }
 
     update(drawer: Drawer, mouse: Mouse, global_t: number) {
@@ -51,6 +55,19 @@ export class EditingSolution {
         }
 
         this.mouse_location = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+
+        if (this.mouse_holding === null) {
+            if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
+                this.mouse_holding = getAt(this.fnk.cases, this.mouse_location);
+            }
+        } else {
+            if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
+                if (this.mouse_location !== null) {
+                    this.fnk.cases = setAt(this.fnk.cases, this.mouse_location, this.mouse_holding);
+                }
+                this.mouse_holding = null;
+            }
+        }
     }
 
     private getMainView(screen_size: Vec2): SexprView {

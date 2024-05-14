@@ -274,7 +274,7 @@ export function getAt(haystack: MatchCaseDefinition[], address: FullAddress): Se
     });
 }
 
-function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: SexprLiteral): MatchCaseDefinition[] {
+export function setAt(haystack: MatchCaseDefinition[], address: FullAddress, value: SexprTemplate): MatchCaseDefinition[] {
     if (address.major.length === 0) throw new Error('unimplented');
     if (address.major.length === 1) {
         const old_match_case = haystack[single(address.major)];
