@@ -29,16 +29,23 @@ export class EditingSolution {
         drawer.drawFunktion(this.fnk, main_view, this.collapsed, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
+        if (this.mouse_holding !== null) {
+            if (this.mouse_location !== null) {
+                if (this.mouse_location.type === 'pattern') {
+                    drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location));
+                } else {
+                    drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location));
+                }
+            }
+            drawer.drawMolecule(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
+        }
+
         if (this.mouse_location !== null) {
             if (this.mouse_location.type === 'pattern') {
                 drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
             } else {
                 drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
             }
-        }
-
-        if (this.mouse_holding !== null) {
-            drawer.drawMolecule(this.mouse_holding, main_view);
         }
     }
 
@@ -78,5 +85,13 @@ export class EditingSolution {
             // turns: CONFIG._0_1,
         };
         return view;
+    }
+
+    private getExtraView(screen_size: Vec2): SexprView {
+        return {
+            pos: screen_size.mul(new Vec2(0.625, 0.2125)),
+            halfside: screen_size.y / 5.5,
+            turns: 0,
+        };
     }
 }
