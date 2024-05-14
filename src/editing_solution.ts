@@ -30,9 +30,11 @@ export class EditingSolution {
         drawer.drawMolecule(this.input, main_view);
 
         if (this.mouse_location !== null) {
-            drawer.drawMolecule({
-                type: 'atom', value: 'v1'
-            }, getView(main_view, this.mouse_location));
+            if (this.mouse_location.type === 'pattern') {
+                drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
+            } else {
+                drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
+            }
         }
     }
 

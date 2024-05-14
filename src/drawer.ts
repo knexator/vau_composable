@@ -57,6 +57,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.chair.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -143,6 +144,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
+                this.ctx.strokeStyle = "black";
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -190,6 +192,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
+                this.ctx.strokeStyle = "black";
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -233,6 +236,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.pole.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -265,6 +269,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
+                this.ctx.strokeStyle = "black";
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -336,6 +341,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.chair.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -359,6 +365,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.return.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -370,6 +377,96 @@ export class Drawer {
         else {
             this.drawMatchers(match_case.next, view, collapsed, cur_time, matched.inside);
         }
+    }
+
+    highlightMolecule(type: SexprTemplate["type"], view: SexprView) {
+        let points: Vec2[];
+        if (type === 'variable') {
+            points = [
+                new Vec2(-view.halfside * SPIKE_PERC, 0),
+                new Vec2(0, -view.halfside),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, view.halfside),
+                new Vec2(0, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        else if (type === 'atom') {
+            points = [
+                new Vec2(-view.halfside * SPIKE_PERC, 0),
+                new Vec2(0, -view.halfside),
+                new Vec2(view.halfside * 2, -view.halfside),
+                new Vec2(view.halfside * 2, view.halfside),
+                new Vec2(0, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        else {
+            points = [
+                new Vec2(-view.halfside * SPIKE_PERC, 0),
+                new Vec2(0, -view.halfside),
+                new Vec2(view.halfside * (2 + SPIKE_PERC), -view.halfside),
+                new Vec2(view.halfside * (2 + SPIKE_PERC), view.halfside),
+                new Vec2(0, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "cyan";
+        this.moveTo(points[0]);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(points[k]);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
+    }
+
+    highlightPattern(type: SexprTemplate["type"], view: SexprView) {
+        let points: Vec2[];
+        if (type === 'variable') {
+            points = [
+                new Vec2(-view.halfside * SPIKE_PERC, 0),
+                new Vec2(0, -view.halfside),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, view.halfside),
+                new Vec2(0, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        else if (type === 'atom') {
+            points = [
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * 2, -view.halfside),
+                new Vec2(view.halfside * 2, view.halfside),
+                new Vec2(view.halfside * 3, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        else {
+            points = [
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * .5, -view.halfside),
+                new Vec2(view.halfside * .5, view.halfside),
+                new Vec2(view.halfside * 3, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+        }
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = "cyan";
+        this.moveTo(points[0]);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(points[k]);
+        }
+        this.ctx.closePath();
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
     }
 
     private drawMoleculeNonRecursive(data: SexprNullable, view: SexprView) {
@@ -385,6 +482,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -397,6 +495,7 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(view.pos.add(new Vec2(-view.halfside * SPIKE_PERC, 0).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(0, -view.halfside).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(view.halfside * 2, -view.halfside).rotateTurns(view.turns)));
@@ -433,6 +532,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.cons.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -460,6 +560,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.cons.toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -472,6 +573,7 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
+            this.ctx.strokeStyle = "black";
             this.moveTo(view.pos.add(new Vec2(view.halfside * SPIKE_PERC + view.halfside * 3, 0).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(-view.halfside + view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
@@ -923,7 +1025,7 @@ function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, 
         return inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
     } else {
         // are we selecting a subchild?
-        if (3-delta_pos.x >= .5 - SPIKE_PERC / 2) {
+        if (3 - delta_pos.x >= .5 - SPIKE_PERC / 2) {
             const is_left = delta_pos.y <= 0;
             const maybe_child = patternAdressFromScreenPosition(screen_pos, is_left ? data.left : data.right, getSexprChildView(view, is_left));
             if (maybe_child !== null) {
@@ -931,7 +1033,7 @@ function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, 
             }
         }
         // no subchild, stricter selection than atom:
-        if (inRange(3-delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 1)) {
+        if (inRange(3 - delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 1)) {
             // path to this
             return [];
         } else {
