@@ -1,5 +1,5 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { DefaultMap, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases } from './model';
 
@@ -85,9 +85,9 @@ export class Drawer {
         }
     }
 
-    drawBindings(parent_view: SexprView, bindings: FloatingBinding[], t: number) {
+    drawBindings(parent_view: SexprView, bindings: FloatingBinding[], t: number, collapsed: Collapsed) {
         bindings.forEach((x) => {
-            const cur_view = lerpSexprView(x.source_view, getView(parent_view, x.target_address), t);
+            const cur_view = lerpSexprView(x.source_view, getView(parent_view, x.target_address, collapsed), t);
             this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
             this.drawMolecule(x.value, cur_view);
         }, this);
@@ -253,7 +253,7 @@ export class Drawer {
         }, collapsed[0].inside, cur_time, matched[0]);
 
         if (cases.length > 1) {
-            const extra_poles = countExtraPolesNeeded(cases[0]);
+            const extra_poles = collapsed[0].main.extra_poles;
             for (let k = 0; k < extra_poles; k++) {
                 const points = [
                     new Vec2(0, 0),
@@ -683,12 +683,18 @@ export function updateMatchedForMissingTemplate(cur: MatchedInput[], address: Ma
     }
 }
 
-export type Collapsed = { main: { value: boolean, changedAt: number }, inside: Collapsed[] };
+export type Collapsed = { main: { value: boolean, changedAt: number, extra_poles: number }, inside: Collapsed[] };
+// export type FnkCollapsed = { main: null, inside: Collapsed[] }; // TODO: use this instead of Collapsed[]
+
+// TODO: code smell, this is a sign we should be using Collapsed instead of Collapsed[]
+export function fakeCollapsed(children: Collapsed[]): Collapsed {
+    return { main: { value: false, changedAt: -Infinity, extra_poles: 0 }, inside: children };
+}
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
     function helper(match_case: MatchCaseDefinition): Collapsed {
         return {
-            main: { value: false, changedAt: -Infinity },
+            main: { value: false, changedAt: -Infinity, extra_poles: countExtraPolesNeeded(match_case) },
             inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
         };
     }
@@ -724,9 +730,10 @@ function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprVie
 }
 
 // TODO: take collapse into account
-export function getView(parent: SexprView, path: FullAddress): SexprView {
+export function getView(parent: SexprView, path: FullAddress, collapsed: Collapsed): SexprView {
     const unit = parent.halfside / 4;
     if (path.major.length === 0) {
+        // TODO: take collapsed into account
         switch (path.type) {
             case 'fn_name':
                 return getSexprGrandChildView({
@@ -747,12 +754,12 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
         }
     }
     else {
-        const extra_poles = 0; // TODO
+        const extra_poles = collapsed.inside.slice(0, path.major[0]).map(x => x.main.extra_poles).reduce((a, b) => a + b, 0);
         return getView({
             pos: parent.pos.add(new Vec2(28 * unit, 10 * unit + path.major[0] * 18 * unit * (1 + extra_poles)).rotateTurns(parent.turns)),
             halfside: parent.halfside,
             turns: parent.turns,
-        }, { type: path.type, minor: path.minor, major: path.major.slice(1) });
+        }, { type: path.type, minor: path.minor, major: path.major.slice(1) }, at(collapsed.inside, path.major[0]));
     }
 }
 
@@ -847,7 +854,7 @@ function findTransformationWithFixedOrigin({ source, target }: { source: Vec2, t
     return (v: Vec2) => transform.globalFromLocal(v);
 }
 
-export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefinition, address: MatchCaseAddress, parent_view: SexprView): FloatingBinding[] {
+export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefinition, address: MatchCaseAddress, parent_view: SexprView, collapsed: Collapsed): FloatingBinding[] {
     const match_case = getCaseAt(fnk, address);
     const bindings = generateBindings(input, match_case.pattern);
     if (bindings === null) throw new Error('no bindings');
@@ -858,7 +865,7 @@ export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefin
                 type: 'pattern',
                 major: address,
                 minor: x.variable_address,
-            }),
+            }, collapsed),
             target_address: {
                 type: target.type, minor: target.minor,
                 major: [...address, ...target.major],
@@ -944,7 +951,7 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
         }
 
         if (cases.length > 1) {
-            const extra_poles = countExtraPolesNeeded(cases[0]);
+            const extra_poles = collapsed[0].main.extra_poles;
             const asdf = helper(cases.slice(1), {
                 pos: view.pos.add(new Vec2(0, 18 * unit * (1 + extra_poles)).rotateTurns(view.turns)),
                 halfside: view.halfside,
@@ -961,7 +968,7 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
     return helper(cases, view, collapsed, position);
 }
 
-export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): FullAddress | null {
+export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed, position: Vec2): FullAddress | null {
     const main_fn_name_address = sexprAdressFromScreenPosition(position, fnk.name, {
         pos: view.pos.add(new Vec2(-3, -2).scale(view.halfside / 4).rotateTurns(view.turns)),
         halfside: view.halfside / 2,
@@ -980,7 +987,7 @@ export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapse
                 type: type,
                 major: address,
                 minor: [],
-            }));
+            }, collapsed));
             if (minor_address !== null) return {
                 type: type,
                 major: address,

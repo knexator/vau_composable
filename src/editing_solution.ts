@@ -1,11 +1,11 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress } from './model';
 
 export class EditingSolution {
-    private collapsed: Collapsed[];
+    private collapsed: Collapsed;
     private matched: MatchedInput[];
 
     private mouse_location: FullAddress | null;
@@ -16,7 +16,7 @@ export class EditingSolution {
         private fnk: FunktionDefinition,
         private input: SexprLiteral,
     ) {
-        this.collapsed = nothingCollapsed(fnk.cases);
+        this.collapsed = fakeCollapsed(nothingCollapsed(fnk.cases));
         this.matched = nothingMatched(fnk.cases);
         this.mouse_location = null;
         this.mouse_holding = null;
@@ -26,16 +26,16 @@ export class EditingSolution {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize());
 
-        drawer.drawFunktion(this.fnk, main_view, this.collapsed, global_t, this.matched);
+        drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
         if (this.mouse_holding !== null) {
             if (this.mouse_location !== null) {
                 if (this.mouse_location.type === 'pattern') {
-                    drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location));
+                    drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
                 else {
-                    drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location));
+                    drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
             }
             drawer.drawMolecule(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
@@ -44,13 +44,13 @@ export class EditingSolution {
         if (this.mouse_location !== null) {
             if (this.mouse_location.major.length === 0) {
                 // TODO: proper view for fnk name
-                drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location));
+                drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location, this.collapsed));
             }
             else if (this.mouse_location.type === 'pattern') {
-                drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
+                drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location, this.collapsed));
             }
             else {
-                drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
+                drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location, this.collapsed));
             }
         }
     }
@@ -61,18 +61,20 @@ export class EditingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const pole = getPoleAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+        const pole = getPoleAtPosition(this.fnk, view, this.collapsed.inside, raw_mouse_pos);
         if (pole !== null) {
             if (mouse.wasPressed(MouseButton.Left)) {
-                this.collapsed = toggleCollapsed(this.collapsed, pole, global_t);
+                this.collapsed.inside = toggleCollapsed(this.collapsed.inside, pole, global_t);
             }
             else if (mouse.wasPressed(MouseButton.Right)) {
                 const new_cases = deletePole(this.fnk.cases, pole);
                 if (new_cases !== 'return') {
                     this.fnk.cases = new_cases;
                     // TODO: respect collapsed & matched
-                    this.collapsed = nothingCollapsed(this.fnk.cases);
+                    this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
                     this.matched = nothingMatched(this.fnk.cases);
+
+                    console.log(this.collapsed.inside);
                 }
             }
         }
@@ -81,7 +83,7 @@ export class EditingSolution {
         if (this.mouse_location !== null && this.mouse_location.type === 'fn_name' && mouse.wasPressed(MouseButton.Right)) {
             this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
             // TODO: respect collapsed & matched
-            this.collapsed = nothingCollapsed(this.fnk.cases);
+            this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
             this.matched = nothingMatched(this.fnk.cases);
         }
 

@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed } from './drawer';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString } from './model';
@@ -19,7 +19,7 @@ class ExecutionState {
     private constructor(
         private parent: ExecutionState | null,
         private fnk: FunktionDefinition,
-        private collapse: Collapsed[],
+        private collapsed: Collapsed,
         private matched: MatchedInput[],
         private input: SexprLiteral,
         private animation: ExecutionAnimationState,
@@ -29,7 +29,7 @@ class ExecutionState {
         return new ExecutionState(
             null,
             fnk,
-            nothingCollapsed(fnk.cases),
+            fakeCollapsed(nothingCollapsed(fnk.cases)),
             nothingMatched(fnk.cases),
             input,
             { type: 'input_moving_to_next_option', target: [0] },
@@ -43,7 +43,7 @@ class ExecutionState {
             type: 'pattern',
             major: address,
             minor: [],
-        });
+        }, this.collapsed);
         const unit = view.halfside / 4;
         return {
             pos: chair_view.pos.add(new Vec2(-unit * 11, 0).rotateTurns(chair_view.turns)),
@@ -62,9 +62,9 @@ class ExecutionState {
                 return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
             }
             case 'matching': {
-                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view);
+                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view, this.collapsed);
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
-                return new ExecutionState(this.parent, this.fnk, this.collapse, new_matched, this.input,
+                return new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
             }
             case 'floating_bindings': {
@@ -73,7 +73,7 @@ class ExecutionState {
                     this.animation.bindings);
                 const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
                 const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
-                return new ExecutionState(this.parent, new_fnk, this.collapse, new_matched, new_input,
+                return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
                     { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
             }
             case 'dissolve_bindings': {
@@ -86,7 +86,7 @@ class ExecutionState {
                         }
                         else {
                             if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                            return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapse, this.matched, this.input,
+                            return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched, this.input,
                                 { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
                     }
@@ -107,7 +107,7 @@ class ExecutionState {
                         throw new Error(`can't find function of name ${sexprToString(fn_name)}`);
                     }
                     return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
-                        next_fnk, nothingCollapsed(next_fnk.cases), nothingMatched(next_fnk.cases), this.input,
+                        next_fnk, fakeCollapsed(nothingCollapsed(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
                         { type: 'fading_in_from_parent', source_address: input_address });
                 }
             }
@@ -127,7 +127,7 @@ class ExecutionState {
                     }
                     else {
                         if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                        return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapse, this.matched, this.input,
+                        return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched, this.input,
                             { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.return_address });
                     }
                 }
@@ -141,11 +141,11 @@ class ExecutionState {
     }
 
     private withAnimation(new_animation: ExecutionAnimationState): ExecutionState {
-        return new ExecutionState(this.parent, this.fnk, this.collapse, this.matched, this.input, new_animation);
+        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, this.input, new_animation);
     }
 
     private withInput(new_input: SexprLiteral): ExecutionState {
-        return new ExecutionState(this.parent, this.fnk, this.collapse, this.matched, new_input, this.animation);
+        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, new_input, this.animation);
     }
 
     draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView) {
@@ -181,14 +181,14 @@ class ExecutionState {
             drawer.ctx.globalAlpha = 1;
         }
 
-        drawer.drawFunktion(this.fnk, view, this.collapse, global_t, this.matched);
+        drawer.drawFunktion(this.fnk, view, this.collapsed.inside, global_t, this.matched);
         if (this.animation.type === 'input_moving_to_next_option') {
             const source_view = (last(this.animation.target) === 0)
                 ? getView(view, {
                     type: 'template',
                     major: this.animation.target.slice(0, -1),
                     minor: [],
-                })
+                }, this.collapsed)
                 : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1]);
             drawer.drawMolecule(this.input, lerpSexprView(
                 source_view,
@@ -199,23 +199,23 @@ class ExecutionState {
         else if (this.animation.type === 'failing_to_match') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
-                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }),
+                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
                 (anim_t - 1) * (anim_t - 0) * -4,
             ));
         }
         else if (this.animation.type === 'matching') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
-                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }),
+                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
                 anim_t,
             ));
         }
         else if (this.animation.type === 'floating_bindings') {
-            drawer.drawBindings(main_view, this.animation.bindings, anim_t);
+            drawer.drawBindings(main_view, this.animation.bindings, anim_t, this.collapsed);
         }
         else if (this.animation.type === 'dissolve_bindings') {
             this.animation.bindings.forEach((binding) => {
-                const base_view = getView(view, binding.target_address);
+                const base_view = getView(view, binding.target_address, this.collapsed);
                 drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
                     pos: base_view.pos, turns: base_view.turns,
                     halfside: base_view.halfside * (1 - anim_t),
@@ -226,7 +226,7 @@ class ExecutionState {
                     halfside: base_view.halfside * (1 - anim_t),
                 });
             });
-            drawer.drawMolecule(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }));
+            drawer.drawMolecule(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }, this.collapsed));
         }
         else if (this.animation.type === 'fading_out_to_child') {
             // nothing
@@ -237,15 +237,15 @@ class ExecutionState {
         else if (this.animation.type === 'fading_in_from_parent') {
             //  view = ;
             drawer.drawMolecule(this.input, lerpSexprView(
-                getView(main_view, { type: 'template', major: this.animation.source_address, minor: [] }),
-                getView(view, { type: 'template', major: [], minor: [] }),
+                getView(main_view, { type: 'template', major: this.animation.source_address, minor: [] }, this.collapsed),
+                getView(view, { type: 'template', major: [], minor: [] }, this.collapsed),
                 anim_t,
             ));
         }
         else if (this.animation.type === 'fading_out_to_parent') {
             drawer.drawMolecule(this.input, lerpSexprView(
-                getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }),
-                getView(main_view, { type: 'template', major: this.animation.parent_address, minor: [] }),
+                getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }, this.collapsed),
+                getView(main_view, { type: 'template', major: this.animation.parent_address, minor: [] }, this.collapsed),
                 anim_t,
             ));
         }
