@@ -57,7 +57,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.chair.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -144,7 +144,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
-                this.ctx.strokeStyle = "black";
+                this.ctx.strokeStyle = 'black';
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -192,7 +192,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
-                this.ctx.strokeStyle = "black";
+                this.ctx.strokeStyle = 'black';
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -236,7 +236,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.pole.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -269,7 +269,7 @@ export class Drawer {
 
                 this.ctx.beginPath();
                 this.ctx.fillStyle = COLORS.pole.toHex();
-                this.ctx.strokeStyle = "black";
+                this.ctx.strokeStyle = 'black';
                 this.moveTo(points[0]);
                 for (let k = 1; k < points.length; k++) {
                     this.lineTo(points[k]);
@@ -341,7 +341,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.chair.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -365,7 +365,7 @@ export class Drawer {
 
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.return.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -379,7 +379,7 @@ export class Drawer {
         }
     }
 
-    highlightMolecule(type: SexprTemplate["type"], view: SexprView) {
+    highlightMolecule(type: SexprTemplate['type'], view: SexprView) {
         let points: Vec2[];
         if (type === 'variable') {
             points = [
@@ -414,7 +414,7 @@ export class Drawer {
         }
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.strokeStyle = "cyan";
+        this.ctx.strokeStyle = 'cyan';
         this.moveTo(points[0]);
         for (let k = 1; k < points.length; k++) {
             this.lineTo(points[k]);
@@ -424,7 +424,7 @@ export class Drawer {
         this.ctx.lineWidth = 1;
     }
 
-    highlightPattern(type: SexprTemplate["type"], view: SexprView) {
+    highlightPattern(type: SexprTemplate['type'], view: SexprView) {
         let points: Vec2[];
         if (type === 'variable') {
             points = [
@@ -451,15 +451,15 @@ export class Drawer {
             points = [
                 new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
                 new Vec2(view.halfside * 3, -view.halfside),
-                new Vec2(view.halfside * .5, -view.halfside),
-                new Vec2(view.halfside * .5, view.halfside),
+                new Vec2(view.halfside * 0.5, -view.halfside),
+                new Vec2(view.halfside * 0.5, view.halfside),
                 new Vec2(view.halfside * 3, view.halfside),
             ].map(v => v.rotateTurns(view.turns))
                 .map(v => view.pos.add(v));
         }
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.strokeStyle = "cyan";
+        this.ctx.strokeStyle = 'cyan';
         this.moveTo(points[0]);
         for (let k = 1; k < points.length; k++) {
             this.lineTo(points[k]);
@@ -482,7 +482,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -495,7 +495,7 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(view.pos.add(new Vec2(-view.halfside * SPIKE_PERC, 0).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(0, -view.halfside).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(view.halfside * 2, -view.halfside).rotateTurns(view.turns)));
@@ -532,7 +532,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.cons.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -560,7 +560,7 @@ export class Drawer {
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
             this.ctx.fillStyle = COLORS.cons.toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
                 this.lineTo(points[k]);
@@ -573,7 +573,7 @@ export class Drawer {
             const profile = atom_shapes.get(data.value);
             this.ctx.beginPath();
             this.ctx.fillStyle = colorFromAtom(data.value).toHex();
-            this.ctx.strokeStyle = "black";
+            this.ctx.strokeStyle = 'black';
             this.moveTo(view.pos.add(new Vec2(view.halfside * SPIKE_PERC + view.halfside * 3, 0).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
             this.lineTo(view.pos.add(new Vec2(-view.halfside + view.halfside * 3, -view.halfside).rotateTurns(view.turns)));
@@ -732,7 +732,7 @@ export function getView(parent: SexprView, path: FullAddress): SexprView {
                 return getSexprGrandChildView({
                     pos: parent.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(parent.turns)),
                     halfside: parent.halfside / 2,
-                    turns: parent.turns - .25,
+                    turns: parent.turns - 0.25,
                 }, path.minor);
             case 'pattern':
                 return getSexprGrandChildView({
@@ -780,8 +780,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -962,11 +962,10 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
 }
 
 export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): FullAddress | null {
-
     const main_fn_name_address = sexprAdressFromScreenPosition(position, fnk.name, {
         pos: view.pos.add(new Vec2(-3, -2).scale(view.halfside / 4).rotateTurns(view.turns)),
         halfside: view.halfside / 2,
-        turns: view.turns - .25,
+        turns: view.turns - 0.25,
     });
     if (main_fn_name_address !== null) return {
         type: 'fn_name',
@@ -977,15 +976,15 @@ export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapse
     for (const { address, match_case } of allCases(fnk.cases)) {
         for (const [sexpr, type] of zip2([match_case.template, match_case.pattern, match_case.fn_name_template], ['template', 'pattern', 'fn_name'] as const)) {
             const fn = type === 'pattern' ? patternAdressFromScreenPosition : sexprAdressFromScreenPosition;
-            let minor_address = fn(position, sexpr, getView(view, {
+            const minor_address = fn(position, sexpr, getView(view, {
                 type: type,
                 major: address,
-                minor: []
+                minor: [],
             }));
             if (minor_address !== null) return {
                 type: type,
                 major: address,
-                minor: minor_address
+                minor: minor_address,
             };
         }
     }
@@ -995,23 +994,27 @@ export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapse
 function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
     const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
     if (!inRange(delta_pos.y, -1, 1)) return null;
-    if (data.type === "atom") {
-        let max_x = 2;
+    if (data.type === 'atom') {
+        const max_x = 2;
         if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
-            return []
-        } else {
+            return [];
+        }
+        else {
             return null;
         }
-    } else if (data.type === 'variable') {
-        let max_x = 3 + (1 - Math.abs(delta_pos.y)) * SPIKE_PERC;
+    }
+    else if (data.type === 'variable') {
+        const max_x = 3 + (1 - Math.abs(delta_pos.y)) * SPIKE_PERC;
         if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
-            return []
-        } else {
+            return [];
+        }
+        else {
             return null;
         }
-    } else {
+    }
+    else {
         // are we selecting a subchild?
-        if (data.type === "pair" && delta_pos.x >= .5 - SPIKE_PERC / 2) {
+        if (data.type === 'pair' && delta_pos.x >= 0.5 - SPIKE_PERC / 2) {
             const is_left = delta_pos.y <= 0;
             const maybe_child = sexprAdressFromScreenPosition(screen_pos, is_left ? data.left : data.right, getSexprChildView(view, is_left));
             if (maybe_child !== null) {
@@ -1019,10 +1022,11 @@ function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, vi
             }
         }
         // no subchild, stricter selection than atom:
-        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, .5)) {
+        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 0.5)) {
             // path to this
             return [];
-        } else {
+        }
+        else {
             return null;
         }
     }
@@ -1031,13 +1035,15 @@ function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, vi
 function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
     const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
     if (!inRange(delta_pos.y, -1, 1)) return null;
-    if (data.type === "atom") {
+    if (data.type === 'atom') {
         return inRange(delta_pos.x, 2, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
-    } else if (data.type === 'variable') {
+    }
+    else if (data.type === 'variable') {
         return inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
-    } else {
+    }
+    else {
         // are we selecting a subchild?
-        if (3 - delta_pos.x >= .5 - SPIKE_PERC / 2) {
+        if (3 - delta_pos.x >= 0.5 - SPIKE_PERC / 2) {
             const is_left = delta_pos.y <= 0;
             const maybe_child = patternAdressFromScreenPosition(screen_pos, is_left ? data.left : data.right, getSexprChildView(view, is_left));
             if (maybe_child !== null) {
@@ -1048,7 +1054,8 @@ function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, 
         if (inRange(3 - delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 1)) {
             // path to this
             return [];
-        } else {
+        }
+        else {
             return null;
         }
     }

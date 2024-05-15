@@ -318,7 +318,8 @@ export function deletePole(haystack: MatchCaseDefinition[], address: MatchCaseAd
         if (haystack.length === 1) {
             if (single(address) !== 0) throw new Error('bad address');
             return 'return';
-        } else {
+        }
+        else {
             return deleteAt(haystack, single(address));
         }
     }
@@ -346,7 +347,7 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], address: Ma
         if (address.length > 1) throw new Error('bad address');
         return replace(haystack, {
             pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-            next: [DEFAULT_MATCH_CASE]
+            next: [DEFAULT_MATCH_CASE],
         }, index);
     }
     return replace(haystack, {
@@ -395,7 +396,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield* allCases(match_case.next, [...parent_address, k]);
+            yield * allCases(match_case.next, [...parent_address, k]);
         }
     }
 }

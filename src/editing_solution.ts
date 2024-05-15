@@ -33,7 +33,8 @@ export class EditingSolution {
             if (this.mouse_location !== null) {
                 if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location));
-                } else {
+                }
+                else {
                     drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location));
                 }
             }
@@ -44,9 +45,11 @@ export class EditingSolution {
             if (this.mouse_location.major.length === 0) {
                 // TODO: proper view for fnk name
                 drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location));
-            } else if (this.mouse_location.type === 'pattern') {
+            }
+            else if (this.mouse_location.type === 'pattern') {
                 drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
-            } else {
+            }
+            else {
                 drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location));
             }
         }
@@ -62,7 +65,8 @@ export class EditingSolution {
         if (pole !== null) {
             if (mouse.wasPressed(MouseButton.Left)) {
                 this.collapsed = toggleCollapsed(this.collapsed, pole, global_t);
-            } else if (mouse.wasPressed(MouseButton.Right)) {
+            }
+            else if (mouse.wasPressed(MouseButton.Right)) {
                 const new_cases = deletePole(this.fnk.cases, pole);
                 if (new_cases !== 'return') {
                     this.fnk.cases = new_cases;
@@ -74,7 +78,7 @@ export class EditingSolution {
         }
 
         this.mouse_location = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
-        if (this.mouse_location !== null && this.mouse_location.type === "fn_name" && mouse.wasPressed(MouseButton.Right)) {
+        if (this.mouse_location !== null && this.mouse_location.type === 'fn_name' && mouse.wasPressed(MouseButton.Right)) {
             this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
             // TODO: respect collapsed & matched
             this.collapsed = nothingCollapsed(this.fnk.cases);
@@ -85,21 +89,25 @@ export class EditingSolution {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
                 if (this.mouse_location.major.length === 0) {
                     this.mouse_holding = getAtLocalAddress(this.fnk.name, this.mouse_location.minor);
-                } else {
+                }
+                else {
                     this.mouse_holding = getAt(this.fnk.cases, this.mouse_location);
                 }
             }
-        } else {
+        }
+        else {
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
                     if (this.mouse_location.major.length === 0) {
                         try {
                             const lit = assertLiteral(setAtLocalAddress(this.fnk.name, this.mouse_location.minor, this.mouse_holding));
                             this.fnk.name = lit;
-                        } catch {
+                        }
+                        catch {
                             // nothing
                         }
-                    } else {
+                    }
+                    else {
                         this.fnk.cases = setAt(this.fnk.cases, this.mouse_location, this.mouse_holding);
                     }
                 }
