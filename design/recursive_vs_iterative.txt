@@ -15,3 +15,4 @@ count_y_iterative_helper:
 
 
 // stack size vs code size vs execution time
+// mh, execution time & stack size might be the same thing, if we ignore quote & maybe other things
