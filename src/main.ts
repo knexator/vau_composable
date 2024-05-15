@@ -109,6 +109,7 @@ const all_fnks = [asdfTest, bubbleUpFnk];
 // parseSexprLiteral('(X 3 4)'));
 
 let cur_thing: EditingSolution | ExecutingSolution = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
+let view_offset = Vec2.zero;
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
@@ -123,15 +124,28 @@ function every_frame(cur_timestamp_millis: number) {
 
     drawer.clear();
 
-    if (cur_thing instanceof EditingSolution) {
-        cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000);
-        cur_thing.draw(drawer, cur_timestamp_millis / 1000);
-        if (input.keyboard.wasPressed(KeyCode.Space)) {
-            cur_thing = cur_thing.startExecution()
+    const keymap: [KeyCode[], Vec2][] = [
+        [[KeyCode.KeyW, KeyCode.ArrowUp], Vec2.yneg],
+        [[KeyCode.KeyA, KeyCode.ArrowLeft], Vec2.xneg],
+        [[KeyCode.KeyS, KeyCode.ArrowDown], Vec2.ypos],
+        [[KeyCode.KeyD, KeyCode.ArrowRight], Vec2.xpos],
+    ];
+    for (const [keys, dir] of keymap) {
+        if (keys.some(k => input.keyboard.isDown(k))) {
+            view_offset = view_offset.add(dir.scale(1000 * delta_time));
         }
-    } else if (cur_thing instanceof ExecutingSolution) {
-        cur_thing.update(delta_time, drawer);
-        cur_thing.draw(drawer);
+    }
+
+    if (cur_thing instanceof EditingSolution) {
+        cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000, view_offset);
+        cur_thing.draw(drawer, cur_timestamp_millis / 1000, view_offset);
+        if (input.keyboard.wasPressed(KeyCode.Space)) {
+            cur_thing = cur_thing.startExecution();
+        }
+    }
+    else if (cur_thing instanceof ExecutingSolution) {
+        cur_thing.update(delta_time, drawer, view_offset);
+        cur_thing.draw(drawer, view_offset);
     }
 
     // // drawMolecule(cur_fnk.cases[0].pattern, {

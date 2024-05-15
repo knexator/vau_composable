@@ -268,8 +268,8 @@ export class ExecutingSolution {
     }
 
     // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer) {
-        const view = this.getMainView(drawer.getScreenSize());
+    update(delta_time: number, drawer: Drawer, view_offset: Vec2) {
+        const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
         // TODO: handle the end of execution
         this.anim_t += delta_time;
@@ -279,14 +279,14 @@ export class ExecutingSolution {
         }
     }
 
-    draw(drawer: Drawer) {
-        const view = this.getMainView(drawer.getScreenSize());
+    draw(drawer: Drawer, view_offset: Vec2) {
+        const view = this.getMainView(drawer.getScreenSize(), view_offset);
         this.cur_execution_state.draw(drawer, this.anim_t, Infinity, view);
     }
 
-    private getMainView(screen_size: Vec2): SexprView {
+    private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {
         const view = {
-            pos: screen_size.mul(new Vec2(0.1, 0.175)),
+            pos: screen_size.mul(new Vec2(0.1, 0.175)).add(view_offset),
             halfside: screen_size.y / 17,
             turns: 0,
             // turns: CONFIG._0_1,

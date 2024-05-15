@@ -23,9 +23,9 @@ export class EditingSolution {
         this.mouse_holding = null;
     }
 
-    draw(drawer: Drawer, global_t: number) {
+    draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
         drawer.ctx.globalAlpha = 1;
-        const main_view = this.getMainView(drawer.getScreenSize());
+        const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
 
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
@@ -56,8 +56,8 @@ export class EditingSolution {
         }
     }
 
-    update(drawer: Drawer, mouse: Mouse, global_t: number) {
-        const view = this.getMainView(drawer.getScreenSize());
+    update(drawer: Drawer, mouse: Mouse, global_t: number, offset: Vec2) {
+        const view = this.getMainView(drawer.getScreenSize(), offset);
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
@@ -123,9 +123,9 @@ export class EditingSolution {
         return new ExecutingSolution(this.all_fnks, this.fnk, this.input);
     }
 
-    private getMainView(screen_size: Vec2): SexprView {
+    private getMainView(screen_size: Vec2, offset: Vec2): SexprView {
         const view = {
-            pos: screen_size.mul(new Vec2(0.1, 0.175)),
+            pos: screen_size.mul(new Vec2(0.1, 0.175)).add(offset),
             halfside: screen_size.y / 17,
             turns: 0,
             // turns: CONFIG._0_1,
