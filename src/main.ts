@@ -132,7 +132,7 @@ function every_frame(cur_timestamp_millis: number) {
     ];
     for (const [keys, dir] of keymap) {
         if (keys.some(k => input.keyboard.isDown(k))) {
-            view_offset = view_offset.add(dir.scale(1000 * delta_time));
+            view_offset = view_offset.sub(dir.scale(1000 * delta_time));
         }
     }
 
