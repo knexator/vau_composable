@@ -108,7 +108,7 @@ const all_fnks = [asdfTest, bubbleUpFnk];
 //     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
 
-const cur_editing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
+let cur_thing: EditingSolution | ExecutingSolution = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
@@ -123,10 +123,16 @@ function every_frame(cur_timestamp_millis: number) {
 
     drawer.clear();
 
-    // cur_execution.update(delta_time, drawer);
-    // cur_execution.draw(drawer);
-    cur_editing.update(drawer, input.mouse, cur_timestamp_millis / 1000);
-    cur_editing.draw(drawer, cur_timestamp_millis / 1000);
+    if (cur_thing instanceof EditingSolution) {
+        cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000);
+        cur_thing.draw(drawer, cur_timestamp_millis / 1000);
+        if (input.keyboard.wasPressed(KeyCode.Space)) {
+            cur_thing = cur_thing.startExecution()
+        }
+    } else if (cur_thing instanceof ExecutingSolution) {
+        cur_thing.update(delta_time, drawer);
+        cur_thing.draw(drawer);
+    }
 
     // // drawMolecule(cur_fnk.cases[0].pattern, {
     // drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {

@@ -1,5 +1,6 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed } from './drawer';
+import { ExecutingSolution } from './executing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress } from './model';
@@ -116,6 +117,10 @@ export class EditingSolution {
                 this.mouse_holding = null;
             }
         }
+    }
+
+    startExecution() {
+        return new ExecutingSolution(this.all_fnks, this.fnk, this.input);
     }
 
     private getMainView(screen_size: Vec2): SexprView {
