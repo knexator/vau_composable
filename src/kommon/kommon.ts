@@ -205,6 +205,13 @@ export function deleteAt<T>(arr: T[], index: number): T[] {
     return result;
 }
 
+// Return new array with new_element added at [index]
+export function addAt<T>(arr: T[], new_element: T, index: number): T[] {
+    const result = [...arr];
+    result.splice(index, 0, new_element);
+    return result;
+}
+
 export function assertNotNull<T>(element: T | null): T {
     if (element === null) throw new Error('assertNotNull got a null');
     return element;

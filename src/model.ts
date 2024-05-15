@@ -37,7 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
-import { deleteAt, or, replace, single } from './kommon/kommon';
+import { addAt, deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -90,7 +90,7 @@ export type SexprAddress = ('l' | 'r')[];
 export type MatchCaseAddress = number[];
 export type FullAddress = { type: 'fn_name' | 'pattern' | 'template', major: MatchCaseAddress, minor: SexprAddress };
 
-function getAtLocalAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemplate | null {
+export function getAtLocalAddress(haystack: SexprTemplate, address: SexprAddress): SexprTemplate | null {
     let result = haystack;
     for (let k = 0; k < address.length; k++) {
         if (result.type !== 'pair') return null;
@@ -99,7 +99,7 @@ function getAtLocalAddress(haystack: SexprTemplate, address: SexprAddress): Sexp
     return result;
 }
 
-function setAtLocalAddress(haystack: SexprTemplate, address: SexprAddress, needle: SexprTemplate): SexprTemplate {
+export function setAtLocalAddress(haystack: SexprTemplate, address: SexprAddress, needle: SexprTemplate): SexprTemplate {
     if (address.length === 0) return needle;
     if (haystack.type !== 'pair') throw new Error('can\'t setAtAddress, is not a pair');
     if (address[0] === 'l') {
@@ -331,6 +331,29 @@ export function deletePole(haystack: MatchCaseDefinition[], address: MatchCaseAd
     }, index);
 }
 
+const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
+    pattern: parseSexprTemplate('@X'),
+    template: parseSexprTemplate('@X'),
+    fn_name_template: parseSexprTemplate('identity'),
+    next: 'return',
+};
+
+export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], address: MatchCaseAddress): MatchCaseDefinition[] {
+    if (address.length === 0) return addAt(haystack, DEFAULT_MATCH_CASE, 0);
+    const index = address[0];
+    const match_case = haystack[index];
+    if (match_case.next === 'return') {
+        if (address.length > 1) throw new Error('bad address');
+        return replace(haystack, {
+            pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+            next: [DEFAULT_MATCH_CASE]
+        }, index);
+    }
+    return replace(haystack, {
+        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+        next: addPoleAsFirstChild(match_case.next, address.slice(1)),
+    }, index);
+}
 
 export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) throw new Error('bad address');

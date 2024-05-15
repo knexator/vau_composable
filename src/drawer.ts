@@ -723,6 +723,7 @@ function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprVie
     return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
+// TODO: take collapse into account
 export function getView(parent: SexprView, path: FullAddress): SexprView {
     const unit = parent.halfside / 4;
     if (path.major.length === 0) {
@@ -961,6 +962,17 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
 }
 
 export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], position: Vec2): FullAddress | null {
+
+    const main_fn_name_address = sexprAdressFromScreenPosition(position, fnk.name, {
+        pos: view.pos.add(new Vec2(-3, -2).scale(view.halfside / 4).rotateTurns(view.turns)),
+        halfside: view.halfside / 2,
+        turns: view.turns - .25,
+    });
+    if (main_fn_name_address !== null) return {
+        type: 'fn_name',
+        major: [],
+        minor: main_fn_name_address,
+    };
 
     for (const { address, match_case } of allCases(fnk.cases)) {
         for (const [sexpr, type] of zip2([match_case.template, match_case.pattern, match_case.fn_name_template], ['template', 'pattern', 'fn_name'] as const)) {
