@@ -1,15 +1,15 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed;
     private matched: MatchedInput[];
 
-    private mouse_location: FullAddress | { type: 'toolbar', value: SexprTemplate, view: SexprView } | null;
+    private mouse_location: FullAddress | { type: 'input', address: SexprAddress } | { type: 'toolbar', value: SexprTemplate, view: SexprView } | null;
     private mouse_holding: SexprTemplate | null;
 
     constructor(
@@ -57,6 +57,15 @@ export class EditingSolution {
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
+        // TODO: other levels
+        // this.all_fnks.forEach(({ name }, k) => {
+        //     drawer.drawMolecule(name, {
+        //         pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
+        //         halfside: main_view.halfside / 2,
+        //         turns: main_view.turns - .25,
+        //     });
+        // })
+
         for (const { value, view } of this.toolbarThings(main_view)) {
             drawer.drawMolecule(value, view);
         }
@@ -66,7 +75,7 @@ export class EditingSolution {
                 if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
-                else if (this.mouse_location.type === 'toolbar') {
+                else if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input') {
                     // nothing
                 }
                 else {
@@ -78,7 +87,10 @@ export class EditingSolution {
 
         if (this.mouse_location !== null) {
             if (this.mouse_location.type === 'toolbar') {
-                drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
+                if (this.mouse_holding === null) drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
+            }
+            else if (this.mouse_location.type === 'input') {
+                if (this.mouse_holding === null) drawer.highlightMolecule(getAtLocalAddress(this.input, this.mouse_location.address)!.type, getSexprGrandChildView(main_view, this.mouse_location.address));
             }
             else if (this.mouse_location.major.length === 0) {
                 // TODO: proper view for fnk name
@@ -124,6 +136,13 @@ export class EditingSolution {
         }
 
         if (this.mouse_location === null) {
+            const input_address = sexprAdressFromScreenPosition(raw_mouse_pos, this.input, main_view);
+            if (input_address !== null) {
+                this.mouse_location = { type: 'input', address: input_address };
+            }
+        }
+
+        if (this.mouse_location === null) {
             for (const { value, view } of this.toolbarThings(main_view)) {
                 if (sexprAdressFromScreenPosition(raw_mouse_pos, value, view) !== null) {
                     this.mouse_location = { type: 'toolbar', value, view };
@@ -136,6 +155,9 @@ export class EditingSolution {
                 if (this.mouse_location.type === 'toolbar') {
                     this.mouse_holding = this.mouse_location.value;
                 }
+                else if (this.mouse_location.type === 'input') {
+                    this.mouse_holding = getAtLocalAddress(this.input, this.mouse_location.address);
+                }
                 else if (this.mouse_location.major.length === 0) {
                     this.mouse_holding = getAtLocalAddress(this.fnk.name, this.mouse_location.minor);
                 }
@@ -147,7 +169,7 @@ export class EditingSolution {
         else {
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
-                    if (this.mouse_location.type === 'toolbar') {
+                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input') {
                         // nothing
                     }
                     else if (this.mouse_location.major.length === 0) {

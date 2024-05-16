@@ -724,7 +724,7 @@ function getSexprChildView(parent: SexprView, is_left: boolean): SexprView {
     };
 }
 
-function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprView {
+export function getSexprGrandChildView(parent: SexprView, path: SexprAddress): SexprView {
     if (path.length === 0) return parent;
     return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
