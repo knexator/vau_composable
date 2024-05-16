@@ -137,15 +137,15 @@ function every_frame(cur_timestamp_millis: number) {
     }
 
     if (cur_thing instanceof EditingSolution) {
-        cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000, view_offset);
         cur_thing.draw(drawer, cur_timestamp_millis / 1000, view_offset);
+        cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000, view_offset);
         if (input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution();
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {
-        cur_thing.update(delta_time, drawer, view_offset);
         cur_thing.draw(drawer, view_offset);
+        cur_thing = cur_thing.update(delta_time, drawer, view_offset) ?? cur_thing;
     }
 
     // // drawMolecule(cur_fnk.cases[0].pattern, {

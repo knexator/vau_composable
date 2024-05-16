@@ -1,5 +1,6 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed } from './drawer';
+import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString } from './model';
@@ -260,23 +261,27 @@ export class ExecutingSolution {
     anim_t: number;
     constructor(
         private all_fnks: FunktionDefinition[],
-        fnk: FunktionDefinition,
-        input: SexprLiteral,
+        private original_fnk: FunktionDefinition,
+        private original_input: SexprLiteral,
     ) {
-        this.cur_execution_state = ExecutionState.init(fnk, input);
+        this.cur_execution_state = ExecutionState.init(original_fnk, original_input);
         this.anim_t = 0;
     }
 
     // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer, view_offset: Vec2) {
+    update(delta_time: number, drawer: Drawer, view_offset: Vec2): EditingSolution | null {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
-        // TODO: handle the end of execution
         this.anim_t += delta_time;
         while (this.anim_t >= 1) {
             this.anim_t -= 1;
-            this.cur_execution_state = this.cur_execution_state.next(this.all_fnks, view) ?? this.cur_execution_state;
+            const next_state = this.cur_execution_state.next(this.all_fnks, view);
+            if (next_state === null) {
+                return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
+            }
+            this.cur_execution_state = next_state;
         }
+        return null;
     }
 
     draw(drawer: Drawer, view_offset: Vec2) {
