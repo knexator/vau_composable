@@ -1,15 +1,15 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress } from './model';
+import { assertNotNull, at, last } from './kommon/kommon';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed;
     private matched: MatchedInput[];
 
-    private mouse_location: FullAddress | null;
+    private mouse_location: FullAddress | { type: 'toolbar', value: SexprTemplate, view: SexprView } | null;
     private mouse_holding: SexprTemplate | null;
 
     constructor(
@@ -23,6 +23,33 @@ export class EditingSolution {
         this.mouse_holding = null;
     }
 
+    private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
+        const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
+            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+
+        for (let k = 0; k < 12; k++) {
+            yield {
+                value: at(atom_values, k),
+                view: {
+                    pos: offsetView(main_view, new Vec2(k * 4 + 12, -8)).pos,
+                    halfside: main_view.halfside / 3,
+                    turns: main_view.turns,
+                },
+            };
+        }
+
+        for (let k = 0; k < 8; k++) {
+            yield {
+                value: parseSexprTemplate(`@${k}`),
+                view: {
+                    pos: offsetView(main_view, new Vec2(k * 6 + 12, -4)).pos,
+                    halfside: main_view.halfside / 3,
+                    turns: main_view.turns,
+                },
+            };
+        }
+    }
+
     draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
@@ -30,10 +57,17 @@ export class EditingSolution {
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
+        for (const { value, view } of this.toolbarThings(main_view)) {
+            drawer.drawMolecule(value, view);
+        }
+
         if (this.mouse_holding !== null) {
             if (this.mouse_location !== null) {
                 if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
+                }
+                else if (this.mouse_location.type === 'toolbar') {
+                    // nothing
                 }
                 else {
                     drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
@@ -43,7 +77,10 @@ export class EditingSolution {
         }
 
         if (this.mouse_location !== null) {
-            if (this.mouse_location.major.length === 0) {
+            if (this.mouse_location.type === 'toolbar') {
+                drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
+            }
+            else if (this.mouse_location.major.length === 0) {
                 // TODO: proper view for fnk name
                 drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location, this.collapsed));
             }
@@ -57,12 +94,12 @@ export class EditingSolution {
     }
 
     update(drawer: Drawer, mouse: Mouse, global_t: number, offset: Vec2) {
-        const view = this.getMainView(drawer.getScreenSize(), offset);
+        const main_view = this.getMainView(drawer.getScreenSize(), offset);
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const pole = getPoleAtPosition(this.fnk, view, this.collapsed.inside, raw_mouse_pos);
+        const pole = getPoleAtPosition(this.fnk, main_view, this.collapsed.inside, raw_mouse_pos);
         if (pole !== null) {
             if (mouse.wasPressed(MouseButton.Left)) {
                 this.collapsed.inside = toggleCollapsed(this.collapsed.inside, pole, global_t);
@@ -74,13 +111,11 @@ export class EditingSolution {
                     // TODO: respect collapsed & matched
                     this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
                     this.matched = nothingMatched(this.fnk.cases);
-
-                    console.log(this.collapsed.inside);
                 }
             }
         }
 
-        this.mouse_location = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+        this.mouse_location = getAtPosition(this.fnk, main_view, this.collapsed, raw_mouse_pos);
         if (this.mouse_location !== null && this.mouse_location.type === 'fn_name' && mouse.wasPressed(MouseButton.Right)) {
             this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
             // TODO: respect collapsed & matched
@@ -88,9 +123,20 @@ export class EditingSolution {
             this.matched = nothingMatched(this.fnk.cases);
         }
 
+        if (this.mouse_location === null) {
+            for (const { value, view } of this.toolbarThings(main_view)) {
+                if (sexprAdressFromScreenPosition(raw_mouse_pos, value, view) !== null) {
+                    this.mouse_location = { type: 'toolbar', value, view };
+                }
+            }
+        }
+
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
-                if (this.mouse_location.major.length === 0) {
+                if (this.mouse_location.type === 'toolbar') {
+                    this.mouse_holding = this.mouse_location.value;
+                }
+                else if (this.mouse_location.major.length === 0) {
                     this.mouse_holding = getAtLocalAddress(this.fnk.name, this.mouse_location.minor);
                 }
                 else {
@@ -101,7 +147,10 @@ export class EditingSolution {
         else {
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
-                    if (this.mouse_location.major.length === 0) {
+                    if (this.mouse_location.type === 'toolbar') {
+                        // nothing
+                    }
+                    else if (this.mouse_location.major.length === 0) {
                         try {
                             const lit = assertLiteral(setAtLocalAddress(this.fnk.name, this.mouse_location.minor, this.mouse_holding));
                             this.fnk.name = lit;

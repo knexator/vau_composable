@@ -998,7 +998,7 @@ export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapse
     return null;
 }
 
-function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
+export function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
     const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
     if (!inRange(delta_pos.y, -1, 1)) return null;
     if (data.type === 'atom') {
@@ -1066,4 +1066,11 @@ function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, 
             return null;
         }
     }
+}
+
+export function offsetView(view: SexprView, units: Vec2): SexprView {
+    return {
+        halfside: view.halfside, turns: view.turns,
+        pos: view.pos.add(units.scale(view.halfside / 4).rotateTurns(view.turns)),
+    };
 }
