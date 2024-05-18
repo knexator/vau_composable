@@ -356,7 +356,7 @@ export function movePole(haystack: MatchCaseDefinition[], address: MatchCaseAddr
     }, index);
 }
 
-const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
+export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
     pattern: parseSexprTemplate('@X'),
     template: parseSexprTemplate('@X'),
     fn_name_template: parseSexprTemplate('identity'),
