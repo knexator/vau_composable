@@ -9,7 +9,11 @@ export class EditingSolution {
     private collapsed: Collapsed;
     private matched: MatchedInput[];
 
-    private mouse_location: FullAddress | { type: 'input', address: SexprAddress } | { type: 'toolbar', value: SexprTemplate, view: SexprView } | null;
+    private mouse_location: FullAddress 
+    | { type: 'input', address: SexprAddress } 
+    | { type: 'toolbar', value: SexprTemplate, view: SexprView } 
+    | { type: 'other_fnks', value: SexprLiteral, view: SexprView } 
+    | null;
     private mouse_holding: SexprTemplate | null;
 
     constructor(
@@ -25,7 +29,7 @@ export class EditingSolution {
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+        ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -50,6 +54,19 @@ export class EditingSolution {
         }
     }
 
+    private *otherFnks(main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
+        for (let k = 0; k < this.all_fnks.length; k++) {
+            yield {
+                value: this.all_fnks[k].name,
+                view: {
+                    pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
+                    halfside: main_view.halfside / 2,
+                    turns: main_view.turns - .25,
+                }
+            };
+        }
+    }
+
     draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
@@ -57,14 +74,9 @@ export class EditingSolution {
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         drawer.drawMolecule(this.input, main_view);
 
-        // TODO: other levels
-        // this.all_fnks.forEach(({ name }, k) => {
-        //     drawer.drawMolecule(name, {
-        //         pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
-        //         halfside: main_view.halfside / 2,
-        //         turns: main_view.turns - .25,
-        //     });
-        // })
+        for (const { value, view } of this.otherFnks(main_view)) {
+            drawer.drawMolecule(value, view);
+        }
 
         for (const { value, view } of this.toolbarThings(main_view)) {
             drawer.drawMolecule(value, view);
@@ -75,7 +87,7 @@ export class EditingSolution {
                 if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
-                else if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input') {
+                else if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
                     // nothing
                 }
                 else {
@@ -92,6 +104,9 @@ export class EditingSolution {
             else if (this.mouse_location.type === 'input') {
                 if (this.mouse_holding === null) drawer.highlightMolecule(getAtLocalAddress(this.input, this.mouse_location.address)!.type, getSexprGrandChildView(main_view, this.mouse_location.address));
             }
+            else if (this.mouse_location.type === 'other_fnks') {
+                if (this.mouse_holding === null) drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
+            }
             else if (this.mouse_location.major.length === 0) {
                 // TODO: proper view for fnk name
                 drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location, this.collapsed));
@@ -105,7 +120,7 @@ export class EditingSolution {
         }
     }
 
-    update(drawer: Drawer, mouse: Mouse, global_t: number, offset: Vec2) {
+    update(drawer: Drawer, mouse: Mouse, global_t: number, offset: Vec2): EditingSolution | null {
         const main_view = this.getMainView(drawer.getScreenSize(), offset);
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
@@ -150,9 +165,20 @@ export class EditingSolution {
             }
         }
 
+        if (this.mouse_location === null) {
+            for (const { value, view } of this.otherFnks(main_view)) {
+                if (sexprAdressFromScreenPosition(raw_mouse_pos, value, view) !== null) {
+                    this.mouse_location = { type: 'other_fnks', value, view };
+                }
+            }
+        }
+
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
                 if (this.mouse_location.type === 'toolbar') {
+                    this.mouse_holding = this.mouse_location.value;
+                }
+                else if (this.mouse_location.type === 'other_fnks') {
                     this.mouse_holding = this.mouse_location.value;
                 }
                 else if (this.mouse_location.type === 'input') {
@@ -165,11 +191,17 @@ export class EditingSolution {
                     this.mouse_holding = getAt(this.fnk.cases, this.mouse_location);
                 }
             }
+            else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
+                if (this.mouse_location.type === 'other_fnks') {
+                    const name = this.mouse_location.value;
+                    return new EditingSolution(this.all_fnks, this.all_fnks.find(v => equalSexprs(v.name, name))!, this.input);
+                }
+            }
         }
         else {
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
-                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input') {
+                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
                         // nothing
                     }
                     else if (this.mouse_location.major.length === 0) {
@@ -188,6 +220,8 @@ export class EditingSolution {
                 this.mouse_holding = null;
             }
         }
+
+        return null;
     }
 
     startExecution() {
