@@ -319,8 +319,8 @@ export class ExecutingSolution {
 }
 
 function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
-    const falseAtom: SexprLiteral = {type: 'atom', value: 'false'};
-    const trueAtom: SexprLiteral = {type: 'atom', value: 'true'};
+    const falseAtom: SexprLiteral = { type: 'atom', value: 'false' };
+    const trueAtom: SexprLiteral = { type: 'atom', value: 'true' };
     if (input.type === 'atom') return falseAtom;
     if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
     return (input.left.value === input.right.value) ? trueAtom : falseAtom;

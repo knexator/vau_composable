@@ -420,7 +420,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield* allCases(match_case.next, [...parent_address, k]);
+            yield * allCases(match_case.next, [...parent_address, k]);
         }
     }
 }

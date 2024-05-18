@@ -102,14 +102,25 @@ const bubbleUpFnk: FunktionDefinition = {
     ],
 };
 
-const all_fnks = [asdfTest, bubbleUpFnk];
+let all_fnks: FunktionDefinition[];
+let cur_thing: EditingSolution | ExecutingSolution;
+let view_offset = Vec2.zero;
+
+const stored = localStorage.getItem('vau_composable');
+if (stored === null) {
+    all_fnks = [asdfTest, bubbleUpFnk];
+    cur_thing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
+}
+else {
+    // FUTURE: validation
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    all_fnks = JSON.parse(stored);
+    cur_thing = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(v1 v2 X v3 v1)'));
+}
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
 //     parseSexprLiteral('(v1 v2 X v3 v1)'));
 // parseSexprLiteral('(X 3 4)'));
-
-let cur_thing: EditingSolution | ExecutingSolution = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
-let view_offset = Vec2.zero;
 
 // cur_matched[1].main = { type: 'pair', left: { type: 'null' }, right: { type: 'null' } };
 // let cur_bindings: FloatingBinding[] | null = null;
@@ -148,6 +159,10 @@ function every_frame(cur_timestamp_millis: number) {
     else if (cur_thing instanceof ExecutingSolution) {
         cur_thing.draw(drawer, view_offset);
         cur_thing = cur_thing.update(delta_time, drawer, view_offset) ?? cur_thing;
+    }
+
+    if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
+        localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
     }
 
     // // drawMolecule(cur_fnk.cases[0].pattern, {
