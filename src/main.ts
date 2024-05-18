@@ -140,7 +140,8 @@ function every_frame(cur_timestamp_millis: number) {
         cur_thing.draw(drawer, cur_timestamp_millis / 1000, view_offset);
         if (input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution();
-        } else {
+        }
+        else {
             cur_thing = cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000, view_offset) ?? cur_thing;
         }
     }

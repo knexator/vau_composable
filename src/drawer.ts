@@ -763,6 +763,14 @@ export function getView(parent: SexprView, path: FullAddress, collapsed: Collaps
     }
 }
 
+export function getFnkNameView(parent: SexprView): SexprView {
+    return {
+        pos: offsetView(parent, new Vec2(-5, -2)).pos,
+        halfside: parent.halfside,
+        turns: parent.turns - 0.25,
+    };
+}
+
 export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
     if (match_case.next === 'return') return 0;
     if (match_case.next.length === 1) return 1;

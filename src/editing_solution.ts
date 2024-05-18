@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
@@ -9,11 +9,12 @@ export class EditingSolution {
     private collapsed: Collapsed;
     private matched: MatchedInput[];
 
-    private mouse_location: FullAddress 
-    | { type: 'input', address: SexprAddress } 
-    | { type: 'toolbar', value: SexprTemplate, view: SexprView } 
-    | { type: 'other_fnks', value: SexprLiteral, view: SexprView } 
-    | null;
+    private mouse_location: FullAddress
+        | { type: 'input', address: SexprAddress }
+        | { type: 'toolbar', value: SexprTemplate, view: SexprView }
+        | { type: 'other_fnks', value: SexprLiteral, view: SexprView }
+        | null;
+
     private mouse_holding: SexprTemplate | null;
 
     constructor(
@@ -29,7 +30,7 @@ export class EditingSolution {
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-        ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -61,8 +62,8 @@ export class EditingSolution {
                 view: {
                     pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
                     halfside: main_view.halfside / 2,
-                    turns: main_view.turns - .25,
-                }
+                    turns: main_view.turns - 0.25,
+                },
             };
         }
     }
@@ -84,11 +85,15 @@ export class EditingSolution {
 
         if (this.mouse_holding !== null) {
             if (this.mouse_location !== null) {
-                if (this.mouse_location.type === 'pattern') {
-                    drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
-                }
-                else if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
+                if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
                     // nothing
+                }
+                // TODO: this case wouldnt be needed if getView worked for main fnk name
+                else if (this.mouse_location.type === 'fn_name' && this.mouse_location.major.length === 0) {
+                    drawer.drawMolecule(this.mouse_holding, getFnkNameView(main_view));
+                }
+                else if (this.mouse_location.type === 'pattern') {
+                    drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
                 else {
                     drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
@@ -108,8 +113,8 @@ export class EditingSolution {
                 if (this.mouse_holding === null) drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
             }
             else if (this.mouse_location.major.length === 0) {
-                // TODO: proper view for fnk name
-                drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type, getView(main_view, this.mouse_location, this.collapsed));
+                drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type,
+                    getSexprGrandChildView(getFnkNameView(main_view), this.mouse_location.minor));
             }
             else if (this.mouse_location.type === 'pattern') {
                 drawer.highlightPattern(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location, this.collapsed));
@@ -142,12 +147,16 @@ export class EditingSolution {
             }
         }
 
-        this.mouse_location = getAtPosition(this.fnk, main_view, this.collapsed, raw_mouse_pos);
-        if (this.mouse_location !== null && this.mouse_location.type === 'fn_name' && mouse.wasPressed(MouseButton.Right)) {
-            this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
-            // TODO: respect collapsed & matched
-            this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
-            this.matched = nothingMatched(this.fnk.cases);
+        this.mouse_location = null;
+        {
+            const main_fnk_address = sexprAdressFromScreenPosition(raw_mouse_pos, this.fnk.name, getFnkNameView(main_view));
+            if (main_fnk_address !== null) {
+                this.mouse_location = { type: 'fn_name', major: [], minor: main_fnk_address };
+            }
+        }
+
+        if (this.mouse_location === null) {
+            this.mouse_location = getAtPosition(this.fnk, main_view, this.collapsed, raw_mouse_pos);
         }
 
         if (this.mouse_location === null) {
@@ -195,6 +204,12 @@ export class EditingSolution {
                 if (this.mouse_location.type === 'other_fnks') {
                     const name = this.mouse_location.value;
                     return new EditingSolution(this.all_fnks, this.all_fnks.find(v => equalSexprs(v.name, name))!, this.input);
+                }
+                else if (this.mouse_location.type === 'fn_name') {
+                    this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
+                    // TODO: respect collapsed & matched
+                    this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
+                    this.matched = nothingMatched(this.fnk.cases);
                 }
             }
         }
