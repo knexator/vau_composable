@@ -30,7 +30,7 @@ export class EditingSolution {
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+        ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -61,6 +61,19 @@ export class EditingSolution {
                 value: this.all_fnks[k].name,
                 view: {
                     pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
+                    halfside: main_view.halfside / 2,
+                    turns: main_view.turns - 0.25,
+                },
+            };
+        }
+
+        // built in
+        const built_in = ["identity", "eqAtoms?"].map(parseSexprLiteral);
+        for (let k = 0; k < built_in.length; k++) {
+            yield {
+                value: built_in[k],
+                view: {
+                    pos: offsetView(main_view, new Vec2(0, 15 + k * 8)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
@@ -203,7 +216,10 @@ export class EditingSolution {
             else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
                 if (this.mouse_location.type === 'other_fnks') {
                     const name = this.mouse_location.value;
-                    return new EditingSolution(this.all_fnks, this.all_fnks.find(v => equalSexprs(v.name, name))!, this.input);
+                    const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, name));
+                    if (other_fnk !== undefined) {
+                        return new EditingSolution(this.all_fnks, other_fnk, this.input);
+                    }
                 }
                 else if (this.mouse_location.type === 'fn_name') {
                     this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);

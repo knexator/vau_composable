@@ -95,6 +95,24 @@ class ExecutionState {
                         return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
                     }
                 }
+                else if (equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })) {
+                    const result = builtIn_eqAtoms(this.input);
+                    if (match_case.next === 'return') {
+                        if (this.parent === null) {
+                            return null;
+                        }
+                        else {
+                            if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
+                            return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched,
+                                result, { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
+                        }
+                    }
+                    else {
+                        return this
+                            .withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] })
+                            .withInput(result);
+                    }
+                }
                 else {
                     const input_address = this.animation.input_address;
                     const fn_name = assertLiteral(assertNotNull(getAt(this.fnk.cases, {
@@ -298,4 +316,12 @@ export class ExecutingSolution {
         };
         return view;
     }
+}
+
+function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
+    const falseAtom: SexprLiteral = {type: 'atom', value: 'false'};
+    const trueAtom: SexprLiteral = {type: 'atom', value: 'true'};
+    if (input.type === 'atom') return falseAtom;
+    if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
+    return (input.left.value === input.right.value) ? trueAtom : falseAtom;
 }
