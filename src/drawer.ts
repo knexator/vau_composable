@@ -1,7 +1,8 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
-import { in01, inRange, isPointInPolygon, lerp, remap } from './kommon/math';
+import { in01, inRange, isPointInPolygon, lerp, randomFloat, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases } from './model';
+import Rand from 'rand-seed';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -804,7 +805,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
             return color;
         }
         else {
-            color = new Color(Math.random(), Math.random(), Math.random(), 1);
+            let rand = new Rand(atom);
+            color = new Color(rand.next(), rand.next(), rand.next(), 1);
             generated.set(atom, color);
             return color;
         }
