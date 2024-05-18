@@ -37,7 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
-import { addAt, deleteAt, or, replace, single } from './kommon/kommon';
+import { addAt, at, deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -332,6 +332,30 @@ export function deletePole(haystack: MatchCaseDefinition[], address: MatchCaseAd
     }, index);
 }
 
+export function movePole(haystack: MatchCaseDefinition[], address: MatchCaseAddress, up: boolean): MatchCaseDefinition[] {
+    if (address.length === 0) throw new Error('unimplented');
+    if (address.length === 1) {
+        const index = single(address);
+        if (haystack.length === 1) {
+            if (index !== 0) throw new Error('bad address');
+            return haystack;
+        }
+        else {
+            if (up && index === 0) return haystack;
+            if (!up && index === haystack.length - 1) return haystack;
+            const moved = at(haystack, index);
+            return addAt(deleteAt(haystack, index), moved, up ? index - 1 : index + 1);
+        }
+    }
+    const index = address[0];
+    const match_case = haystack[index];
+    if (match_case.next === 'return') throw new Error('bad address');
+    return replace(haystack, {
+        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+        next: movePole(match_case.next, address.slice(1), up),
+    }, index);
+}
+
 const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
     pattern: parseSexprTemplate('@X'),
     template: parseSexprTemplate('@X'),
@@ -396,7 +420,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield * allCases(match_case.next, [...parent_address, k]);
+            yield* allCases(match_case.next, [...parent_address, k]);
         }
     }
 }

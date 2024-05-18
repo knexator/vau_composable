@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { ExecutingSolution } from './executing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole } from './model';
 
 export class EditingSolution {
     private collapsed: Collapsed;
@@ -157,6 +157,13 @@ export class EditingSolution {
                     this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
                     this.matched = nothingMatched(this.fnk.cases);
                 }
+            }
+            else if (mouse.wheel != 0) {
+                const new_cases = movePole(this.fnk.cases, pole, mouse.wheel < 0);
+                this.fnk.cases = new_cases;
+                // TODO: respect collapsed & matched
+                this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
+                this.matched = nothingMatched(this.fnk.cases);
             }
         }
 
