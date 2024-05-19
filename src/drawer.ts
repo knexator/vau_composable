@@ -108,7 +108,7 @@ export class Drawer {
         const unit = view.halfside / 4;
         const collapsed_t = (cur_time - collapsed[0].main.changedAt) / COLLAPSE_DURATION;
         if (in01(collapsed_t)) {
-            const collapse_amount = collapsed[0].main.value ? collapsed_t : 1 - collapsed_t;
+            const collapse_amount = collapsed[0].main.collapsed ? collapsed_t : 1 - collapsed_t;
 
             {
                 const points_tiny = [
@@ -174,7 +174,7 @@ export class Drawer {
             }
             return;
         }
-        if (collapsed[0].main.value) {
+        if (collapsed[0].main.collapsed) {
             { // tiny pole
                 const points = [
                     new Vec2(0, 0),
@@ -684,18 +684,18 @@ export function updateMatchedForMissingTemplate(cur: MatchedInput[], address: Ma
     }
 }
 
-export type Collapsed = { main: { value: boolean, changedAt: number, extra_poles: number }, inside: Collapsed[] };
+export type Collapsed = { main: { collapsed: boolean, changedAt: number, extra_poles: number }, inside: Collapsed[] };
 // export type FnkCollapsed = { main: null, inside: Collapsed[] }; // TODO: use this instead of Collapsed[]
 
 // TODO: code smell, this is a sign we should be using Collapsed instead of Collapsed[]
 export function fakeCollapsed(children: Collapsed[]): Collapsed {
-    return { main: { value: false, changedAt: -Infinity, extra_poles: 0 }, inside: children };
+    return { main: { collapsed: false, changedAt: -Infinity, extra_poles: 0 }, inside: children };
 }
 
 export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
     function helper(match_case: MatchCaseDefinition): Collapsed {
         return {
-            main: { value: false, changedAt: -Infinity, extra_poles: countExtraPolesNeeded(match_case) },
+            main: { collapsed: false, changedAt: -Infinity, extra_poles: countExtraPolesNeeded(match_case) },
             inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
         };
     }
@@ -712,7 +712,7 @@ export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress,
     if (which.length === 0) throw new Error('bad address at toggleCollapsed');
     if (which.length === 1) {
         const result = structuredClone(collapsed);
-        result[which[0]].main.value = !result[which[0]].main.value;
+        result[which[0]].main.collapsed = !result[which[0]].main.collapsed;
         result[which[0]].main.changedAt = cur_time;
         return result;
     }
@@ -736,11 +736,20 @@ export function getSexprGrandChildView(parent: SexprView, path: SexprAddress): S
     return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
-// TODO: take collapse into account
 export function getView(parent: SexprView, path: FullAddress, collapsed: Collapsed): SexprView {
     const unit = parent.halfside / 4;
-    if (path.major.length === 0) {
-        // TODO: take collapsed into account
+    if (collapsed.main.collapsed) {
+        if (path.major.length === 0 && path.type === 'pattern') {
+            return getSexprGrandChildView({
+                pos: offsetView(parent, new Vec2(-17, -2)).pos,
+                halfside: parent.halfside / 2,
+                turns: parent.turns,
+            }, path.minor);
+        } else {
+            return { pos: parent.pos, halfside: 0, turns: parent.turns };
+        }
+    }
+    else if (path.major.length === 0) {
         switch (path.type) {
             case 'fn_name':
                 return getSexprGrandChildView({
@@ -761,7 +770,7 @@ export function getView(parent: SexprView, path: FullAddress, collapsed: Collaps
         }
     }
     else {
-        const n_poles = collapsed.inside.slice(0, path.major[0]).map(x => 1 + x.main.extra_poles).reduce((a, b) => a + b, 0);
+        const n_poles = collapsed.inside.slice(0, path.major[0]).map(x => x.main.collapsed ? 1 / 3 : 1 + x.main.extra_poles).reduce((a, b) => a + b, 0);
         return getView({
             pos: parent.pos.add(new Vec2(28 * unit, 10 * unit + 18 * unit * n_poles).rotateTurns(parent.turns)),
             halfside: parent.halfside,
@@ -893,7 +902,7 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
     function helper(cases: MatchCaseDefinition[], view: SexprView, collapsed: Collapsed[], position: Vec2): MatchCaseAddress | null {
         if (cases.length === 0) return null;
         const unit = view.halfside / 4;
-        if (collapsed[0].main.value) {
+        if (collapsed[0].main.collapsed) {
             { // tiny pole
                 const points = [
                     new Vec2(0, 0),
