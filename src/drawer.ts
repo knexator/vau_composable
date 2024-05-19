@@ -745,7 +745,8 @@ export function getView(parent: SexprView, path: FullAddress, collapsed: Collaps
                 halfside: parent.halfside / 2,
                 turns: parent.turns,
             }, path.minor);
-        } else {
+        }
+        else {
             return { pos: parent.pos, halfside: 0, turns: parent.turns };
         }
     }
@@ -805,8 +806,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -814,7 +815,7 @@ const colorFromAtom: (atom: string) => Color = (() => {
             return color;
         }
         else {
-            let rand = new Rand(atom);
+            const rand = new Rand(atom);
             color = new Color(rand.next(), rand.next(), rand.next(), 1);
             generated.set(atom, color);
             return color;

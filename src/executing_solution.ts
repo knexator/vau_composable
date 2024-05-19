@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress } from './model';
 
 type ExecutionAnimationState =
     { type: 'input_moving_to_next_option', target: MatchCaseAddress }
@@ -60,7 +60,11 @@ class ExecutionState {
                 return this.withAnimation({ type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
             }
             case 'failing_to_match': {
-                return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.which.slice(0, -1), this.animation.which[this.animation.which.length - 1] + 1] });
+                const new_target = nextMatchCaseSibling(this.animation.which);
+                if (!validCaseAddress(this.fnk, new_target)) {
+                    throw new Error('Ran out of options!');
+                }
+                return this.withAnimation({ type: 'input_moving_to_next_option', target: new_target });
             }
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view, this.collapsed);
@@ -256,7 +260,7 @@ class ExecutionState {
         else if (this.animation.type === 'fading_in_from_parent') {
             //  view = ;
             drawer.drawMolecule(this.input, lerpSexprView(
-                getView(main_view, { type: 'template', major: this.animation.source_address, minor: [] }, this.collapsed),
+                getView(main_view, { type: 'template', major: this.animation.source_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 getView(view, { type: 'template', major: [], minor: [] }, this.collapsed),
                 anim_t,
             ));
@@ -264,7 +268,7 @@ class ExecutionState {
         else if (this.animation.type === 'fading_out_to_parent') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }, this.collapsed),
-                getView(main_view, { type: 'template', major: this.animation.parent_address, minor: [] }, this.collapsed),
+                getView(main_view, { type: 'template', major: this.animation.parent_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 anim_t,
             ));
         }
@@ -277,6 +281,7 @@ class ExecutionState {
 export class ExecutingSolution {
     cur_execution_state: ExecutionState;
     anim_t: number;
+    public paused: boolean = false;
     constructor(
         private all_fnks: FunktionDefinition[],
         private original_fnk: FunktionDefinition,
@@ -290,14 +295,16 @@ export class ExecutingSolution {
     update(delta_time: number, drawer: Drawer, view_offset: Vec2): EditingSolution | null {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
-        this.anim_t += delta_time;
-        while (this.anim_t >= 1) {
-            this.anim_t -= 1;
-            const next_state = this.cur_execution_state.next(this.all_fnks, view);
-            if (next_state === null) {
-                return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
+        if (!this.paused) {
+            this.anim_t += delta_time;
+            while (this.anim_t >= 1) {
+                this.anim_t -= 1;
+                const next_state = this.cur_execution_state.next(this.all_fnks, view);
+                if (next_state === null) {
+                    return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
+                }
+                this.cur_execution_state = next_state;
             }
-            this.cur_execution_state = next_state;
         }
         return null;
     }
@@ -324,4 +331,8 @@ function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
     if (input.type === 'atom') return falseAtom;
     if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
     return (input.left.value === input.right.value) ? trueAtom : falseAtom;
+}
+
+function nextMatchCaseSibling(thing: MatchCaseAddress): MatchCaseAddress {
+    return [...thing.slice(0, -1), thing[thing.length - 1] + 1];
 }

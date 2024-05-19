@@ -380,15 +380,25 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], address: Ma
     }, index);
 }
 
+export function validCaseAddress(fnk: FunktionDefinition, address: MatchCaseAddress): boolean {
+    try {
+        getCaseAt(fnk, address);
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
 export function getCaseAt(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) throw new Error('bad address');
-    return getGrandChildCase(fnk.cases[address[0]], address.slice(1));
+    return getGrandChildCase(at(fnk.cases, address[0]), address.slice(1));
 }
 
 export function getGrandChildCase(parent_case: MatchCaseDefinition, address: MatchCaseAddress): MatchCaseDefinition {
     if (address.length === 0) return parent_case;
     if (parent_case.next === 'return') throw new Error('invalid address');
-    return getGrandChildCase(parent_case.next[address[0]], address.slice(1));
+    return getGrandChildCase(at(parent_case.next, address[0]), address.slice(1));
 }
 
 export function changeVariablesToNull(thing: SexprTemplate): SexprNullable {

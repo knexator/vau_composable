@@ -158,6 +158,9 @@ function every_frame(cur_timestamp_millis: number) {
     }
     else if (cur_thing instanceof ExecutingSolution) {
         cur_thing.draw(drawer, view_offset);
+        if (input.keyboard.wasPressed(KeyCode.Space)) {
+            cur_thing.paused = !cur_thing.paused;
+        }
         cur_thing = cur_thing.update(delta_time, drawer, view_offset) ?? cur_thing;
     }
 
