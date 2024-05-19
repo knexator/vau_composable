@@ -700,6 +700,12 @@ export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
         };
     }
     return cases.map(helper);
+
+    function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
+        if (match_case.next === 'return') return 0;
+        if (match_case.next.length === 1) return 1;
+        return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
+    }
 }
 
 export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress, cur_time: number): Collapsed[] {
@@ -755,9 +761,9 @@ export function getView(parent: SexprView, path: FullAddress, collapsed: Collaps
         }
     }
     else {
-        const extra_poles = collapsed.inside.slice(0, path.major[0]).map(x => x.main.extra_poles).reduce((a, b) => a + b, 0);
+        const n_poles = collapsed.inside.slice(0, path.major[0]).map(x => 1 + x.main.extra_poles).reduce((a, b) => a + b, 0);
         return getView({
-            pos: parent.pos.add(new Vec2(28 * unit, 10 * unit + path.major[0] * 18 * unit * (1 + extra_poles)).rotateTurns(parent.turns)),
+            pos: parent.pos.add(new Vec2(28 * unit, 10 * unit + 18 * unit * n_poles).rotateTurns(parent.turns)),
             halfside: parent.halfside,
             turns: parent.turns,
         }, { type: path.type, minor: path.minor, major: path.major.slice(1) }, at(collapsed.inside, path.major[0]));
@@ -770,12 +776,6 @@ export function getFnkNameView(parent: SexprView): SexprView {
         halfside: parent.halfside,
         turns: parent.turns - 0.25,
     };
-}
-
-export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
-    if (match_case.next === 'return') return 0;
-    if (match_case.next.length === 1) return 1;
-    return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
 }
 
 const colorFromAtom: (atom: string) => Color = (() => {
@@ -796,8 +796,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -979,17 +979,6 @@ export function getPoleAtPosition(fnk: FunktionDefinition, view: SexprView, coll
 }
 
 export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed, position: Vec2): FullAddress | null {
-    const main_fn_name_address = sexprAdressFromScreenPosition(position, fnk.name, {
-        pos: view.pos.add(new Vec2(-3, -2).scale(view.halfside / 4).rotateTurns(view.turns)),
-        halfside: view.halfside / 2,
-        turns: view.turns - 0.25,
-    });
-    if (main_fn_name_address !== null) return {
-        type: 'fn_name',
-        major: [],
-        minor: main_fn_name_address,
-    };
-
     for (const { address, match_case } of allCases(fnk.cases)) {
         for (const [sexpr, type] of zip2([match_case.template, match_case.pattern, match_case.fn_name_template], ['template', 'pattern', 'fn_name'] as const)) {
             const fn = type === 'pattern' ? patternAdressFromScreenPosition : sexprAdressFromScreenPosition;
