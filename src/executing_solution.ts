@@ -281,7 +281,7 @@ class ExecutionState {
 export class ExecutingSolution {
     cur_execution_state: ExecutionState;
     anim_t: number;
-    public paused: boolean = false;
+    public speed: number = 1;
     constructor(
         private all_fnks: FunktionDefinition[],
         private original_fnk: FunktionDefinition,
@@ -295,16 +295,14 @@ export class ExecutingSolution {
     update(delta_time: number, drawer: Drawer, view_offset: Vec2): EditingSolution | null {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
-        if (!this.paused) {
-            this.anim_t += delta_time;
-            while (this.anim_t >= 1) {
-                this.anim_t -= 1;
-                const next_state = this.cur_execution_state.next(this.all_fnks, view);
-                if (next_state === null) {
-                    return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
-                }
-                this.cur_execution_state = next_state;
+        this.anim_t += delta_time * this.speed;
+        while (this.anim_t >= 1) {
+            this.anim_t -= 1;
+            const next_state = this.cur_execution_state.next(this.all_fnks, view);
+            if (next_state === null) {
+                return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
             }
+            this.cur_execution_state = next_state;
         }
         return null;
     }
