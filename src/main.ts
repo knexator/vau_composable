@@ -136,10 +136,14 @@ function every_frame(cur_timestamp_millis: number) {
     drawer.clear();
 
     const keymap: [KeyCode[], Vec2][] = [
-        [[KeyCode.KeyW, KeyCode.ArrowUp], Vec2.yneg],
-        [[KeyCode.KeyA, KeyCode.ArrowLeft], Vec2.xneg],
-        [[KeyCode.KeyS, KeyCode.ArrowDown], Vec2.ypos],
-        [[KeyCode.KeyD, KeyCode.ArrowRight], Vec2.xpos],
+        // [[KeyCode.KeyW, KeyCode.ArrowUp], Vec2.yneg],
+        // [[KeyCode.KeyA, KeyCode.ArrowLeft], Vec2.xneg],
+        // [[KeyCode.KeyS, KeyCode.ArrowDown], Vec2.ypos],
+        // [[KeyCode.KeyD, KeyCode.ArrowRight], Vec2.xpos],
+        [[KeyCode.ArrowUp], Vec2.yneg],
+        [[KeyCode.ArrowLeft], Vec2.xneg],
+        [[KeyCode.ArrowDown], Vec2.ypos],
+        [[KeyCode.ArrowRight], Vec2.xpos],
     ];
     for (const [keys, dir] of keymap) {
         if (keys.some(k => input.keyboard.isDown(k))) {
@@ -153,7 +157,7 @@ function every_frame(cur_timestamp_millis: number) {
             cur_thing = cur_thing.startExecution();
         }
         else {
-            cur_thing = cur_thing.update(drawer, input.mouse, cur_timestamp_millis / 1000, view_offset) ?? cur_thing;
+            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, cur_timestamp_millis / 1000, view_offset) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {

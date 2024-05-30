@@ -1,7 +1,7 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView } from './drawer';
 import { ExecutingSolution } from './executing_solution';
-import { Mouse, MouseButton } from './kommon/input';
+import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE } from './model';
 
@@ -136,9 +136,20 @@ export class EditingSolution {
                 drawer.highlightMolecule(getAt(this.fnk.cases, this.mouse_location)!.type, getView(main_view, this.mouse_location, this.collapsed));
             }
         }
+
+        // print atom names
+        if (this.mouse_location !== null && this.mouse_holding === null) {
+            const hovered_value = assertNotNull(this.valueAtMouseLocation());
+            if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
+                drawer.ctx.fillStyle = "black";
+                const screen_size = drawer.getScreenSize();
+                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+                drawer.ctx.fillText(hovered_value.value, screen_size.x * .9, screen_size.y * .9);
+            }
+        }
     }
 
-    update(drawer: Drawer, mouse: Mouse, global_t: number, offset: Vec2): EditingSolution | null {
+    update(drawer: Drawer, mouse: Mouse, keyboard: Keyboard, global_t: number, offset: Vec2): EditingSolution | null {
         const main_view = this.getMainView(drawer.getScreenSize(), offset);
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
@@ -204,21 +215,7 @@ export class EditingSolution {
 
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
-                if (this.mouse_location.type === 'toolbar') {
-                    this.mouse_holding = this.mouse_location.value;
-                }
-                else if (this.mouse_location.type === 'other_fnks') {
-                    this.mouse_holding = this.mouse_location.value;
-                }
-                else if (this.mouse_location.type === 'input') {
-                    this.mouse_holding = getAtLocalAddress(this.input, this.mouse_location.address);
-                }
-                else if (this.mouse_location.major.length === 0) {
-                    this.mouse_holding = getAtLocalAddress(this.fnk.name, this.mouse_location.minor);
-                }
-                else {
-                    this.mouse_holding = getAt(this.fnk.cases, this.mouse_location);
-                }
+                this.mouse_holding = this.valueAtMouseLocation();
             }
             else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
                 if (this.mouse_location.type === 'other_fnks') {
@@ -264,8 +261,40 @@ export class EditingSolution {
                 this.mouse_holding = null;
             }
         }
+        
+        // change atom names
+        if (this.mouse_location !== null && this.mouse_holding === null) {
+            const hovered_value = assertNotNull(this.valueAtMouseLocation());
+            if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
+                if (keyboard.wasPressed(KeyCode.Backspace)) {
+                    hovered_value.value = hovered_value.value.slice(0, -1);
+                    keyboard.getText();
+                } else {
+                    hovered_value.value += keyboard.getText();
+                }
+            }
+        }
 
         return null;
+    }
+
+    private valueAtMouseLocation() {
+        const loc = assertNotNull(this.mouse_location);
+        if (loc.type === 'toolbar') {
+            return loc.value;
+        }
+        else if (loc.type === 'other_fnks') {
+            return loc.value;
+        }
+        else if (loc.type === 'input') {
+            return getAtLocalAddress(this.input, loc.address);
+        }
+        else if (loc.major.length === 0) {
+            return getAtLocalAddress(this.fnk.name, loc.minor);
+        }
+        else {
+            return getAt(this.fnk.cases, loc);
+        }
     }
 
     startExecution() {
