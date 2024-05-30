@@ -147,7 +147,7 @@ export class EditingSolution {
                 drawer.ctx.fillStyle = "black";
                 const screen_size = drawer.getScreenSize();
                 drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-                drawer.ctx.fillText(hovered_value.value, screen_size.x * .9, screen_size.y * .9);
+                drawer.ctx.fillText(hovered_value.value, screen_size.x * .5, screen_size.y * .95);
             }
         }
     }
@@ -285,6 +285,7 @@ export class EditingSolution {
                 }
             }
         }
+        keyboard.getText();
 
         return null;
     }
