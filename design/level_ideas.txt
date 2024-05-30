@@ -1,0 +1,4 @@
+brainfuck interpreter
+add/multiply in unary, binary, base 4, base N
+f(f(f(...))), with N nested f, can be applied in log(N) time, if f(f) is known (https://uwu-company-blog.vercel.app/solving_AAmagical)
+parse S-exprs from a list of characters

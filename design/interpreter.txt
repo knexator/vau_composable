@@ -1,0 +1,132 @@
+define "add":
+("0" . y) -> return: y
+(("1" . x) . y) -> "add": (x . ("1" . y))
+	a -> return: a
+
+define "map":
+("nil" . f) -> return: "nil"
+((first . rest) . f) -> f: first
+	mapped_first -> "map": (rest . f)
+		mapped_rest -> (mapped_first . mapped_rest)
+
+//////
+
+(
+	(("add" . ...) ...) // dict of functions
+	"add" . // function name
+	(("1" . "0") . ("0")) // argument
+)
+
+->
+
+(("1" . x) . y) matched to argument, pending to do "add" (x . ("1" . y)) etc
+new_arg: ...
+"eval": (next_fn_name . new_arg)
+	result -> "match": (parent_bindings result . next_cc)
+
+//////
+
+define "naive"
+(((first_pattern . first_body) . rest) . arg) -> "match": (first_pattern . arg)
+	"false" -> "naive": (rest . arg);
+	bindings -> "quote": first_body
+		(fn_name new_arg_template . kont) -> "fill_template": (new_arg_template . bindings)
+			new_arg -> fn_name: new_arg
+				new_result -> "quote": kont
+					";" -> "quote" new_arg;
+					matches -> "naive": (matches . new_arg)
+
+define "match"
+TODO
+
+define "fill_template"
+TODO
+
+//////
+
+define "naive_less"
+(parent_bindings ((first_pattern . first_body) . rest) . arg) -> "match": (first_pattern . arg)
+	"false" -> "naive_less": (parent_bindings rest . arg);
+	bindings -> "concat": (parent_bindings . bindings)
+		all_bindings -> "quote": first_body
+			(fn_name new_arg_template . kont) -> "fill_template": (new_arg_template . all_bindings)
+				new_arg -> fn_name: new_arg
+					new_result -> "quote": kont
+						";" -> "quote" new_result;
+						matches -> "naive_less": (all_bindings matches . new_result)
+
+define "match"
+(("literal" x) . arg) -> "equal": (x . arg)
+	"false" -> "quote": "false";
+	"true" -> "quote": "nil";
+(("variable" x) . arg) -> "quote": ((x . arg) . "nil");
+((match_a . match_b) . (arg_a . arg_b)) -> "match": (match_a . arg_a)
+	"false" -> "quote": "false";
+	bindings_a -> "match": (match_b . arg_b)
+		"false" -> "quote": "false";
+		bindings_b -> "concat": (bindings_a . bindings_b);
+((match_a . match_b) . arg_atom) -> "quote": "false";
+
+define "fill_template"
+(("literal" x) . bindings) -> "quote" x;
+(("variable" x) . bindings) -> "lookup" (x . bindings);
+((template_a . template_b) . bindings) -> "fill_template": (template_a . bindings)
+	filled_a -> "fill_template": (template_b . bindings)
+		filled_b -> "quote" (filled_a . filled_b);
+
+//////
+
+define "final"
+(all_fns parent_bindings "quote" . arg) -> arg;
+(all_fns parent_bindings fn_name . arg) -> "lookup": (fn_name . all_fns)
+	fn_body -> "helper": (all_fns parent_bindings fn_body . arg); // fn_body is a list of matches
+
+define "helper"
+(all_fns parent_bindings ((first_pattern . first_body) . rest) . arg) -> "match": (first_pattern . arg)
+	((first_pattern . first_body) . rest) -> "match": (first_pattern . arg)
+		"false" -> "helper": (all_fns parent_bindings rest . arg);
+		bindings -> "concat": (bindings . parent_bindings)
+			all_bindings -> "quote": first_body
+				(next_fn_name_template new_arg_template . kont) -> "fill_template": (new_arg_template . all_bindings)
+					new_arg -> "fill_template": (next_fn_name_template . all_bindings)
+						next_fn_name ->	"final": (all_fns nil next_fn_name new_arg)
+							new_result -> "quote": kont
+								";" -> "quote" new_result;
+								matches -> "final": (all_fns all_bindings matches . new_result);
+
+//////
+
+define "add":
+("0" . y) -> "quote": y
+(("1" . x) . y) -> "add": (x . ("1" . y))
+	a -> "quote": a;
+
+("add" . (
+	((("literal" . "0") . ("variable" . "y")) . (("literal" . "quote") . ( ("variable" . "y") . ";")))
+	(((("literal" . "1") . ("variable" "x")) . ("variable" . "y")) . (("literal" . "add") . ( ( ("variable" . "x") . (("literal" . "1") . ("variable" . "y"))) . (
+		(("variable" . "a") . (("literal" . "quote") . (("variable" . "a") . ";")))
+	))))
+))
+
+"final": (("add" . ...) () "add" . (("1" . ("1" . "0")) . "0"))
+->
+"helper": (all_fns () add_definintion . arg)
+->
+"match": ((("literal" . "0") . ("variable" . "y")) . (("1" . ("1" . "0")) . "0")) -> "false" 
+->
+"helper": (all_fns () add_definintion_step_2 . arg)
+->
+"match": (((("literal" . "1") . ("variable" "x")) . ("variable" . "y")) . (("1" . ("1" . "0")) . "0"))
+=> (("x" . ("1" . "0")) ("y" . "0"))
+"concat": ((("x" . ("1" . "0")) ("y" . "0")) . nil) => (("x" . ("1" . "0")) ("y" . "0"))
+
+
+
+
+
+//////
+
+(eval expr env)
+match expr:
+	("symbol" thing) -> lookup thing;
+	(fn . arg) -> eval arg env; final fn arg;
