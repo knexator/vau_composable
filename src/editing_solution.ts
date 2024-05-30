@@ -30,7 +30,7 @@ export class EditingSolution {
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+        ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -98,8 +98,11 @@ export class EditingSolution {
 
         if (this.mouse_holding !== null) {
             if (this.mouse_location !== null) {
-                if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
+                if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'other_fnks') {
                     // nothing
+                }
+                else if (this.mouse_location.type === 'input') {
+                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(main_view, this.mouse_location.address));
                 }
                 // TODO: this case wouldnt be needed if getView worked for main fnk name
                 else if (this.mouse_location.type === 'fn_name' && this.mouse_location.major.length === 0) {
@@ -119,11 +122,11 @@ export class EditingSolution {
             if (this.mouse_location.type === 'toolbar') {
                 if (this.mouse_holding === null) drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
             }
-            else if (this.mouse_location.type === 'input') {
-                if (this.mouse_holding === null) drawer.highlightMolecule(getAtLocalAddress(this.input, this.mouse_location.address)!.type, getSexprGrandChildView(main_view, this.mouse_location.address));
-            }
             else if (this.mouse_location.type === 'other_fnks') {
                 if (this.mouse_holding === null) drawer.highlightMolecule(this.mouse_location.value.type, this.mouse_location.view);
+            }
+            else if (this.mouse_location.type === 'input') {
+                drawer.highlightMolecule(getAtLocalAddress(this.input, this.mouse_location.address)!.type, getSexprGrandChildView(main_view, this.mouse_location.address));
             }
             else if (this.mouse_location.major.length === 0) {
                 drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type,
@@ -242,8 +245,16 @@ export class EditingSolution {
         else {
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
-                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'input' || this.mouse_location.type === 'other_fnks') {
+                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'other_fnks') {
                         // nothing
+                    }
+                    else if (this.mouse_location.type === 'input') {
+                        try {
+                            this.input = assertLiteral(setAtLocalAddress(this.input, this.mouse_location.address, this.mouse_holding));
+                        }
+                        catch {
+                            // nothing
+                        }
                     }
                     else if (this.mouse_location.major.length === 0) {
                         try {
@@ -261,7 +272,7 @@ export class EditingSolution {
                 this.mouse_holding = null;
             }
         }
-        
+
         // change atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
             const hovered_value = assertNotNull(this.valueAtMouseLocation());
