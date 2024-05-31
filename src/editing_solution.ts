@@ -235,6 +235,16 @@ export class EditingSolution {
                     this.matched = nothingMatched(this.fnk.cases);
                 }
             }
+            else if (this.mouse_location?.type === 'other_fnks' && mouse.wasPressed(MouseButton.Middle)) {
+                const name = this.mouse_location.value;
+                const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, name));
+                if (other_fnk !== undefined) {
+                    this.all_fnks.push({
+                        name: { type: 'pair', left: { type: 'atom', value: '1' }, right: assertLiteral(cloneSexpr(other_fnk.name)) },
+                        cases: other_fnk.cases,
+                    });
+                }
+            }
             else if (this.mouse_location === null && mouse.wasPressed(MouseButton.Middle)) {
                 this.all_fnks.push({
                     name: { type: 'atom', value: this.all_fnks.length.toString() },
