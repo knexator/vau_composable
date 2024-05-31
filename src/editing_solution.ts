@@ -3,17 +3,17 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { ExecutingSolution } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr } from './model';
 
+type MouseLocation = FullAddress
+    | { type: 'input', address: SexprAddress }
+    | { type: 'toolbar', value: SexprTemplate, view: SexprView }
+    | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
     private matched: MatchedInput[];
 
-    private mouse_location: FullAddress
-        | { type: 'input', address: SexprAddress }
-        | { type: 'toolbar', value: SexprTemplate, view: SexprView }
-        | { type: 'other_fnks', value: SexprLiteral, view: SexprView }
-        | null;
+    private mouse_location: MouseLocation | null;
 
     private mouse_holding: SexprTemplate | null;
 
@@ -30,7 +30,7 @@ export class EditingSolution {
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-        ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -142,12 +142,12 @@ export class EditingSolution {
 
         // print atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
-            const hovered_value = assertNotNull(this.valueAtMouseLocation());
+            const hovered_value = this.valueAtMouseLocation(this.mouse_location);
             if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
-                drawer.ctx.fillStyle = "black";
+                drawer.ctx.fillStyle = 'black';
                 const screen_size = drawer.getScreenSize();
                 drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-                drawer.ctx.fillText(hovered_value.value, screen_size.x * .5, screen_size.y * .95);
+                drawer.ctx.fillText(hovered_value.value, screen_size.x * 0.5, screen_size.y * 0.95);
             }
         }
     }
@@ -218,7 +218,7 @@ export class EditingSolution {
 
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
-                this.mouse_holding = this.valueAtMouseLocation();
+                this.mouse_holding = cloneSexpr(this.valueAtMouseLocation(this.mouse_location));
             }
             else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
                 if (this.mouse_location.type === 'other_fnks') {
@@ -275,12 +275,13 @@ export class EditingSolution {
 
         // change atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
-            const hovered_value = assertNotNull(this.valueAtMouseLocation());
+            const hovered_value = this.valueAtMouseLocation(this.mouse_location);
             if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
                 if (keyboard.wasPressed(KeyCode.Backspace)) {
                     hovered_value.value = hovered_value.value.slice(0, -1);
                     keyboard.getText();
-                } else {
+                }
+                else {
                     hovered_value.value += keyboard.getText();
                 }
             }
@@ -290,8 +291,7 @@ export class EditingSolution {
         return null;
     }
 
-    private valueAtMouseLocation() {
-        const loc = assertNotNull(this.mouse_location);
+    private valueAtMouseLocation(loc: MouseLocation): SexprTemplate {
         if (loc.type === 'toolbar') {
             return loc.value;
         }
@@ -299,13 +299,13 @@ export class EditingSolution {
             return loc.value;
         }
         else if (loc.type === 'input') {
-            return getAtLocalAddress(this.input, loc.address);
+            return assertNotNull(getAtLocalAddress(this.input, loc.address));
         }
         else if (loc.major.length === 0) {
-            return getAtLocalAddress(this.fnk.name, loc.minor);
+            return assertNotNull(getAtLocalAddress(this.fnk.name, loc.minor));
         }
         else {
-            return getAt(this.fnk.cases, loc);
+            return assertNotNull(getAt(this.fnk.cases, loc));
         }
     }
 

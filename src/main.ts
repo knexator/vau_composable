@@ -10,7 +10,6 @@ import { ExecutingSolution } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 
 // TODO: duplicate vaus
-// BUG: changing the name of a placed variable changes it everywhere
 
 const input = new Input();
 const canvas = document.querySelector<HTMLCanvasElement>('#ctx_canvas')!;

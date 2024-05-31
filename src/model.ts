@@ -73,12 +73,12 @@ export function sexprToString(input: SexprTemplate): string {
     return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
 }
 
-function clone(x: SexprTemplate): SexprTemplate {
+export function cloneSexpr(x: SexprTemplate): SexprTemplate {
     if (x.type === 'pair') {
         return {
             type: 'pair',
-            left: clone(x.left),
-            right: clone(x.right),
+            left: cloneSexpr(x.left),
+            right: cloneSexpr(x.right),
         };
     }
     else {
