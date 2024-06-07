@@ -45,22 +45,7 @@ const parser = peggy.generate(grammar);
 export function parseSexprTemplate(input: string): SexprTemplate {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const raw_thing = parser.parse(input) as SexprLiteral;
-
-    function helper(x: SexprLiteral): SexprTemplate {
-        if (x.type === 'pair') {
-            return { type: 'pair', left: helper(x.left), right: helper(x.right) };
-        }
-        else {
-            if (x.value[0] === '#') {
-                return { type: 'atom', value: x.value.slice(1) };
-            }
-            else {
-                return { type: 'variable', value: x.value };
-            }
-        }
-    }
-
-    return helper(raw_thing);
+    return raw_thing;
 }
 
 export function parseSexprLiteral(input: string): SexprLiteral {

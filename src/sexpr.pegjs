@@ -17,7 +17,7 @@
 }
 
 program = sexpr
-sexpr = _ atom:symbol _ { return {type: "atom", value: atom}; }
+sexpr = _ atom:symbol _ { return atom[0] === '#' ? {type: "atom", value: atom.slice(1)} : {type: "variable", value: atom}; }
       / _ "(" left:sexpr "." right:sexpr ")" _ { return {type: "pair", left: left, right: right } }
       / _ "(" list:sexpr|.., _| _ "." _ sentinel:sexpr _  ")" _ { return listWithSentinelToSexpr(list, sentinel) }
       / _ "(" list:sexpr|.., _| ")" _ { return listToSexpr(list) }
