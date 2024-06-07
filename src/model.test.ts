@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, fnkToString, parseSexprLiteral, parseSexprTemplate, stringToFnk } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, fnkToString, parseFnk, parseSexprLiteral, parseSexprTemplate } from './model';
 
 test('funktion add', () => {
     const add: FunktionDefinition = {
@@ -107,26 +107,28 @@ test('repr of fnk', () => {
     expect(actual_repr).toBe(expected_repr);
 });
 
-// test('parse fnk', () => {
+test('parse fnk', () => {
 
-//     const source = `#equal? {
-//     ((a . b) . (x . y)) -> #equal?: (a . x) {
-//         #false -> #quote: #false;
-//         #true -> #equal?: (b . y);
-//     }
-//     (a . x) -> #eqAtoms?: (a . x);
-// }`;
+    const source = `#equal? {
+    ((a . b) . (x . y)) -> #equal?: (a . x) {
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    }
+    (a . x) -> #eqAtoms?: (a . x);
+}`;
 
-//     const actual_fnk = stringToFnk(source);
-//     const actual_repr = fnkToString(actual_fnk);
+    const actual_fnk = parseFnk(source);
+    const actual_repr = fnkToString(actual_fnk);
 
-//     const expected_repr = [
-//         '#equal?:',
-//         '\t((a . b) . (x . y)) -> #equal?: (a . x)',
-//         '\t\t#false -> #quote: #false;',
-//         '\t\t#true -> #equal?: (b . y);',
-//         '\t(a . x) -> #eqAtoms?: (a . x);',
-//     ].join('\n');
+    const expected_repr = [
+        '#equal? {',
+        '\t((a . b) . (x . y)) -> #equal?: (a . x) {',
+        '\t\t#false -> #quote: #false;',
+        '\t\t#true -> #equal?: (b . y);',
+        '\t}',
+        '\t(a . x) -> #eqAtoms?: (a . x);',
+        '}',
+    ].join('\n');
 
-//     expect(actual_repr).toBe(expected_repr);
-// });
+    expect(actual_repr).toBe(expected_repr);
+});

@@ -436,6 +436,8 @@ export function fnkToString(fnk: FunktionDefinition): string {
     return sexprToString(fnk.name) + ' {\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n') + '\n}';
 }
 
-export function stringToFnk(str: string): FunktionDefinition {
-    throw new Error("unimplemented");
+export function parseFnk(input: string): FunktionDefinition {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const raw_thing = parser.parse(input) as FunktionDefinition;
+    return raw_thing;
 }

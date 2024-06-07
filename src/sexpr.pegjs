@@ -16,12 +16,16 @@
     }
 }
 
-// thing = sexpr / fnk
+thing = fnk / sexpr 
 sexpr = _ atom:symbol _ { return atom[0] === '#' ? {type: "atom", value: atom.slice(1)} : {type: "variable", value: atom}; }
       / _ "(" left:sexpr "." right:sexpr ")" _ { return {type: "pair", left: left, right: right } }
       / _ "(" list:sexpr|.., _| _ "." _ sentinel:sexpr _  ")" _ { return listWithSentinelToSexpr(list, sentinel) }
       / _ "(" list:sexpr|.., _| ")" _ { return listToSexpr(list) }
-// fnk   = _ name:symbol  ":" cases:match_case+ _ {}
+fnk   = _ name:sexpr _ "{" _ cases:match_case+ _ "}" _ { return {name, cases}; }
+match_case = _ pattern:sexpr _ "->" _ fn_name_template:sexpr _ ":" _ template:sexpr _ next:(
+        ";" { return "return"; }
+        / "{" _ items:match_case+ _ "}" { return items; }
+    ) { return {pattern, fn_name_template, template, next}; }
 
 symbol     = (! ".") chars: (!delimiter @.)+ { return chars.join("") }
 space      = " " / [\n\r\t]
