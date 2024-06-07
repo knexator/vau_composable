@@ -51,11 +51,11 @@ export function parseSexprTemplate(input: string): SexprTemplate {
             return { type: 'pair', left: helper(x.left), right: helper(x.right) };
         }
         else {
-            if (x.value[0] === '@') {
-                return { type: 'variable', value: x.value.slice(1) };
+            if (x.value[0] === '#') {
+                return { type: 'atom', value: x.value.slice(1) };
             }
             else {
-                return x;
+                return { type: 'variable', value: x.value };
             }
         }
     }
@@ -68,8 +68,8 @@ export function parseSexprLiteral(input: string): SexprLiteral {
 }
 
 export function sexprToString(input: SexprTemplate): string {
-    if (input.type === 'atom') return input.value;
-    if (input.type === 'variable') return '@' + input.value;
+    if (input.type === 'atom') return '#' + input.value;
+    if (input.type === 'variable') return input.value;
     return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
 }
 
@@ -357,9 +357,9 @@ export function movePole(haystack: MatchCaseDefinition[], address: MatchCaseAddr
 }
 
 export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
-    pattern: parseSexprTemplate('@X'),
-    template: parseSexprTemplate('@X'),
-    fn_name_template: parseSexprTemplate('identity'),
+    pattern: parseSexprTemplate('X'),
+    template: parseSexprTemplate('X'),
+    fn_name_template: parseSexprTemplate('#identity'),
     next: 'return',
 };
 
@@ -433,4 +433,20 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
             yield * allCases(match_case.next, [...parent_address, k]);
         }
     }
+}
+
+export function fnkToString(fnk: FunktionDefinition): string {
+    function caseToString(match_case: MatchCaseDefinition, depth: number): string {
+        const body = '\t'.repeat(depth) + sexprToString(match_case.pattern) + ' -> '
+            + sexprToString(match_case.fn_name_template) + ': '
+            + sexprToString(match_case.template);
+        if (match_case.next === 'return') {
+            return body + ';';
+        }
+        else {
+            return body + '\n' + match_case.next.map(c => caseToString(c, depth + 1)).join('\n');
+        }
+    }
+
+    return sexprToString(fnk.name) + ':\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n');
 }

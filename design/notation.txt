@@ -1,0 +1,72 @@
+// ideas for notation
+
+equal?:
+    ((a . b) . (x . y)) -> #equal?: (a . x)
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    ( a . x ) -> #eqAtoms?: (a . x);
+
+equal?:
+    ((A . B) . (X . Y)) -> equal?: (A . X)
+        false -> quote: false;
+        true -> equal?: (B . Y);
+    ( A . X ) -> eqAtoms?: (A . X);
+
+EQUAL?:
+    ((a . b) . (x . y)) -> EQUAL?: (a . x)
+        FALSE -> QUOTE: FALSE;
+        TRUE -> EQUAL?: (b . y);
+    ( a . x ) -> EQ-ATOMS?: (a . x);
+
+equal?:
+    ((@a . @b) . (@x . @y)) -> #equal?: (@a . @x)
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    ( @a . @x ) -> #eqAtoms?: (@a . @x);
+
+equal?:
+    ((@a . @b) . (@x . @y)) -> equal?: (@a . @x)
+        false -> quote: false;
+        true -> equal?: (b . y);
+    ( @a . @x ) -> eqAtoms?: (@a . @x);
+
+(equal? . (
+    (((a . b) . (x . y))
+        :equal? (a . x) (
+            (:false
+                :quote :false 
+                    :return)
+            (:true
+                :equal? (b . y) 
+                    :return)
+        ))
+    ((a . x)
+        :eqAtoms? (a . x) :return)
+))
+
+equal? {
+    ((a . b) . (x . y)) => #equal? (a . x) {
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    }
+    ( a . x ) -> #eqAtoms?: (a . x);
+}
+
+match-with-deep-tree:
+    ((#a . #b) ((#asdf #sdfsf #sfsdf) . variable)) -> #quote: #hola;
+    (#(a . b) (#(asdf sdfsf sfsdf) . variable)) -> #quote: #hola;
+
+#equal?:
+    (
+        (
+            a . b
+        ) . (
+            x . y
+        )
+    ) -> #equal?: (a . 
+        ((x)))
+        #false -> #quote: #false;
+        #true -> (
+            #precompiled . #equal?
+        ): (b . y);
+    ( a . x ) -> #eqAtoms?: (a . x);

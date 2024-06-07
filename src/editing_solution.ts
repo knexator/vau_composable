@@ -45,7 +45,7 @@ export class EditingSolution {
 
         for (let k = 0; k < 8; k++) {
             yield {
-                value: parseSexprTemplate(`@${k}`),
+                value: { type: 'variable', value: k.toString() },
                 view: {
                     pos: offsetView(main_view, new Vec2(k * 6 + 12, -4)).pos,
                     halfside: main_view.halfside / 3,

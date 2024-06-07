@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -22,58 +22,19 @@ const CONFIG = {
 const gui = new GUI();
 gui.add(CONFIG, '_0_1', 0, 1).listen();
 
-// const x = parseSexprTemplate(`@x`);
-// const cur_fnk: FunktionDefinition = {
-//     name: { type: 'atom', value: 'testing_view' },
-//     cases: [
-//         {
-//             pattern: x,
-//             template: x,
-//             fn_name_template: x,
-//             next: [
-//                 {
-//                     pattern: x,
-//                     template: x,
-//                     fn_name_template: x,
-//                     next: [
-//                         {
-//                             pattern: x,
-//                             template: x,
-//                             fn_name_template: x,
-//                             next: 'return',
-//                         },
-//                     ],
-//                 },
-//                 {
-//                     pattern: x,
-//                     template: x,
-//                     fn_name_template: x,
-//                     next: 'return',
-//                 },
-//             ],
-//         },
-//         {
-//             pattern: x,
-//             template: x,
-//             fn_name_template: x,
-//             next: 'return',
-//         },
-//     ],
-// };
-
 const asdfTest: FunktionDefinition = {
     name: { type: 'atom', value: 'asdfTest' },
     cases: [
         {
-            pattern: parseSexprTemplate(`(v1 . @thing)`),
-            template: parseSexprTemplate(`@thing`),
-            fn_name_template: parseSexprTemplate(`asdfTest`),
+            pattern: parseSexprTemplate(`(#v1 . thing)`),
+            template: parseSexprTemplate(`thing`),
+            fn_name_template: parseSexprTemplate(`#asdfTest`),
             next: 'return',
         },
         {
-            pattern: parseSexprTemplate(`@thing`),
-            template: parseSexprTemplate(`(X . @thing)`),
-            fn_name_template: parseSexprTemplate(`bubbleUp`),
+            pattern: parseSexprTemplate(`thing`),
+            template: parseSexprTemplate(`(#X . thing)`),
+            fn_name_template: parseSexprTemplate(`#bubbleUp`),
             next: 'return',
         },
     ],
@@ -83,20 +44,20 @@ const bubbleUpFnk: FunktionDefinition = {
     name: { type: 'atom', value: 'bubbleUp' },
     cases: [
         {
-            pattern: parseSexprTemplate(`(X . @rest)`),
-            template: parseSexprTemplate(`(X . @rest)`),
-            fn_name_template: parseSexprTemplate(`identity`),
+            pattern: parseSexprTemplate(`(#X . rest)`),
+            template: parseSexprTemplate(`(#X . rest)`),
+            fn_name_template: parseSexprTemplate(`#identity`),
             next: 'return',
         },
         {
-            pattern: parseSexprTemplate(`(@a . @b)`),
-            template: parseSexprTemplate(`@b`),
-            fn_name_template: parseSexprTemplate(`bubbleUp`),
+            pattern: parseSexprTemplate(`(a . b)`),
+            template: parseSexprTemplate(`b`),
+            fn_name_template: parseSexprTemplate(`#bubbleUp`),
             next: [
                 {
-                    pattern: parseSexprTemplate(`(X . @rest)`),
-                    template: parseSexprTemplate(`(X @a . @rest)`),
-                    fn_name_template: parseSexprTemplate(`identity`),
+                    pattern: parseSexprTemplate(`(#X . rest)`),
+                    template: parseSexprTemplate(`(#X a . rest)`),
+                    fn_name_template: parseSexprTemplate(`#identity`),
                     next: 'return',
                 },
             ],
@@ -111,13 +72,14 @@ let view_offset = Vec2.zero;
 const stored = localStorage.getItem('vau_composable');
 if (stored === null) {
     all_fnks = [asdfTest, bubbleUpFnk];
-    cur_thing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(v1 v2 X v3 v1)'));
+    cur_thing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'));
 }
 else {
     // FUTURE: validation
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     all_fnks = JSON.parse(stored);
-    cur_thing = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(v1 v2 X v3 v1)'));
+    cur_thing = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'));
+    all_fnks.forEach(x => console.log(fnkToString(x)));
 }
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
@@ -176,39 +138,6 @@ function every_frame(cur_timestamp_millis: number) {
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
         localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
     }
-
-    // // drawMolecule(cur_fnk.cases[0].pattern, {
-    // drawer.drawMolecule(parseSexprTemplate('((@v1 . v1) . @v2)'), {
-    //     pos: screen_size.mul(new Vec2(0.25, 0.5)),
-    //     halfside: screen_size.y / 5,
-    //     turns: CONFIG._0_1 + 0.5,
-    //     // turns: .25,
-    // });
-
-    // drawer.drawPattern(parseSexprTemplate('((@v1 . v1) . @v2)'), {
-    //     pos: screen_size.mul(new Vec2(0.75, 0.5)),
-    //     halfside: screen_size.y / 5,
-    //     turns: CONFIG._0_1 + 0.5,
-    //     // turns: .25,
-    // });
-
-    // if (cur_bindings === null) {
-    // cur_bindings = drawer.generateFloatingBindings(cur_input, cur_fnk.cases, view)!;
-    // }
-
-    // drawer.drawBindings(cur_bindings, CONFIG._0_1);
-
-    // drawer.drawMolecule(parseSexprTemplate('@x'), {
-    //     pos: screen_size.mul(new Vec2(0.625, 0.2125)),
-    //     halfside: screen_size.y / 5.5,
-    //     turns: 0,
-    // });
-
-    // drawer.drawMolecule(parseSexprTemplate('(v2 . @v2)'), {
-    //     // pos: screen_size.scale(.5).addXY(-100, -100),
-    //     pos: raw_mouse_pos,
-    //     halfside: screen_size.y / 5,
-    // });
 
     animation_id = requestAnimationFrame(every_frame);
 }

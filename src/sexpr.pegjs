@@ -1,7 +1,7 @@
 {
     function listToSexpr(elements) {
         if (elements.length === 0) {
-            return {type: "atom", value: "nil"}
+            return {type: "atom", value: "#nil"}
         } else {
             return {type: "pair", left: elements[0], right: listToSexpr(elements.slice(1))}
         }
