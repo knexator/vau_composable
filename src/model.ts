@@ -429,9 +429,13 @@ export function fnkToString(fnk: FunktionDefinition): string {
             return body + ';';
         }
         else {
-            return body + '\n' + match_case.next.map(c => caseToString(c, depth + 1)).join('\n');
+            return body + ' {\n' + match_case.next.map(c => caseToString(c, depth + 1)).join('\n') + '\n' + '\t'.repeat(depth) + '}';
         }
     }
 
-    return sexprToString(fnk.name) + ':\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n');
+    return sexprToString(fnk.name) + ' {\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n') + '\n}';
+}
+
+export function stringToFnk(str: string): FunktionDefinition {
+    throw new Error("unimplemented");
 }

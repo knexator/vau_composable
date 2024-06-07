@@ -70,3 +70,31 @@ match-with-deep-tree:
             #precompiled . #equal?
         ): (b . y);
     ( a . x ) -> #eqAtoms?: (a . x);
+
+equal? {
+    ((a . b) . (x . y)) -> #equal?: (a . x) {
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    }
+    ( a . x ) -> #eqAtoms?: (a . x);
+}
+
+generate_bindings {
+    ( value . pattern ) -> #quote: pattern {
+        (#var . x) -> #quote: ((x . value) . #nil);
+        (#atom . x) -> #eqAtoms?: (x . value) {
+            #false -> #quote: #false;
+            #true -> #quote: #nil;
+        }
+        (left_pattern . right_pattern) -> #quote: value {
+            (left_value . right_value) -> generate_bindings: (left_value . left_pattern) {
+                #false -> #quote: #false;
+                left_bindings -> generate_bindings: (right_value . right_pattern) {
+                    #false -> #quote: #false;
+                    right_bindings -> #merge: (left_bindings . right_bindings);
+                }
+            }
+            single_value -> #quote: #false;
+        }
+    }
+}
