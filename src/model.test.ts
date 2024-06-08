@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, fnkToString, parseFnk, parseSexprLiteral, parseSexprTemplate } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
 
 test('funktion add', () => {
     const add: FunktionDefinition = {
@@ -117,7 +117,7 @@ test('parse fnk', () => {
     (a . x) -> #eqAtoms?: (a . x);
 }`;
 
-    const actual_fnk = parseFnk(source);
+    const actual_fnk = parseFnks(source)[0];
     const actual_repr = fnkToString(actual_fnk);
 
     const expected_repr = [

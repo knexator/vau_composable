@@ -29,8 +29,8 @@ export class EditingSolution {
     }
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
-        const atom_values: SexprLiteral[] = [parseSexprLiteral('(nil . nil)'),
-            ...['nil', 'true', 'false', 'input', 'output', 'v1', 'v2', 'v3', 'f1', 'f2', 'f3', 'f4'].map(parseSexprLiteral)];
+        const atom_values: SexprLiteral[] = [parseSexprLiteral('(#nil . #nil)'),
+            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(parseSexprLiteral)];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -68,7 +68,7 @@ export class EditingSolution {
         }
 
         // built in
-        const built_in = ['identity', 'eqAtoms?'].map(parseSexprLiteral);
+        const built_in = ['#identity', '#eqAtoms?'].map(parseSexprLiteral);
         for (let k = 0; k < built_in.length; k++) {
             yield {
                 value: built_in[k],
