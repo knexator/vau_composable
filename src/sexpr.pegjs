@@ -1,7 +1,7 @@
 {
     function listToSexpr(elements) {
         if (elements.length === 0) {
-            return {type: "atom", value: "#nil"}
+            return {type: "atom", value: "nil"}
         } else {
             return {type: "pair", left: elements[0], right: listToSexpr(elements.slice(1))}
         }
@@ -17,7 +17,7 @@
 }
 
 thing = fnk+ / sexpr
-sexpr = _ atom:symbol _ { return atom[0] === '#' ? {type: "atom", value: atom.slice(1)} : {type: "variable", value: atom}; }
+sexpr = _ atom:(literal / variable) _ {return atom}
       / _ "(" left:sexpr "." right:sexpr ")" _ { return {type: "pair", left: left, right: right } }
       / _ "(" list:sexpr|.., _| _ "." _ sentinel:sexpr _  ")" _ { return listWithSentinelToSexpr(list, sentinel) }
       / _ "(" list:sexpr|.., _| ")" _ { return listToSexpr(list) }
@@ -29,7 +29,9 @@ match_case = _ pattern:sexpr _ "->" _ fn_name_template:sexpr _ ":" _ template:se
         / "{" _ items:match_case+ _ "}" { return items; }
     ) { return {pattern, fn_name_template, template, next}; }
 
-symbol     = (! ".") chars: (!delimiter @.)+ { return chars.join("") }
+literal    = "#" value:word { return {type: "atom", value} }
+variable   = (! ("." / "#")) value:word { return {type: "variable", value} }
+word       = chars: (!delimiter @.)+ { return chars.join("") }
 space      = " " / [\n\r\t]
 comment    = "//" (![\n\r] .)*
 

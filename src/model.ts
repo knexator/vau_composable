@@ -151,7 +151,7 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     for (const fnk of all_fnks) {
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
-    throw new Error('Couldnt find the requrest funktion');
+    throw new Error(`Couldnt find the requrest funktion: ${sexprToString(fnk_name)}`);
 }
 
 export function applyFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
@@ -175,7 +175,7 @@ function applyMatchOptions(all_fnks: FunktionDefinition[], cases: MatchCaseDefin
             return applyMatchOptions(all_fnks, match_case_definition.next, next_value, all_bindings);
         }
     }
-    throw new Error('No matching cases');
+    throw new Error(`No matching cases for argument ${sexprToString(argument)}; cases are [${cases.map(x => sexprToString(x.pattern)).join(', ')}]`);
 }
 
 export function fillTemplate(template: SexprTemplate, bindings: { variable_name: string, value: SexprLiteral }[]): SexprLiteral {

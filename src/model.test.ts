@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 test('funktion add', () => {
     const add: FunktionDefinition = {
@@ -24,7 +26,7 @@ test('funktion add', () => {
 
     const actual_output = applyFunktion([add], parseSexprLiteral('#add'), input);
 
-    expect(equalSexprs(actual_output, expected_output)).toBe(true);
+    expect(actual_output).toStrictEqual(expected_output);
 });
 
 test('funktion bubbleUp', () => {
@@ -58,7 +60,7 @@ test('funktion bubbleUp', () => {
     const asdf = parseSexprLiteral('#bubbleUp');
     const actual_output = applyFunktion([bubbleUp], asdf, input);
 
-    expect(equalSexprs(actual_output, expected_output)).toBe(true);
+    expect(actual_output).toStrictEqual(expected_output);
 });
 
 test('repr of fnk', () => {
@@ -73,7 +75,7 @@ test('repr of fnk', () => {
                     {
                         pattern: parseSexprTemplate(`#false`),
                         template: parseSexprTemplate(`#false`),
-                        fn_name_template: parseSexprTemplate(`#quote`),
+                        fn_name_template: parseSexprTemplate(`#identity`),
                         next: 'return',
                     },
                     {
@@ -95,7 +97,7 @@ test('repr of fnk', () => {
     const expected_repr = [
         '#equal? {',
         '\t((a . b) . (x . y)) -> #equal?: (a . x) {',
-        '\t\t#false -> #quote: #false;',
+        '\t\t#false -> #identity: #false;',
         '\t\t#true -> #equal?: (b . y);',
         '\t}',
         '\t(a . x) -> #eqAtoms?: (a . x);',
@@ -111,7 +113,7 @@ test('parse fnk', () => {
 
     const source = `#equal? {
     ((a . b) . (x . y)) -> #equal?: (a . x) {
-        #false -> #quote: #false;
+        #false -> #identity: #false;
         // here is a comment
         #true -> #equal?: (b . y); // comment at the end
     }
@@ -124,7 +126,7 @@ test('parse fnk', () => {
     const expected_repr = [
         '#equal? {',
         '\t((a . b) . (x . y)) -> #equal?: (a . x) {',
-        '\t\t#false -> #quote: #false;',
+        '\t\t#false -> #identity: #false;',
         '\t\t#true -> #equal?: (b . y);',
         '\t}',
         '\t(a . x) -> #eqAtoms?: (a . x);',
@@ -132,4 +134,38 @@ test('parse fnk', () => {
     ].join('\n');
 
     expect(actual_repr).toBe(expected_repr);
+});
+
+test('some stored fnks', () => {
+    const filePath = resolve(__dirname, '../design/save_slot_1.txt');
+    const fileContent = readFileSync(filePath, 'utf-8');
+    const fnks = parseFnks(fileContent);
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`#bubbleUpF1`), parseSexprLiteral(
+        `(#a #b #f1 #c #d)`
+    ))).toStrictEqual(parseSexprLiteral(
+        `(#f1 #a #b #c #d)`
+    ));
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`(#math #peano . #add)`), parseSexprLiteral(`(
+        (#true #true) . (#true #true #true)
+    )`))).toStrictEqual(parseSexprLiteral(`(#true #true #true #true #true)`));
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`(#brainfuck . #api)`), parseSexprLiteral(`(
+        (#+ #+ #+ #. #+ #+ #.) . #nil
+    )`))).toStrictEqual(parseSexprLiteral(`((#1 #1 #1) (#1 #1 #1 #1 #1))`));
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`(#brainfuck . #api)`), parseSexprLiteral(`(
+        (#, #+ #+ #.) . ((#1 #1))
+    )`))).toStrictEqual(parseSexprLiteral(`((#1 #1 #1 #1))`));
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`(#brainfuck . #api)`), parseSexprLiteral(`(
+        (#, #[ #- #] #.) . ((#1 #1 #1))
+    )`))).toStrictEqual(parseSexprLiteral(`( () )`));
+
+    expect(applyFunktion(fnks, parseSexprLiteral(`(#brainfuck . #api)`), parseSexprLiteral(`(
+        // >,[>,]<[<]>[.>]
+        (#> #, #[ #> #, #] #< #[ #< #] #> #[ #. #> #]) . ((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))
+    )`))).toStrictEqual(parseSexprLiteral(`((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))`));
+
 });

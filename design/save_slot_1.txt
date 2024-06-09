@@ -5,13 +5,13 @@
 	));
 	X -> (#math #binary #multiply . #simple): ((#true . (#false . (#true . #nil))) . (#true . (#false . (#true . #nil))));
 	X -> (#math #peano . #toBinary): (#true . (#true . (#true . (#true . (#true . #nil))))) {
-		5 -> #quote: 5;
+		5 -> #identity: 5;
 	}
 	X -> (#math #binary . #toPeano): (#true . (#false . (#true . #nil))) {
-		5 -> #quote: 5;
+		5 -> #identity: 5;
 	}
 	X -> (#math #binary . #add): ((#true . (#false . #nil)) . (#true . (#true . #nil))) {
-		3 -> #quote: 3;
+		3 -> #identity: 3;
 	}
 	X -> (#math #binary . #inc): (#false . (#true . #nil)) {
 		0 -> (#math #binary . #inc): 0 {
@@ -22,72 +22,72 @@
 }
 
 #bubbleUpF1 {
-	(#f1 . rest) -> #quote: (#f1 . rest);
+	(#f1 . rest) -> #identity: (#f1 . rest);
 	(a . b) -> #bubbleUpF1: b {
-		(#f1 . rest) -> #quote: (#f1 . (a . rest));
+		(#f1 . rest) -> #identity: (#f1 . (a . rest));
 	}
 }
 
 #bubbleUpF1Fast {
-	(first . (second . (#f1 . rest))) -> #quote: (#f1 . (first . (second . rest)));
-	(first . (#f1 . rest)) -> #quote: (#f1 . (first . rest));
-	(#f1 . rest) -> #quote: (#f1 . rest);
+	(first . (second . (#f1 . rest))) -> #identity: (#f1 . (first . (second . rest)));
+	(first . (#f1 . rest)) -> #identity: (#f1 . (first . rest));
+	(#f1 . rest) -> #identity: (#f1 . rest);
 	(a . b) -> #bubbleUpF1Fast: b {
-		(#f1 . rest) -> #quote: (#f1 . (a . rest));
+		(#f1 . rest) -> #identity: (#f1 . (a . rest));
 	}
 }
 
 #equal? {
 	((leftleft . leftright) . (rightleft . rightright)) -> #equal?: (leftleft . rightleft) {
-		#false -> #quote: #false;
+		#false -> #identity: #false;
 		#true -> #equal?: (leftright . rightright);
 	}
 	(left . right) -> #eqAtoms?: (left . right);
 }
 
 (#math #binary . #add) {
-	(N . #nil) -> #quote: N;
-	(#nil . N) -> #quote: N;
+	(N . #nil) -> #identity: N;
+	(#nil . N) -> #identity: N;
 	((#false . 0) . (1 . 3)) -> (#math #binary . #add): (0 . 3) {
-		X -> #quote: (1 . X);
+		X -> #identity: (1 . X);
 	}
 	((1 . 3) . (#false . 0)) -> (#math #binary . #add): (0 . 3) {
-		X -> #quote: (1 . X);
+		X -> #identity: (1 . X);
 	}
 	((#true . 0) . (#true . 1)) -> (#math #binary . #inc): 0 {
 		X -> (#math #binary . #add): (X . 1) {
-			7 -> #quote: (#false . 7);
+			7 -> #identity: (#false . 7);
 		}
 	}
 }
 
 (#math #binary . #inc) {
-	#nil -> #quote: (#true . #nil);
-	(#false . 0) -> #quote: (#true . 0);
+	#nil -> #identity: (#true . #nil);
+	(#false . 0) -> #identity: (#true . 0);
 	(#true . 0) -> (#math #binary . #inc): 0 {
-		X -> #quote: (#false . X);
+		X -> #identity: (#false . X);
 	}
 }
 
 (#math #binary . #toPeano) {
-	#nil -> #quote: #nil;
+	#nil -> #identity: #nil;
 	(#false . rest) -> (#math #binary . #toPeano): rest {
 		2 -> (#math #peano . #add): (2 . 2);
 	}
 	(#true . rest) -> (#math #binary . #toPeano): rest {
 		2 -> (#math #peano . #add): (2 . 2) {
-			X -> #quote: (#true . X);
+			X -> #identity: (#true . X);
 		}
 	}
 }
 
 (#math #peano . #add) {
-	(#nil . 0) -> #quote: 0;
-	((#true . 2) . 0) -> (#math #peano . #add): (2 . (#true . 0));
+	(#nil . other) -> #identity: other;
+	((#true . 2) . other) -> (#math #peano . #add): (2 . (#true . other));
 }
 
 (#math #peano . #toBinary) {
-	#nil -> #quote: #nil;
+	#nil -> #identity: #nil;
 	// optimization
 	(#true . (#true . (#true . (#true . rest)))) -> (#math #peano . #toBinary): rest {
 		X -> (#math #binary . #add): ((#false . (#false . (#true . #nil))) . X);
@@ -98,9 +98,9 @@
 }
 
 (#math #binary #multiply . #simple) {
-	(#nil . other) -> #quote: #nil;
+	(#nil . other) -> #identity: #nil;
 	((#false . X) . other) -> (#math #binary #multiply . #simple): (X . other) {
-		3 -> #quote: (#false . 3);
+		3 -> #identity: (#false . 3);
 	}
 	((#true . X) . other) -> (#math #binary #multiply . #simple): (X . other) {
 		3 -> (#math #binary . #add): (other . (#false . 3));
@@ -108,12 +108,12 @@
 }
 
 (#math #binary #multiply . #fast) {
-	(#nil . other) -> #quote: #nil;
-	((#true . #nil) . other) -> #quote: other;
-	((#false . (#true . #nil)) . other) -> #quote: (#false . other);
+	(#nil . other) -> #identity: #nil;
+	((#true . #nil) . other) -> #identity: other;
+	((#false . (#true . #nil)) . other) -> #identity: (#false . other);
 	((#true . (#true . #nil)) . other) -> (#math #binary . #add): (other . (#false . other));
 	((#false . X) . other) -> (#math #binary #multiply . #fast): (X . other) {
-		3 -> #quote: (#false . 3);
+		3 -> #identity: (#false . 3);
 	}
 	((#true . X) . other) -> (#math #binary #multiply . #fast): (X . other) {
 		3 -> (#math #binary . #add): (other . (#false . 3));
@@ -165,9 +165,23 @@
 	}
 }
 
+#reverse {
+	#nil -> #identity: #nil;
+	(first . rest) -> #reverse: rest {
+		reversed_rest -> #append: (first . reversed_rest);
+	}
+}
+
+#append {
+	(element . #nil) -> #identity: (element . #nil);
+	(element . (first . rest)) -> #append: (element . rest) {
+		done_rest -> #identity: (first . done_rest);
+	}
+}
+
 (#brainfuck . #api) {
 // (program . input) -> output
-	(#nil . input) -> #quote: #nil;
+	(#nil . input) -> #identity: #nil;
 	((program_first . program_rest) . input) -> (#brainfuck . #main): (
 		(program_first program_rest . #nil)
 		(#nil #nil . #nil)
@@ -178,29 +192,51 @@
 // TODO: . between tape and io
 (#brainfuck . #main) {
 	(
+		(program_cur #nil . program_prev)
+		(tape_cur tape_next . tape_prev)
+		(input . output)
+	) -> #identity: program_cur {
+		#< -> #reverse: output;
+		#> -> #reverse: output;
+		#+ -> #reverse: output;
+		#- -> #reverse: output;
+		#. -> #reverse: (tape_cur . output);
+		#] -> #identity: tape_cur {
+			#nil -> #reverse: output;
+			_ -> #identity: program_prev {
+				(program_prev_first . program_prev_rest) -> (#brainfuck #skip . #backward): (
+					#nil
+					(program_prev_first (program_cur . #nil) . program_prev_rest)	
+					(tape_cur tape_next . tape_prev)
+					(input . output)
+				);
+			}
+		}
+	}
+	(
 		(program_cur (program_next_first . program_next_rest) . program_prev)
 		(tape_cur tape_next . tape_prev)
 		(input . output)
-	) -> #quote: program_cur {
-		#< -> #quote: tape_prev {
-			#nil: (#brainfuck . #main): (
+	) -> #identity: program_cur {
+		#< -> #identity: tape_prev {
+			#nil -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(#nil (tape_cur . tape_next) . #nil)
 				(input . output)
 			);
-			(prev_first . prev_rest): (#brainfuck . #main): (
+			(prev_first . prev_rest) -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(prev_first (tape_cur . tape_next) . prev_rest)
 				(input . output)
 			);
 		}
-		#> -> #quote: tape_next {
-			#nil: (#brainfuck . #main): (
+		#> -> #identity: tape_next {
+			#nil -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(#nil #nil . (tape_cur . tape_prev))
 				(input . output)
 			);
-			(next_first . next_rest): (#brainfuck . #main): (
+			(next_first . next_rest) -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(next_first next_rest . (tape_cur . tape_prev))
 				(input . output)
@@ -211,26 +247,31 @@
 			((#1 . tape_cur) tape_next . tape_prev)
 			(input . output)
 		);
-		#- -> #quote: tape_cur {
+		#- -> #identity: tape_cur {
 			(#1 . rest) -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(rest tape_next . tape_prev)
 				(input . output)
 			);
 		}
-		#, -> #quote: input {
-			(first . rest) -> 	(#brainfuck . #main): (
+		#, -> #identity: input {
+			(first . rest) -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(first tape_next . tape_prev)
 				(rest . output)
-			)
+			);
+			#nil -> (#brainfuck . #main): (
+				(program_next_first program_next_rest . (program_cur . program_prev))	
+				(#nil tape_next . tape_prev)
+				(#nil . output)
+			);
 		}
 		#. -> (#brainfuck . #main): (
 			(program_next_first program_next_rest . (program_cur . program_prev))	
 			(tape_cur tape_next . tape_prev)
 			(input . (tape_cur . output))
 		);
-		#[ -> #quote: tape_cur {
+		#[ -> #identity: tape_cur {
 			#nil -> (#brainfuck #skip . #forward): (
 				#nil
 				(program_next_first program_next_rest . (program_cur . program_prev))	
@@ -243,19 +284,19 @@
 				(input . output)
 			);
 		}
-		#] -> #quote: tape_cur {
+		#] -> #identity: tape_cur {
 			#nil -> (#brainfuck . #main): (
 				(program_next_first program_next_rest . (program_cur . program_prev))	
 				(tape_cur tape_next . tape_prev)
 				(input . output)
 			);
-			_ -> #quote: program_prev {
+			_ -> #identity: program_prev {
 				(program_prev_first . program_prev_rest) -> (#brainfuck #skip . #backward): (
 					#nil
 					(program_prev_first (program_cur . (program_next_first . program_next_rest)) . program_prev_rest)	
 					(tape_cur tape_next . tape_prev)
 					(input . output)
-				)
+				);
 			}
 		}
 	}
