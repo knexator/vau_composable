@@ -112,7 +112,8 @@ test('parse fnk', () => {
     const source = `#equal? {
     ((a . b) . (x . y)) -> #equal?: (a . x) {
         #false -> #quote: #false;
-        #true -> #equal?: (b . y);
+        // here is a comment
+        #true -> #equal?: (b . y); // comment at the end
     }
     (a . x) -> #eqAtoms?: (a . x);
 }`;

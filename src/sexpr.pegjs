@@ -21,7 +21,9 @@ sexpr = _ atom:symbol _ { return atom[0] === '#' ? {type: "atom", value: atom.sl
       / _ "(" left:sexpr "." right:sexpr ")" _ { return {type: "pair", left: left, right: right } }
       / _ "(" list:sexpr|.., _| _ "." _ sentinel:sexpr _  ")" _ { return listWithSentinelToSexpr(list, sentinel) }
       / _ "(" list:sexpr|.., _| ")" _ { return listToSexpr(list) }
+
 fnk   = _ name:sexpr _ "{" _ cases:match_case+ _ "}" _ { return {name, cases}; }
+
 match_case = _ pattern:sexpr _ "->" _ fn_name_template:sexpr _ ":" _ template:sexpr _ next:(
         ";" { return "return"; }
         / "{" _ items:match_case+ _ "}" { return items; }
@@ -29,6 +31,9 @@ match_case = _ pattern:sexpr _ "->" _ fn_name_template:sexpr _ ":" _ template:se
 
 symbol     = (! ".") chars: (!delimiter @.)+ { return chars.join("") }
 space      = " " / [\n\r\t]
+comment    = "//" (![\n\r] .)*
+
 paren      = "(" / ")"
 delimiter  = paren / space / "{" / "}" / ":" / ";"
-_ = space*
+
+_ = (space / comment)*
