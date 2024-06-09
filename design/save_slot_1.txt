@@ -1,4 +1,7 @@
 #launch {
+    X -> (#brainfuck . #api): (
+        (#, #[ #- #] #.) . ((#1 #1 #1))
+    );
 	X -> #applyVau: ((#input . (#f1 . #nil)) . (
 		((#variable . #v1) . ((#atom . #f1) . (#f2 . #v3))) . 
 		((#atom . #f1) . ((#variable . #v1) . (#f2 . #v3)))

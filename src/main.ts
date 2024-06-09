@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -77,7 +77,8 @@ if (stored === null) {
 else {
     // FUTURE: validation
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    all_fnks = JSON.parse(stored);
+    all_fnks = parseFnks(stored);
+    // all_fnks = JSON.parse(stored);
     cur_thing = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'));
     all_fnks.forEach(x => console.log(fnkToString(x)));
 }
@@ -136,7 +137,8 @@ function every_frame(cur_timestamp_millis: number) {
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
-        localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
+        // localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
+        localStorage.setItem('vau_composable', all_fnks.map(x => fnkToString(x)).join('\n'));
     }
 
     animation_id = requestAnimationFrame(every_frame);
