@@ -708,6 +708,22 @@ export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
     }
 }
 
+export function everythingCollapsedExceptFirsts(cases: MatchCaseDefinition[]): Collapsed[] {
+    function helper(match_case: MatchCaseDefinition, index: number): Collapsed {
+        return {
+            main: { collapsed: index > 0, changedAt: -Infinity, extra_poles: countExtraPolesNeeded(match_case) },
+            inside: match_case.next === 'return' ? [] : match_case.next.map(helper),
+        };
+    }
+    return cases.map(helper);
+
+    function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
+        if (match_case.next === 'return') return 0;
+        if (match_case.next.length === 1) return 1;
+        return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
+    }
+}
+
 export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress, cur_time: number): Collapsed[] {
     if (which.length === 0) throw new Error('bad address at toggleCollapsed');
     if (which.length === 1) {
@@ -736,7 +752,8 @@ export function getSexprGrandChildView(parent: SexprView, path: SexprAddress): S
     return getSexprGrandChildView(getSexprChildView(parent, path[0] === 'l'), path.slice(1));
 }
 
-export function getView(parent: SexprView, path: FullAddress, collapsed: Collapsed): SexprView {
+// TODO: take global_t into account
+export function getView(parent: SexprView, path: FullAddress, collapsed: Collapsed, global_t: number = Infinity): SexprView {
     const unit = parent.halfside / 4;
     if (collapsed.main.collapsed) {
         if (path.major.length === 0 && path.type === 'pattern') {

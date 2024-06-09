@@ -97,7 +97,8 @@ function every_frame(cur_timestamp_millis: number) {
     last_timestamp_millis = cur_timestamp_millis;
     input.startFrame();
     twgl.resizeCanvasToDisplaySize(canvas);
-
+    
+    const global_t = cur_timestamp_millis / 1000;
     drawer.clear();
 
     const keymap: [KeyCode[], Vec2][] = [
@@ -117,23 +118,23 @@ function every_frame(cur_timestamp_millis: number) {
     }
 
     if (cur_thing instanceof EditingSolution) {
-        cur_thing.draw(drawer, cur_timestamp_millis / 1000, view_offset);
+        cur_thing.draw(drawer, global_t, view_offset);
         if (input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution();
         }
         else {
-            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, cur_timestamp_millis / 1000, view_offset) ?? cur_thing;
+            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, global_t, view_offset) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {
-        cur_thing.draw(drawer, view_offset);
+        cur_thing.draw(drawer, view_offset, global_t);
         [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4].forEach((key, index) => {
             if (input.keyboard.wasPressed(key)) {
                 if (!(cur_thing instanceof ExecutingSolution)) throw new Error('unreachable');
                 cur_thing.speed = index * index;
             }
         });
-        cur_thing = cur_thing.update(delta_time, drawer, view_offset) ?? cur_thing;
+        cur_thing = cur_thing.update(delta_time, drawer, view_offset, global_t) ?? cur_thing;
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {

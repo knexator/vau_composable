@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
@@ -30,7 +30,7 @@ class ExecutionState {
         return new ExecutionState(
             null,
             fnk,
-            fakeCollapsed(nothingCollapsed(fnk.cases)),
+            fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases)),
             nothingMatched(fnk.cases),
             input,
             { type: 'input_moving_to_next_option', target: [0] },
@@ -39,21 +39,18 @@ class ExecutionState {
         );
     }
 
-    private getViewOfMovingInput(view: SexprView, address: MatchCaseAddress): SexprView {
+    private getViewOfMovingInput(view: SexprView, address: MatchCaseAddress, global_t: number = Infinity): SexprView {
         const chair_view = getView(view, {
             type: 'pattern',
             major: address,
             minor: [],
-        }, this.collapsed);
+        }, this.collapsed, global_t);
         const unit = view.halfside / 4;
-        return {
-            pos: chair_view.pos.add(new Vec2(-unit * 11, 0).rotateTurns(chair_view.turns)),
-            halfside: chair_view.halfside, turns: chair_view.turns,
-        };
+        return offsetView(chair_view, new Vec2(-11, 0));
     }
 
     // TODO: these parameters are a code smell
-    next(all_fnks: FunktionDefinition[], main_view: SexprView): ExecutionState | null {
+    next(all_fnks: FunktionDefinition[], main_view: SexprView, global_t: number): ExecutionState | null {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
@@ -64,7 +61,13 @@ class ExecutionState {
                 if (!validCaseAddress(this.fnk, new_target)) {
                     throw new Error('Ran out of options!');
                 }
-                return this.withAnimation({ type: 'input_moving_to_next_option', target: new_target });
+                let new_collapsed = structuredClone(this.collapsed);
+                new_collapsed = fakeCollapsed(toggleCollapsed(new_collapsed.inside, this.animation.which, global_t));
+                new_collapsed = fakeCollapsed(toggleCollapsed(new_collapsed.inside, nextMatchCaseSibling(this.animation.which), global_t));
+
+                let next = this.withAnimation({ type: 'input_moving_to_next_option', target: new_target });
+                next.collapsed = new_collapsed;
+                return next;
             }
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view, this.collapsed);
@@ -130,7 +133,7 @@ class ExecutionState {
                         throw new Error(`can't find function of name ${sexprToString(fn_name)}`);
                     }
                     return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
-                        next_fnk, fakeCollapsed(nothingCollapsed(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
+                        next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
                         { type: 'fading_in_from_parent', source_address: input_address });
                 }
             }
@@ -140,7 +143,7 @@ class ExecutionState {
                 return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] });
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                return this.parent.withInput(this.input).next(all_fnks, main_view);
+                return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
             }
             case 'fading_in_from_child': {
                 const match_case = getCaseAt(this.fnk, this.animation.return_address);
@@ -212,10 +215,10 @@ class ExecutionState {
                     major: this.animation.target.slice(0, -1),
                     minor: [],
                 }, this.collapsed)
-                : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1]);
+                : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1], global_t);
             drawer.drawMolecule(this.input, lerpSexprView(
                 source_view,
-                this.getViewOfMovingInput(view, this.animation.target),
+                this.getViewOfMovingInput(view, this.animation.target, global_t),
                 anim_t,
             ));
         }
@@ -292,13 +295,13 @@ export class ExecutingSolution {
     }
 
     // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer, view_offset: Vec2): EditingSolution | null {
+    update(delta_time: number, drawer: Drawer, view_offset: Vec2, global_t: number): EditingSolution | null {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
         this.anim_t += delta_time * this.speed;
         while (this.anim_t >= 1) {
             this.anim_t -= 1;
-            const next_state = this.cur_execution_state.next(this.all_fnks, view);
+            const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
             if (next_state === null) {
                 return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
             }
@@ -307,9 +310,9 @@ export class ExecutingSolution {
         return null;
     }
 
-    draw(drawer: Drawer, view_offset: Vec2) {
+    draw(drawer: Drawer, view_offset: Vec2, global_t: number) {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
-        this.cur_execution_state.draw(drawer, this.anim_t, Infinity, view);
+        this.cur_execution_state.draw(drawer, this.anim_t, global_t, view);
     }
 
     private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {
