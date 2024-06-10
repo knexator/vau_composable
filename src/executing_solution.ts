@@ -16,7 +16,8 @@ type ExecutionAnimationState =
     | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
     | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
-    | { type: 'waiting_for_child', return_address: MatchCaseAddress };
+    | { type: 'waiting_for_child', return_address: MatchCaseAddress }
+    | { type: 'breaking_to_tail_optimization' };
 
 class ExecutionState {
     private constructor(
@@ -130,27 +131,37 @@ class ExecutionState {
                 }
                 else {
                     const input_address = this.animation.input_address;
-                    const fn_name = assertLiteral(assertNotNull(getAt(this.fnk.cases, {
-                        type: 'fn_name',
-                        major: input_address,
-                        minor: [],
-                    })));
+                    const match_case = getCaseAt(this.fnk, input_address);
+                    const fn_name = assertLiteral(match_case.fn_name_template);
                     const next_fnk = all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (next_fnk === undefined) {
                         // TODO: how to handle this user error?
                         throw new Error(`can't find function of name ${sexprToString(fn_name)}`);
                     }
-                    return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
-                        next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
-                        { type: 'fading_in_from_parent', source_address: input_address });
+
+                    if (match_case.next === 'return') {
+                        return new ExecutionState(
+                            this.withAnimation({ type: 'breaking_to_tail_optimization' }),
+                            next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
+                            { type: 'fading_in_from_parent', source_address: input_address });
+                    } else {
+                        return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
+                            next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
+                            { type: 'fading_in_from_parent', source_address: input_address });
+                    }
                 }
             }
             case 'fading_out_to_child':
                 throw new Error('unreachable');
             case 'fading_in_from_parent':
-                if (this.parent === null || this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
-                    .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
+                if (this.parent === null || (this.parent.animation.type !== 'fading_out_to_child' && this.parent.animation.type !== 'breaking_to_tail_optimization')) throw new Error('unreachable');
+                if (this.parent.animation.type === 'breaking_to_tail_optimization') {
+                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
+                        .withParent(this.parent.parent);
+                } else {
+                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
+                        .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
+                }
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
                 return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
@@ -191,7 +202,7 @@ class ExecutionState {
         return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, new_input, this.animation);
     }
 
-    private withParent(new_parent: ExecutionState): ExecutionState {
+    private withParent(new_parent: ExecutionState | null): ExecutionState {
         return new ExecutionState(new_parent, this.fnk, this.collapsed, this.matched, this.input, this.animation);
     }
 
@@ -206,6 +217,9 @@ class ExecutionState {
                     minor: [],
                     type: 'template',
                 }, this.parent.collapsed);
+                return main_view;
+            }
+            else if (this.parent.animation.type === 'breaking_to_tail_optimization') {
                 return main_view;
             }
             else {
@@ -240,6 +254,10 @@ class ExecutionState {
             drawer.ctx.globalAlpha = remap(anim_t, 0, 1, 0.1, 1);
         }
         else if (this.animation.type === 'waiting_for_child') {
+            drawer.ctx.globalAlpha = 0.1;
+        }
+        else if (this.animation.type === 'breaking_to_tail_optimization') {
+            view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
             drawer.ctx.globalAlpha = 0.1;
         }
         else if (this.animation.type === 'fading_in_from_parent') {
@@ -330,6 +348,9 @@ class ExecutionState {
             ));
         }
         else if (this.animation.type === 'waiting_for_child') {
+            // nothing
+        }
+        else if (this.animation.type === 'breaking_to_tail_optimization') {
             // nothing
         }
         else {
