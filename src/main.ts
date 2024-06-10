@@ -97,7 +97,7 @@ function every_frame(cur_timestamp_millis: number) {
     last_timestamp_millis = cur_timestamp_millis;
     input.startFrame();
     twgl.resizeCanvasToDisplaySize(canvas);
-    
+
     const global_t = cur_timestamp_millis / 1000;
     drawer.clear();
 

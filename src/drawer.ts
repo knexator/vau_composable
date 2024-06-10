@@ -86,9 +86,17 @@ export class Drawer {
         }
     }
 
-    drawBindings(parent_view: SexprView, bindings: FloatingBinding[], t: number, collapsed: Collapsed) {
+    // drawBindings(parent_view: SexprView, bindings: FloatingBinding[], t: number, collapsed: Collapsed) {
+    //     bindings.forEach((x) => {
+    //         const cur_view = lerpSexprView(x.source_view, getView(parent_view, x.target_address, collapsed), t);
+    //         this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
+    //         this.drawMolecule(x.value, cur_view);
+    //     }, this);
+    // }
+
+    drawBindingsNew(parent_view: SexprView, bindings: FloatingBinding[], t: number, collapsed: Collapsed) {
         bindings.forEach((x) => {
-            const cur_view = lerpSexprView(x.source_view, getView(parent_view, x.target_address, collapsed), t);
+            const cur_view = lerpSexprView(getView(parent_view, x.source_address, collapsed), getView(parent_view, x.target_address, collapsed), t);
             this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
             this.drawMolecule(x.value, cur_view);
         }, this);
@@ -629,7 +637,8 @@ export function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView 
 }
 
 export type FloatingBinding = {
-    source_view: SexprView,
+    // source_view: SexprView,
+    source_address: FullAddress,
     target_address: FullAddress,
     variable_name: string,
     value: SexprLiteral,
@@ -898,11 +907,16 @@ export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefin
     return bindings.flatMap((x) => {
         const target_addresses = addressesOfVariableInTemplates(match_case, x.variable_name);
         return target_addresses.map(target => ({
-            source_view: getView(parent_view, {
+            source_address: {
                 type: 'pattern',
                 major: address,
                 minor: x.variable_address,
-            }, collapsed),
+            },
+            // source_view: getView(parent_view, {
+            //     type: 'pattern',
+            //     major: address,
+            //     minor: x.variable_address,
+            // }, collapsed),
             target_address: {
                 type: target.type, minor: target.minor,
                 major: [...address, ...target.major],

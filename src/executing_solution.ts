@@ -3,6 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
+import { remap } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress } from './model';
 
 type ExecutionAnimationState =
@@ -14,7 +15,8 @@ type ExecutionAnimationState =
     | { type: 'fading_out_to_child', return_address: MatchCaseAddress }
     | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
-    | { type: 'fading_in_from_child', return_address: MatchCaseAddress };
+    | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
+    | { type: 'waiting_for_child', return_address: MatchCaseAddress };
 
 class ExecutionState {
     private constructor(
@@ -65,18 +67,19 @@ class ExecutionState {
                 new_collapsed = fakeCollapsed(toggleCollapsed(new_collapsed.inside, this.animation.which, global_t));
                 new_collapsed = fakeCollapsed(toggleCollapsed(new_collapsed.inside, nextMatchCaseSibling(this.animation.which), global_t));
 
-                let next = this.withAnimation({ type: 'input_moving_to_next_option', target: new_target });
+                const next = this.withAnimation({ type: 'input_moving_to_next_option', target: new_target });
                 next.collapsed = new_collapsed;
                 return next;
             }
             case 'matching': {
-                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view, this.collapsed);
+                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getActualMainView(main_view), this.collapsed);
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
                 const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
-                        { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
+                    { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
                 if (bindings.length === 0) {
                     return next_state.next(all_fnks, main_view, global_t)!.next(all_fnks, main_view, global_t);
-                } else {
+                }
+                else {
                     return next_state;
                 }
             }
@@ -98,7 +101,7 @@ class ExecutionState {
                             return null;
                         }
                         else {
-                            if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
+                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
                             return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched, this.input,
                                 { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
@@ -114,7 +117,7 @@ class ExecutionState {
                             return null;
                         }
                         else {
-                            if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
+                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
                             return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched,
                                 result, { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
@@ -145,7 +148,9 @@ class ExecutionState {
             case 'fading_out_to_child':
                 throw new Error('unreachable');
             case 'fading_in_from_parent':
-                return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] });
+                if (this.parent === null || this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
+                return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
+                    .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
                 return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
@@ -157,9 +162,12 @@ class ExecutionState {
                         return null;
                     }
                     else {
-                        if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
-                        return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched, this.input,
-                            { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.return_address });
+                        if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
+                        return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child',
+                            return_address: this.parent.animation.return_address,
+                        }), this.fnk, this.collapsed, this.matched, this.input,
+                        { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address,
+                            child_address: this.animation.return_address });
                     }
                 }
                 else {
@@ -179,22 +187,60 @@ class ExecutionState {
         return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, new_input, this.animation);
     }
 
+    private withParent(new_parent: ExecutionState): ExecutionState {
+        return new ExecutionState(new_parent, this.fnk, this.collapsed, this.matched, this.input, this.animation);
+    }
+
+    private getActualMainView(main_view: SexprView): SexprView {
+        if (this.parent !== null) {
+            main_view = this.parent.getActualMainView(main_view);
+            if (this.parent.animation.type === 'fading_out_to_child'
+                || this.parent.animation.type === 'waiting_for_child'
+                || this.parent.animation.type === 'fading_in_from_child') {
+                main_view = getView(main_view, {
+                    major: this.parent.animation.return_address,
+                    minor: [],
+                    type: 'template',
+                }, this.parent.collapsed);
+                return main_view;
+            }
+            else {
+                throw new Error('unreachable');
+            }
+        }
+        else {
+            return main_view;
+        }
+    }
+
     draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView) {
+        const original_main_view = {
+            pos: new Vec2(main_view.pos.x, main_view.pos.y), halfside: main_view.halfside, turns: main_view.turns,
+        };
+        main_view = this.getActualMainView(main_view);
+
+        if (this.parent !== null) {
+            this.parent.draw(drawer, anim_t, global_t, original_main_view);
+        }
+
         const view: SexprView = {
             pos: main_view.pos, halfside: main_view.halfside, turns: main_view.turns,
         };
 
         if (this.animation.type === 'fading_out_to_child') {
-            view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
-            drawer.ctx.globalAlpha = 1 - anim_t;
+            // view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
+            drawer.ctx.globalAlpha = remap(anim_t, 0, 1, 1, 0.1);
         }
         else if (this.animation.type === 'fading_in_from_child') {
-            view.pos = view.pos.add(Vec2.both((1 - anim_t) * view.halfside));
-            drawer.ctx.globalAlpha = anim_t;
+            // view.pos = view.pos.add(Vec2.both((1 - anim_t) * view.halfside));
+            drawer.ctx.globalAlpha = remap(anim_t, 0, 1, 0.1, 1);
+        }
+        else if (this.animation.type === 'waiting_for_child') {
+            drawer.ctx.globalAlpha = 0.1;
         }
         else if (this.animation.type === 'fading_in_from_parent') {
             if (this.parent === null) throw new Error('unreachable');
-            this.parent.draw(drawer, anim_t, global_t, main_view);
+            // this.parent.draw(drawer, anim_t, global_t, original_main_view);
             drawer.ctx.globalAlpha = 1;
 
             view.pos = view.pos.add(new Vec2(0, (1 - anim_t) * 18 * view.halfside));
@@ -202,7 +248,7 @@ class ExecutionState {
         }
         else if (this.animation.type === 'fading_out_to_parent') {
             if (this.parent === null) throw new Error('unreachable');
-            this.parent.draw(drawer, anim_t, global_t, main_view);
+            // this.parent.draw(drawer, anim_t, global_t, original_main_view);
             drawer.ctx.globalAlpha = 1;
 
             view.pos = view.pos.add(new Vec2(0, anim_t * 18 * view.halfside));
@@ -242,7 +288,7 @@ class ExecutionState {
             ));
         }
         else if (this.animation.type === 'floating_bindings') {
-            drawer.drawBindings(main_view, this.animation.bindings, anim_t, this.collapsed);
+            drawer.drawBindingsNew(main_view, this.animation.bindings, anim_t, this.collapsed);
         }
         else if (this.animation.type === 'dissolve_bindings') {
             this.animation.bindings.forEach((binding) => {
@@ -266,9 +312,8 @@ class ExecutionState {
             // nothing
         }
         else if (this.animation.type === 'fading_in_from_parent') {
-            //  view = ;
             drawer.drawMolecule(this.input, lerpSexprView(
-                getView(main_view, { type: 'template', major: this.animation.source_address, minor: [] }, assertNotNull(this.parent).collapsed),
+                getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.source_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 getView(view, { type: 'template', major: [], minor: [] }, this.collapsed),
                 anim_t,
             ));
@@ -276,9 +321,12 @@ class ExecutionState {
         else if (this.animation.type === 'fading_out_to_parent') {
             drawer.drawMolecule(this.input, lerpSexprView(
                 getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }, this.collapsed),
-                getView(main_view, { type: 'template', major: this.animation.parent_address, minor: [] }, assertNotNull(this.parent).collapsed),
+                getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.parent_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 anim_t,
             ));
+        }
+        else if (this.animation.type === 'waiting_for_child') {
+            // nothing
         }
         else {
             throw new Error('unimplemented');

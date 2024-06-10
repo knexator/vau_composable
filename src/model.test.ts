@@ -110,7 +110,6 @@ test('repr of fnk', () => {
 });
 
 test('parse fnk', () => {
-
     const source = `#equal? {
     ((a . b) . (x . y)) -> #equal?: (a . x) {
         #false -> #identity: #false;
@@ -142,9 +141,9 @@ test('some stored fnks', () => {
     const fnks = parseFnks(fileContent);
 
     expect(applyFunktion(fnks, parseSexprLiteral(`#bubbleUpF1`), parseSexprLiteral(
-        `(#a #b #f1 #c #d)`
+        `(#a #b #f1 #c #d)`,
     ))).toStrictEqual(parseSexprLiteral(
-        `(#f1 #a #b #c #d)`
+        `(#f1 #a #b #c #d)`,
     ));
 
     expect(applyFunktion(fnks, parseSexprLiteral(`(#math #peano . #add)`), parseSexprLiteral(`(
@@ -167,5 +166,4 @@ test('some stored fnks', () => {
         // >,[>,]<[<]>[.>]
         (#> #, #[ #> #, #] #< #[ #< #] #> #[ #. #> #]) . ((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))
     )`))).toStrictEqual(parseSexprLiteral(`((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))`));
-
 });
