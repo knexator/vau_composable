@@ -72,8 +72,13 @@ class ExecutionState {
             case 'matching': {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, main_view, this.collapsed);
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
-                return new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
-                    { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
+                const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
+                        { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
+                if (bindings.length === 0) {
+                    return next_state.next(all_fnks, main_view, global_t)!.next(all_fnks, main_view, global_t);
+                } else {
+                    return next_state;
+                }
             }
             case 'floating_bindings': {
                 const new_input = fillTemplate(
