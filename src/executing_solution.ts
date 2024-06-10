@@ -163,11 +163,15 @@ class ExecutionState {
                     }
                     else {
                         if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
-                        return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child',
-                            return_address: this.parent.animation.return_address,
-                        }), this.fnk, this.collapsed, this.matched, this.input,
-                        { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address,
-                            child_address: this.animation.return_address });
+                        return this.withParent(
+                            this.parent.withAnimation({
+                                type: 'fading_in_from_child',
+                                return_address: this.parent.animation.return_address,
+                            }),
+                        ).withAnimation({
+                            type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address,
+                            child_address: this.animation.return_address,
+                        });
                     }
                 }
                 else {
