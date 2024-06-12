@@ -52,10 +52,33 @@ export function parseSexprLiteral(input: string): SexprLiteral {
     return assertLiteral(parseSexprTemplate(input));
 }
 
+function asListPlusSentinel(x: SexprTemplate): { list: SexprTemplate[], sentinel: { type: 'variable' | 'atom', value: string } } {
+    if (x.type !== 'pair') {
+        return { list: [], sentinel: x };
+    } else {
+        let { list: inner_list, sentinel } = asListPlusSentinel(x.right);
+        return { list: [x.left, ...inner_list], sentinel };
+    }
+}
+
 export function sexprToString(input: SexprTemplate): string {
-    if (input.type === 'atom') return '#' + input.value;
-    if (input.type === 'variable') return input.value;
-    return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
+    const { list, sentinel } = asListPlusSentinel(input);
+    const sentinel_str = sentinel.type === 'atom' ? '#' + sentinel.value : sentinel.value;
+    if (list.length === 0) {
+        return sentinel_str;
+    } else {
+        if (sentinel_str === '#nil') {
+            return `(${list.map(x => sexprToString(x)).join(' ')})`
+        } else {
+            // option 1
+            // return `(${list.map(x => sexprToString(x)).join(' ')} . ${sentinel_str})`
+
+            // option 2
+            if (input.type !== 'pair') throw new Error("unreachable");
+            return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
+        }
+    }
+    // return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
 }
 
 export function cloneSexpr(x: SexprTemplate): SexprTemplate {
@@ -415,7 +438,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield * allCases(match_case.next, [...parent_address, k]);
+            yield* allCases(match_case.next, [...parent_address, k]);
         }
     }
 }

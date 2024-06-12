@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -167,3 +167,25 @@ test('some stored fnks', () => {
         (#> #, #[ #> #, #] #< #[ #< #] #> #[ #. #> #]) . ((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))
     )`))).toStrictEqual(parseSexprLiteral(`((#1 #1 #1) (#1 #1) (#1 #1 #1 #1))`));
 });
+
+test('repr of sexpr', () => {
+    // {
+    //     const expected_repr = '(a b c . d)'
+    //     const actual_repr = sexprToString(parseSexprTemplate(expected_repr));
+    //     expect(actual_repr).toBe(expected_repr);
+    // }
+
+    {
+        const expected_repr = '(a b c)'
+        const actual_repr = sexprToString(parseSexprTemplate(expected_repr));
+        expect(actual_repr).toBe(expected_repr);
+    }
+});
+
+// test('check generated against my actual writing style', () => {
+//     const filePath = resolve(__dirname, '../design/save_slot_1.txt');
+//     const fileContent = readFileSync(filePath, 'utf-8').replace(/\r\n/g, '\n');
+//     const fnks = parseFnks(fileContent);
+//     const back = fnks.map(f => fnkToString(f)).join('\n'); 
+//     expect(back).toBe(fileContent);
+// });
