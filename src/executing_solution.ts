@@ -144,7 +144,8 @@ class ExecutionState {
                             this.withAnimation({ type: 'breaking_to_tail_optimization' }),
                             next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
                             { type: 'fading_in_from_parent', source_address: input_address });
-                    } else {
+                    }
+                    else {
                         return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
                             next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
                             { type: 'fading_in_from_parent', source_address: input_address });
@@ -158,7 +159,8 @@ class ExecutionState {
                 if (this.parent.animation.type === 'breaking_to_tail_optimization') {
                     return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
                         .withParent(this.parent.parent);
-                } else {
+                }
+                else {
                     return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
                         .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
                 }

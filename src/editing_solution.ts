@@ -143,12 +143,11 @@ export class EditingSolution {
         // print atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
             const hovered_value = this.valueAtMouseLocation(this.mouse_location);
-            if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
-                drawer.ctx.fillStyle = 'black';
-                const screen_size = drawer.getScreenSize();
-                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-                drawer.ctx.fillText(hovered_value.value, screen_size.x * 0.5, screen_size.y * 0.95);
-            }
+            drawer.ctx.fillStyle = 'black';
+            const screen_size = drawer.getScreenSize();
+            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+            drawer.ctx.textAlign = "center";
+            drawer.ctx.fillText(sexprToString(hovered_value), screen_size.x * 0.5, screen_size.y * 0.95);
         }
     }
 
