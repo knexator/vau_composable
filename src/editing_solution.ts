@@ -29,8 +29,10 @@ export class EditingSolution {
     }
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
-        const atom_values: SexprLiteral[] = [parseSexprLiteral('(#nil . #nil)'),
-            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(parseSexprLiteral)];
+        const atom_values: SexprLiteral[] = [
+            parseSexprLiteral('(#nil . #nil)'),
+            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(parseSexprLiteral),
+        ];
 
         for (let k = 0; k < 12; k++) {
             yield {
@@ -146,7 +148,7 @@ export class EditingSolution {
             drawer.ctx.fillStyle = 'black';
             const screen_size = drawer.getScreenSize();
             drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-            drawer.ctx.textAlign = "center";
+            drawer.ctx.textAlign = 'center';
             drawer.ctx.fillText(sexprToString(hovered_value), screen_size.x * 0.5, screen_size.y * 0.95);
         }
     }

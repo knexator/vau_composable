@@ -176,7 +176,7 @@ test('repr of sexpr', () => {
     // }
 
     {
-        const expected_repr = '(a b c)'
+        const expected_repr = '(a b c)';
         const actual_repr = sexprToString(parseSexprTemplate(expected_repr));
         expect(actual_repr).toBe(expected_repr);
     }
@@ -186,6 +186,6 @@ test('repr of sexpr', () => {
 //     const filePath = resolve(__dirname, '../design/save_slot_1.txt');
 //     const fileContent = readFileSync(filePath, 'utf-8').replace(/\r\n/g, '\n');
 //     const fnks = parseFnks(fileContent);
-//     const back = fnks.map(f => fnkToString(f)).join('\n'); 
+//     const back = fnks.map(f => fnkToString(f)).join('\n');
 //     expect(back).toBe(fileContent);
 // });
