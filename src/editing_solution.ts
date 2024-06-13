@@ -161,20 +161,37 @@ export class EditingSolution {
 
         const pole = getPoleAtPosition(this.fnk, main_view, this.collapsed.inside, raw_mouse_pos);
         if (pole !== null) {
-            if (mouse.wasPressed(MouseButton.Left)) {
-                this.collapsed.inside = toggleCollapsed(this.collapsed.inside, pole, global_t);
-            }
-            else if (mouse.wasPressed(MouseButton.Right)) {
-                const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, pole);
-                if (new_cases !== 'return') {
+            if (pole.type === 'main') {
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    this.collapsed.inside = toggleCollapsed(this.collapsed.inside, pole.address, global_t);
+                }
+                else if (mouse.wasPressed(MouseButton.Right)) {
+                    const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, pole.address);
+                    if (new_cases !== 'return') {
+                        this.fnk.cases = new_cases;
+                        this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                    }
+                }
+                else if (mouse.wheel != 0) {
+                    const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole.address, mouse.wheel < 0);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
-            else if (mouse.wheel != 0) {
-                const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole, mouse.wheel < 0);
-                this.fnk.cases = new_cases;
-                this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+            else if (pole.type === 'add') {
+                if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
+                    // TODO: add pole at the proper place
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address.slice(0, -1));
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                }
+            }
+            else if (pole.type === 'return') {
+                if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address);
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                }
             }
         }
 
@@ -226,6 +243,7 @@ export class EditingSolution {
                     }
                 }
                 else if (this.mouse_location.type === 'fn_name') {
+                    // TODO: change this to open the fnk definition
                     const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, this.mouse_location.major);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));

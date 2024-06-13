@@ -423,7 +423,7 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: 
     if (address.length === 0) {
         return [
             addAt(haystack, DEFAULT_MATCH_CASE, 0),
-            addAt(collapsed, DEFAULT_MATCH_CASE_COLLAPSE, 0),
+            addAt(collapsed, structuredClone(DEFAULT_MATCH_CASE_COLLAPSE), 0),
         ];
     }
     const index = address[0];
@@ -437,7 +437,7 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: 
             }, index),
             replace(collapsed, {
                 main: collapsed[index].main,
-                inside: [DEFAULT_MATCH_CASE_COLLAPSE],
+                inside: [structuredClone(DEFAULT_MATCH_CASE_COLLAPSE)],
             }, index),
         ];
     }
