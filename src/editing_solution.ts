@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { ExecutingSolution } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded } from './model';
 
 type MouseLocation = FullAddress
     | { type: 'input', address: SexprAddress }
@@ -11,7 +11,7 @@ type MouseLocation = FullAddress
     | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
-    private matched: MatchedInput[];
+    // private matched: MatchedInput[];
 
     private mouse_location: MouseLocation | null;
 
@@ -23,7 +23,7 @@ export class EditingSolution {
         private input: SexprLiteral,
     ) {
         this.collapsed = fakeCollapsed(nothingCollapsed(fnk.cases));
-        this.matched = nothingMatched(fnk.cases);
+        // this.matched = nothingMatched(fnk.cases);
         this.mouse_location = null;
         this.mouse_holding = null;
     }
@@ -87,7 +87,7 @@ export class EditingSolution {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
 
-        drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
+        drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, nothingMatched(this.fnk.cases));
         drawer.drawMolecule(this.input, main_view);
 
         for (const { value, view } of this.otherFnks(main_view)) {
@@ -165,20 +165,16 @@ export class EditingSolution {
                 this.collapsed.inside = toggleCollapsed(this.collapsed.inside, pole, global_t);
             }
             else if (mouse.wasPressed(MouseButton.Right)) {
-                const new_cases = deletePole(this.fnk.cases, pole);
+                const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, pole);
                 if (new_cases !== 'return') {
                     this.fnk.cases = new_cases;
-                    // TODO: respect collapsed & matched
-                    this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
-                    this.matched = nothingMatched(this.fnk.cases);
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
             else if (mouse.wheel != 0) {
-                const new_cases = movePole(this.fnk.cases, pole, mouse.wheel < 0);
+                const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole, mouse.wheel < 0);
                 this.fnk.cases = new_cases;
-                // TODO: respect collapsed & matched
-                this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
-                this.matched = nothingMatched(this.fnk.cases);
+                this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
             }
         }
 
@@ -230,10 +226,9 @@ export class EditingSolution {
                     }
                 }
                 else if (this.mouse_location.type === 'fn_name') {
-                    this.fnk.cases = addPoleAsFirstChild(this.fnk.cases, this.mouse_location.major);
-                    // TODO: respect collapsed & matched
-                    this.collapsed = fakeCollapsed(nothingCollapsed(this.fnk.cases));
-                    this.matched = nothingMatched(this.fnk.cases);
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, this.mouse_location.major);
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
             else if (this.mouse_location?.type === 'other_fnks' && mouse.wasPressed(MouseButton.Middle)) {

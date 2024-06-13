@@ -37,6 +37,7 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
+import { Collapsed } from './drawer';
 import { addAt, at, deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
@@ -323,48 +324,83 @@ export function setAt(haystack: MatchCaseDefinition[], address: FullAddress, val
     }, index);
 }
 
-export function deletePole(haystack: MatchCaseDefinition[], address: MatchCaseAddress): MatchCaseDefinition[] | 'return' {
+export function fixExtraPolesNeeded(collapsed: Collapsed): Collapsed {
+    collapsed.main.extra_poles = countExtraPolesNeededFromCollapsed(collapsed);
+    collapsed.inside = collapsed.inside.map(x => fixExtraPolesNeeded(x));
+    return collapsed;
+
+    function countExtraPolesNeededFromCollapsed(asdf: Collapsed): number {
+        if (asdf.inside.length === 0) return 0;
+        if (asdf.inside.length === 1) return 1;
+        return asdf.inside.length + asdf.inside.map(countExtraPolesNeededFromCollapsed).reduce((a: number, b: number) => a + b, 0);
+    }
+}
+
+export function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
+    if (match_case.next === 'return') return 0;
+    if (match_case.next.length === 1) return 1;
+    return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
+}
+
+export function deletePole(haystack: MatchCaseDefinition[], collapsed: Collapsed, address: MatchCaseAddress): [MatchCaseDefinition[] | 'return', Collapsed[]] {
     if (address.length === 0) throw new Error('unimplented');
     if (address.length === 1) {
         if (haystack.length === 1) {
             if (single(address) !== 0) throw new Error('bad address');
-            return 'return';
+            return ['return', []];
         }
         else {
-            return deleteAt(haystack, single(address));
+            return [deleteAt(haystack, single(address)), deleteAt(collapsed.inside, single(address))];
         }
     }
     const index = address[0];
     const match_case = haystack[index];
     if (match_case.next === 'return') throw new Error('bad address');
-    return replace(haystack, {
-        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-        next: deletePole(match_case.next, address.slice(1)),
-    }, index);
+    const [new_next, new_collapsed] = deletePole(match_case.next, collapsed.inside[index], address.slice(1));
+    return [
+        replace(haystack, {
+            pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+            next: new_next,
+        }, index),
+        replace(collapsed.inside, {
+            main: collapsed.main,
+            inside: new_collapsed,
+        }, index),
+    ];
 }
 
-export function movePole(haystack: MatchCaseDefinition[], address: MatchCaseAddress, up: boolean): MatchCaseDefinition[] {
+export function movePole(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress, up: boolean): [MatchCaseDefinition[], Collapsed[]] {
     if (address.length === 0) throw new Error('unimplented');
     if (address.length === 1) {
         const index = single(address);
         if (haystack.length === 1) {
             if (index !== 0) throw new Error('bad address');
-            return haystack;
+            return [haystack, collapsed];
         }
         else {
-            if (up && index === 0) return haystack;
-            if (!up && index === haystack.length - 1) return haystack;
+            if (up && index === 0) return [haystack, collapsed];
+            if (!up && index === haystack.length - 1) return [haystack, collapsed];
             const moved = at(haystack, index);
-            return addAt(deleteAt(haystack, index), moved, up ? index - 1 : index + 1);
+            return [
+                addAt(deleteAt(haystack, index), moved, up ? index - 1 : index + 1),
+                addAt(deleteAt(collapsed, index), at(collapsed, index), up ? index - 1 : index + 1),
+            ];
         }
     }
     const index = address[0];
     const match_case = haystack[index];
     if (match_case.next === 'return') throw new Error('bad address');
-    return replace(haystack, {
-        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-        next: movePole(match_case.next, address.slice(1), up),
-    }, index);
+    const [new_next, new_collapsed] = movePole(match_case.next, collapsed[index].inside, address.slice(1), up);
+    return [
+        replace(haystack, {
+            pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+            next: new_next,
+        }, index),
+        replace(collapsed, {
+            main: collapsed[index].main,
+            inside: new_collapsed,
+        }, index),
+    ];
 }
 
 export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
@@ -374,21 +410,48 @@ export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
     next: 'return',
 };
 
-export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], address: MatchCaseAddress): MatchCaseDefinition[] {
-    if (address.length === 0) return addAt(haystack, DEFAULT_MATCH_CASE, 0);
+const DEFAULT_MATCH_CASE_COLLAPSE: Collapsed = {
+    main: {
+        collapsed: false,
+        changedAt: -Infinity,
+        extra_poles: 0,
+    },
+    inside: [],
+};
+
+export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress): [MatchCaseDefinition[], Collapsed[]] {
+    if (address.length === 0) {
+        return [
+            addAt(haystack, DEFAULT_MATCH_CASE, 0),
+            addAt(collapsed, DEFAULT_MATCH_CASE_COLLAPSE, 0),
+        ];
+    }
     const index = address[0];
     const match_case = haystack[index];
     if (match_case.next === 'return') {
         if (address.length > 1) throw new Error('bad address');
-        return replace(haystack, {
-            pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-            next: [DEFAULT_MATCH_CASE],
-        }, index);
+        return [
+            replace(haystack, {
+                pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+                next: [DEFAULT_MATCH_CASE],
+            }, index),
+            replace(collapsed, {
+                main: collapsed[index].main,
+                inside: [DEFAULT_MATCH_CASE_COLLAPSE],
+            }, index),
+        ];
     }
-    return replace(haystack, {
-        pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-        next: addPoleAsFirstChild(match_case.next, address.slice(1)),
-    }, index);
+    const [new_next, new_collapsed] = addPoleAsFirstChild(match_case.next, collapsed[index].inside, address.slice(1));
+    return [
+        replace(haystack, {
+            pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
+            next: new_next,
+        }, index),
+        replace(collapsed, {
+            main: collapsed[index].main,
+            inside: new_collapsed,
+        }, index),
+    ];
 }
 
 export function validCaseAddress(fnk: FunktionDefinition, address: MatchCaseAddress): boolean {

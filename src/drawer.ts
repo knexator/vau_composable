@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, randomFloat, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases } from './model';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded } from './model';
 import Rand from 'rand-seed';
 
 const COLLAPSE_DURATION = 0.2;
@@ -709,12 +709,6 @@ export function nothingCollapsed(cases: MatchCaseDefinition[]): Collapsed[] {
         };
     }
     return cases.map(helper);
-
-    function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
-        if (match_case.next === 'return') return 0;
-        if (match_case.next.length === 1) return 1;
-        return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
-    }
 }
 
 export function everythingCollapsedExceptFirsts(cases: MatchCaseDefinition[]): Collapsed[] {
@@ -725,12 +719,6 @@ export function everythingCollapsedExceptFirsts(cases: MatchCaseDefinition[]): C
         };
     }
     return cases.map(helper);
-
-    function countExtraPolesNeeded(match_case: MatchCaseDefinition): number {
-        if (match_case.next === 'return') return 0;
-        if (match_case.next.length === 1) return 1;
-        return match_case.next.length + match_case.next.map(countExtraPolesNeeded).reduce((a: number, b: number) => a + b, 0);
-    }
 }
 
 export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress, cur_time: number): Collapsed[] {
