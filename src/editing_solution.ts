@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { ExecutingSolution } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded, isLiteral } from './model';
 
 type MouseLocation = FullAddress
     | { type: 'input', address: SexprAddress }
@@ -21,6 +21,7 @@ export class EditingSolution {
         private all_fnks: FunktionDefinition[],
         private fnk: FunktionDefinition,
         private input: SexprLiteral,
+        private previously_editing: EditingSolution | null = null,
     ) {
         this.collapsed = fakeCollapsed(nothingCollapsed(fnk.cases));
         // this.matched = nothingMatched(fnk.cases);
@@ -235,18 +236,13 @@ export class EditingSolution {
                 this.mouse_holding = cloneSexpr(this.valueAtMouseLocation(this.mouse_location));
             }
             else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
-                if (this.mouse_location.type === 'other_fnks') {
-                    const name = this.mouse_location.value;
-                    const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, name));
+                const name = this.valueAtMouseLocation(this.mouse_location);
+                if (isLiteral(name)) {
+                    const lit_name = assertLiteral(name);
+                    const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
                     if (other_fnk !== undefined) {
-                        return new EditingSolution(this.all_fnks, other_fnk, this.input);
+                        return new EditingSolution(this.all_fnks, other_fnk, this.input, this.withoutInteractions());
                     }
-                }
-                else if (this.mouse_location.type === 'fn_name') {
-                    // TODO: change this to open the fnk definition
-                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, this.mouse_location.major);
-                    this.fnk.cases = new_cases;
-                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
             else if (this.mouse_location?.type === 'other_fnks' && mouse.wasPressed(MouseButton.Middle)) {
@@ -312,7 +308,16 @@ export class EditingSolution {
         }
         keyboard.getText();
 
+        if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
+            return this.previously_editing;
+        } 
+
         return null;
+    }
+    withoutInteractions(): EditingSolution {
+        this.mouse_location = null;
+        this.mouse_holding = null;
+        return this;
     }
 
     private valueAtMouseLocation(loc: MouseLocation): SexprTemplate {

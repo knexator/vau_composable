@@ -37,6 +37,15 @@ export function assertLiteral(x: SexprTemplate): SexprLiteral {
     return x;
 }
 
+export function isLiteral(x: SexprTemplate): boolean {
+    if (x.type === 'variable') return false;
+    if (x.type === 'atom') return true;
+    if (x.type === 'pair') {
+        return isLiteral(x.left) && isLiteral(x.right);
+    }
+    throw new Error("unreachable");
+}
+
 import { Collapsed } from './drawer';
 import { addAt, at, deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
@@ -504,7 +513,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield * allCases(match_case.next, [...parent_address, k]);
+            yield* allCases(match_case.next, [...parent_address, k]);
         }
     }
 }
