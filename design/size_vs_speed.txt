@@ -1,0 +1,92 @@
+bubbleUpX_small:
+    (X . @rest) -> quote (X . @rest);
+    (@head . @tail) -> bubbleUpX_small @tail:
+        (X . @rest) -> quote (X . (@head . @tail))
+
+bubbleUpX_fast:
+    (@1 @2 @3 X . @rest) -> quote (X @1 @2 @3 . @rest);
+    (@1 @2 X . @rest) -> quote (X @1 @2 . @rest);
+    (@1 X . @rest) -> quote (X @1 . @rest);
+    (X . @rest) -> quote (X . @rest);
+    (@1 @2 @3 @4 . @tail) -> bubbleUpX_small @tail:
+        (X . @rest) -> quote (X @1 @2 @3 @4 . @tail)
+
+how to autogenerate bubbleUpX_fast?
+
+(first_case . others) -> quote first_case:
+    ( pattern (#lit . #quote) template . return) -> #quote pattern:
+        ( (#var . asdf) . other_pattern_stuff ) -> #quote template:
+            ((#lit . #X) (#var . asdf) . other_template_stuff) -> #quote (   ((#var . (#1 . asdf)) (#var . asdf) . other_pattern_stuff ) 
+                                                                 .  ( (#lit . #X) (#var . (#1 . asdf)) (#var . asdf) . other_template_stuff )  )
+
+
+in lisp:
+
+(match input
+  ((cons :X rest)
+   (cons :X rest))
+  ((cons head tail)
+   (match (bubbleUpX_small tail)
+    ((cons :X rest)
+     (cons :X (cons head tail)))
+   )))
+
+(match input
+  ((list* a b c d :X rest)
+   (list* :X a b c d rest))
+  ((list* a b c :X rest)
+   (list* :X a b c rest))
+   ...
+  ((cons :X rest)
+   (cons :X rest))
+  ((list* a b c d e tail)
+   (match (bubbleUpX_small tail)
+    ((cons :X rest)
+     (list* :X a b c d e rest)))))
+
+(match case-1
+  ((list :match :input (list* (cons (list* :list* ...uff good luck lol))  _rest )  ))
+)
+
+////////////////////////
+
+// reduce code size with helper functions:
+
+original:
+  x -> doThing: x
+    y -> doAnother: y
+      z -> finalThing: z;
+
+reduced:
+  x -> thread: (x . (doThing doAnother finalThing));
+
+thread:
+  (value . #nil) -> #quote: value;
+  (value . (first . rest)) -> first: value
+    y -> #thread: (y . rest);
+
+// this is nice, but could we do it at compile time?
+compile: (finalThing (doAnother (doThing x)))
+
+comptime_thread: (doThing doAnother finalThing) ->
+(
+  ((variable . x)
+    (literal . doThing)
+      (variable . x)
+        (
+          ((variable . y)
+            (literal . doAnother)
+              (variable . y)
+                (
+                  ((variable . z)
+                    (literal . finalThing)
+                      (variable . z)
+                        return
+                  )
+                )     
+          )
+        )
+  )
+)
+
+(all user functions) -> new functions

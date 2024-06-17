@@ -1,0 +1,70 @@
+not\_b = λb. λt. λf. (b f t)
+
+
+const not1 = b => {
+    // return (b False True)
+    return (b(False))(True)
+} 
+not1 = b => (b(False))(True)
+
+not1(t => f => t)
+((t => f => t) False True)
+((f => False) True)
+((False))
+
+not1(t => f => f)
+((t => f => f) False True)
+((f => f) True)
+((True))
+
+not1(not1(X))
+not1((b => (b(F)(T)))(X))
+(b2 => (b2(F))(T))((b => (b(F)(T)))(X))
+(((b => (b(F)(T)))(X))(F))(T)
+((((X(F)(T))))(F))(T)
+
+si X = t => f => t:
+(((((t => f => t)(F)(T))))(F))(T)
+((((f => F)(T)))(F))(T)
+((((F)))(F))(T)
+(F(F))(T)
+...
+T
+
+const not2 = b => {
+    return t => {
+        return f => {
+            return (b(f))(t)
+        }
+    }
+} 
+not2 = b => t => f => (b(f))(t)
+
+not2(t => f => t)
+(t => f => ((t2 => f2 => t2)(f))(t))
+(t => f => (f2 => f)(t))
+(t => f => f)
+
+
+not2(not2(X))
+not2((b => t => f => (b(f))(t))(X))
+(b2 => t2 => f2 => (b2(f2))(t2))((b => t => f => (b(f))(t))(X))
+t2 => f2 => (((b => t => f => (b(f))(t))(X))(f2))(t2)
+t2 => f2 => (((t => f => (X(f))(t)))(f2))(t2)
+t2 => f2 => (f => (X(f))(f2))(t2)
+t2 => f2 => (X(t2))(f2)
+extra:
+b2 => t2 => f2 => (b2(t2))(f2)
+
+not2 @ not2
+(b2 => t2 => f2 => (b2(f2))(t2)) @ (b => t => f => (b(f))(t))
+x => (b2 => t2 => f2 => (b2(f2))(t2))((b => t => f => (b(f))(t))(x))
+x => (t2 => f2 => (((b => t => f => (b(f))(t))(x))(f2))(t2))
+x => (t2 => f2 => ((t => f => (x(f))(t))(f2))(t2))
+x => (t2 => f2 => (f => (x(f))(f2))(t2))
+x => (t2 => f2 => (x(t2))(f2))
+extra:
+b2 => (t2 => f2 => (b2(t2))(f2))
+
+
+https://github.com/VictorTaelin/Interaction-Calculus

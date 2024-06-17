@@ -1,0 +1,15 @@
+// parser level
+
+// '<' 'h' 'i' '>' -> (literal . hi)
+
+parse:
+    (' ' . rest) -> #parse: rest;
+    ('<' . rest) -> #consume_nested: rest;
+        (nested . real_rest) -> ???
+    (x . rest) -> #consume_word: rest;
+
+parse_word:
+    (' ' . rest) -> #quote: (#nil . rest);
+    ('>' . rest) -> #quote: (#nil . ('>' . rest))
+    ( x  . rest) -> #parse_word: rest
+        (word . rest) -> #quote: ((x . word) . rest)

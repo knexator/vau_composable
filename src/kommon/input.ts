@@ -210,6 +210,7 @@ export class MouseListener {
 
 // Tracks the state of the keyboard
 export class KeyboardListener {
+    public text: string = '';
     public pressed: Set<KeyCode> = new Set();
     events: { keydown: (ev: KeyboardEvent) => void, keyup: (ev: KeyboardEvent) => void };
 
@@ -229,6 +230,7 @@ export class KeyboardListener {
 
     private onKeyDown(ev: KeyboardEvent) {
         this.pressed.add(asKeyCode(ev.code));
+        if (ev.key.length === 1) this.text += ev.key;
     }
 
     private onKeyUp(ev: KeyboardEvent) {
@@ -289,6 +291,12 @@ export class Keyboard {
     constructor(
         private readonly keyboard_listener: KeyboardListener = new KeyboardListener(),
     ) { }
+
+    getText(): string {
+        const result = this.keyboard_listener.text;
+        this.keyboard_listener.text = '';
+        return result;
+    }
 
     isDown(code: KeyCode): boolean {
         return this.pressed.has(code);

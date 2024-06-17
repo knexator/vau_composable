@@ -1,0 +1,55 @@
+list_of_atoms:
+    #nil -> #quote: #true;
+    ( (x . y) . rest ) -> #quote: false;
+    ( first . rest ) -> #quote: false;
+
+(define lat?
+    (lambda (l)
+        (cond
+            ((null? l) #t)
+            ((atom? (car l)) (lat? (cdr l)))
+            (else #f))))
+
+member?:
+    (a . #nil) -> #quote: #false;
+    (a . (first . rest)) -> #eq?: (a . first)
+        #true -> #quote: #true;
+        #false -> member?: (a . rest)
+
+(define member?
+    (lambda (a lat)
+        (cond
+            ((null? lat) #f)
+            (else (or (eq? (car lat) a)
+                    (member? a (cdr lat)))))))
+
+remove-member:
+    (hola . (buenos dias hola que tal)) -> (buenos dias que tal);
+
+remove-member:
+    (#nil . member) -> #quote: #nil;
+    ((first . rest) . member) -> #equal?: (first . member)
+        #true -> rest;
+        #false -> #remove-member: (rest . member)
+            fixed_rest -> #quote: (first . fixed_rest);
+
+firsts:
+    #nil -> #quote: #nil;
+    (head . tail) -> #quote: head
+        (first . _) -> #firsts: tail
+            fixed_tail -> #quote: (first . fixed_tail);
+
+// extra: helper function for remove-member and firsts, which makes them tail recursive?
+helper:
+    (nil . result) -> quote: result;
+    ((head . tail) . result) -> doStuffWith: head
+        new_head -> helper: (tail . (new_head . result));
+// nah just map & filter
+
+seconds;
+
+replace: (new old list_of_atoms);
+
+tup+: ((1 2 3) . (4 5 6)) -> (4 7 9)
+
+(pick n list), indexing

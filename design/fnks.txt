@@ -1,0 +1,97 @@
+// Assume builtin: quote, eqAtoms?
+// TODO: failed lookup/etc should maybe produce #error rather than #false
+
+equal?:
+    ( (a . b) . (x . y)) -> #equal?: (a . x)
+        #false -> #quote: #false;
+        #true -> #equal?: (b . y);
+    ( a . x ) -> #eqAtoms?: (a . x);
+
+lookup:
+    ( value . #nil ) -> #quote: #false;
+    ( value . ((first_key . first_value) . rest) ) -> #equal?: (value . first_key)
+        #true -> #quote: (#true . first_value)
+        #false -> #lookup: (value . rest)
+
+generate_bindings:
+    ( value . pattern ) -> #quote: pattern
+        (#var . x) -> #quote: ( (x . value) . #nil)
+        (#atom . x) -> #eqAtoms?: (x . value)
+            #false -> #quote: #false;
+            #true -> #quote: #nil;
+        (left_pattern . right_pattern) -> #quote: value
+            (left_value . right_value) -> generate_bindings: (left_value . left_pattern)
+                #false -> #quote: #false;
+                left_bindings -> generate_bindings: (right_value . right_pattern)
+                    #false -> #quote: #false;
+                    right_bindings -> #merge: (left_bindings . right_bindings)
+            single_value -> #quote: #false
+
+// like concat but without order
+merge:
+    ( #nil . other ) -> #quote: other;
+    ( (first . rest) . other ) -> #merge: (rest . (first . other));
+
+apply_pattern_template:
+    (input . (pattern . template)) -> generate_bindings: (input . pattern)
+        #false -> #false;
+        bindings -> apply_bindings: (template . bindings);
+
+apply_bindings:
+    (template . bindings) -> #quote: template
+        (#atom . x) -> #quote: x;
+        (#var . x) -> #lookup: ( x . bindings );
+        (left . right) -> #apply_bindings: (left . bindings)
+            left_filled -> #apply_bindings: (right . bindings)
+                right_filled -> #quote: (left_filled . right_filled)
+
+// unfinished: missing "apply as much as possible"
+apply_vau2_style:
+    ( (pattern . template) . input ) -> #generate_bindings: (input . pattern)
+        #false -> #quote: input
+            (input_left . input_right) -> #apply_vau2_style: ( (pattern . template) . input_right)
+                result -> #quote: (input_left . result)
+            other -> #quote: input;
+        bindings -> #apply_bindings: (template . bindings)
+
+// specific things
+bubbleUpX_vanilla:
+    (#X . rest) -> #quote: (#X . rest);
+    (first . rest) -> #bubbleUpX_vanilla: rest
+        (#X . real_rest) -> #quote: (#X . (first . real_rest))
+
+bubbleUpX_reusing:
+    input -> #apply_vau2_style: (( ((#var . #a) (#atom . #X) . (#var . #b)) . ((#atom . #X) (#var . #a) . (#var . #b)) )  . input)
+
+brainfuck_main:
+    (program . input_stream) -> #brainfuck_helper:  // output_stream
+
+brainfuck_helper:
+    ( program tape . io) -> #quote: program:
+        (program_cur . (program_prev . (program_next_first . program_next_rest))) -> #quote: tape
+            (tape_cur . ((tape_prev_first . tape_prev_rest) . (tape_next_first . tape_next_rest))) -> #quote: program_cur
+                #> -> brainfuck_helper: ( (program_next_first . ((program_cur . program_prev) . program_next_rest)) ( tape_next_first . (...) ));
+
+    // ((program_cur . (program_prev . program_next)) (tape_cur . (tape_prev . tape_next)) . (input_stream . output_stream)) -> #quote: program_cur:
+    //    #+ -> brainfuck_helper: 
+// extra level: brainfuck interpreter but halts after 100 steps
+
+// with helper functions for tapes:
+brainfuck_helper:
+    ( program tape . io) -> #quote: program:
+        // (#> . _) -> brainfuck_helper( advance_tape(program) advance_tape(tape) . io );
+        (#> . _) -> #advance_tape: program
+            new_program -> #advance_tape: tape
+                new_tape -> #brainfuck_helper: (new_program new_tape . io);
+        (#+ . _) -> #advance_tape: program
+            new_program -> #quote: tape
+                (value . others) -> #brainfuck_helper: (new_program ((1 . value) . others) . io);
+        (#, . _) -> #advance_tape: program
+            new_program -> #quote: tape
+                (_ . rest_tape) -> #quote: io
+                    ((in_first . in_rest) . out) -> #brainfuck_helper: (new_program (in_char . rest_tape) . (in_rest . out));
+        ...
+
+        (program_cur . (program_prev . (program_next_first . program_next_rest))) -> #quote: tape
+            (tape_cur . ((tape_prev_first . tape_prev_rest) . (tape_next_first . tape_next_rest))) -> #quote: program_cur
+                #> -> brainfuck_helper: ( (program_next_first . ((program_cur . program_prev) . program_next_rest)) ( tape_next_first . (...) ));

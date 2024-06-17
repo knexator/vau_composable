@@ -1,13 +1,3 @@
-// export function deepcopy<T>(thing: T): T {
-//     // TODO: lots to do
-//     if (Array.isArray(thing)) {
-//         // @ts-ignore
-//         return thing.map(x => deepcopy(x));
-//     } else {
-//         return thing;
-//     }
-// }
-
 import { mod } from './math';
 
 export function fromCount<T>(n: number, callback: (index: number) => T): T[] {
@@ -175,7 +165,7 @@ export function lerpHexColor(a: string, b: string, t: number): string {
     return `#${((rr << 16) + (rg << 8) + (rb | 0)).toString(16).padStart(6, '0').slice(-6)}`;
 }
 
-function single<T>(arr: T[]): T {
+export function single<T>(arr: T[]): T {
     if (arr.length === 0) {
         throw new Error('the array was empty');
     }
@@ -187,13 +177,62 @@ function single<T>(arr: T[]): T {
     }
 }
 
-function at<T>(arr: T[], index: number): T {
+export function at<T>(arr: T[], index: number): T {
     if (arr.length === 0) throw new Error('can\'t call \'at\' with empty array');
+    if (index >= arr.length) throw new Error('index out of bounds');
+    if (index < -arr.length) throw new Error('negative index out of bounds');
     return arr[mod(index, arr.length)];
 }
 
-function or(a: boolean, b: boolean): boolean {
+export function or(a: boolean, b: boolean): boolean {
     return a || b;
+}
+
+export function last<T>(arr: T[]): T {
+    if (arr.length === 0) throw new Error('can\'t call \'last\' with empty array');
+    return arr[arr.length - 1];
+}
+
+// Return new array with element [index] changed to new_element
+export function replace<T>(arr: T[], new_element: T, index: number): T[] {
+    const result = [...arr];
+    result[index] = new_element;
+    return result;
+}
+
+// Return new array without element [index]
+export function deleteAt<T>(arr: T[], index: number): T[] {
+    const result = [...arr];
+    result.splice(index, 1);
+    return result;
+}
+
+// Return new array with new_element added at [index]
+export function addAt<T>(arr: T[], new_element: T, index: number): T[] {
+    const result = [...arr];
+    result.splice(index, 0, new_element);
+    return result;
+}
+
+export function assertNotNull<T>(element: T | null): T {
+    if (element === null) throw new Error('assertNotNull got a null');
+    return element;
+}
+
+export function assert(shouldBeTrue: boolean, msg?: string): void {
+    if (!shouldBeTrue) {
+        throw new Error(msg ?? 'failed assertion');
+    }
+}
+
+export function getFromStorage<T>(key_name: string, if_found: (value: string) => T, if_not: T): T {
+    const str = localStorage.getItem(key_name);
+    if (str === null) {
+        return if_not;
+    }
+    else {
+        return if_found(str);
+    }
 }
 
 /** Only for Vite, and only for reference! you must paste it into your script :( */

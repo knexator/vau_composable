@@ -1,0 +1,18 @@
+count_y_recursive:
+    nil -> quote 0;
+    (y . @rest) -> count_y_recursive @rest:
+        @inner -> quote (1 . @inner);
+    (@first . @rest) -> count_y_recursive @rest;
+
+count_y_iterative:
+    @any -> count_y_iterative_helper (@any . 0);
+
+count_y_iterative_helper:
+    (nil . @count) -> quote @count;
+    ((y . @rest) . @count) -> count_y_iterative_helper (@rest . (1 . @count));
+    ((@first . @rest) . @count) -> count_y_iterative_helper (@rest . @count);
+
+
+
+// stack size vs code size vs execution time
+// mh, execution time & stack size might be the same thing, if we ignore quote & maybe other things

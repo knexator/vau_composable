@@ -15,6 +15,7 @@
   "devDependencies": {
     "@eslint/js": "^9.1.1",
     "@stylistic/eslint-plugin": "^1.7.2",
+    "@types/node": "^20.14.2",
     "eslint": "^8.57.0",
     "typescript": "^5.4.5",
     "typescript-eslint": "^7.7.1",
@@ -24,6 +25,7 @@
   "dependencies": {
     "lil-gui": "^0.18.2",
     "peggy": "^4.0.2",
+    "rand-seed": "^1.0.2",
     "twgl.js": "^5.5.3"
   }
 }
