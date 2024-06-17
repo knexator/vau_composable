@@ -164,7 +164,7 @@ export class EditingSolution {
             const screen_size = drawer.getScreenSize();
             drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
             drawer.ctx.textAlign = 'center';
-            drawer.ctx.fillText(sexprToString(hovered_value, "@"), screen_size.x * 0.5, screen_size.y * 0.95);
+            drawer.ctx.fillText(sexprToString(hovered_value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
         }
     }
 

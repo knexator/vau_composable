@@ -1,8 +1,9 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
-import { in01, inRange, isPointInPolygon, lerp, randomFloat, remap } from './kommon/math';
+import { in01, inRange, isPointInPolygon, lerp, randomFloat, randomInt, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded } from './model';
 import Rand from 'rand-seed';
+import { Random } from './kommon/random';
 
 const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -849,10 +850,16 @@ const colorFromAtom: (atom: string) => Color = (() => {
     };
 })();
 
+function randomShape(name: string) {
+    console.log(name);
+    const rand = new Random(name);
+    return fromCount(rand.int(2, 15), _ => new Vec2(rand.float(0, 1), rand.float(-0.2, 0.2))).sort((a, b) => a.x - b.x);
+}
+
 // (y_time, x_offset), with x_offset in terms of halfside
 // (0, 0) & (1, 0) are implicit
 type AtomProfile = Vec2[];
-const atom_shapes = new DefaultMap<string, AtomProfile>(_ => [], new Map(Object.entries({
+const atom_shapes = new DefaultMap<string, AtomProfile>(name => randomShape(name), new Map(Object.entries({
     nil: [new Vec2(0.75, -0.25)],
     input: [new Vec2(0.2, 0.2), new Vec2(0.8, 0.2)],
     output: [new Vec2(0.2, -0.2), new Vec2(0.8, -0.2)],

@@ -62,6 +62,7 @@ class ExecutionState {
             case 'failing_to_match': {
                 const new_target = nextMatchCaseSibling(this.animation.which);
                 if (!validCaseAddress(this.fnk, new_target)) {
+                    // TODO URGENT: do this better
                     throw new Error('Ran out of options!');
                 }
                 let new_collapsed = structuredClone(this.collapsed);
