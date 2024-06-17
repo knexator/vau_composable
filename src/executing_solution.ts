@@ -19,7 +19,7 @@ type ExecutionAnimationState =
     | { type: 'waiting_for_child', return_address: MatchCaseAddress }
     | { type: 'breaking_to_tail_optimization' };
 
-class ExecutionState {
+export class ExecutionState {
     private constructor(
         private parent: ExecutionState | null,
         private fnk: FunktionDefinition,
@@ -368,8 +368,9 @@ export class ExecutingSolution {
     public speed: number = 1;
     constructor(
         private all_fnks: FunktionDefinition[],
-        private original_fnk: FunktionDefinition,
-        private original_input: SexprLiteral,
+        original_fnk: FunktionDefinition,
+        original_input: SexprLiteral,
+        private original_editing: EditingSolution,
     ) {
         this.cur_execution_state = ExecutionState.init(original_fnk, original_input);
         this.anim_t = 0;
@@ -384,7 +385,8 @@ export class ExecutingSolution {
             this.anim_t -= 1;
             const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
             if (next_state === null) {
-                return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
+                return this.original_editing;
+                // return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
             }
             this.cur_execution_state = next_state;
         }
