@@ -115,7 +115,7 @@ export class EditingSolution {
                 }
                 // TODO: this case wouldnt be needed if getView worked for main fnk name
                 else if (this.mouse_location.type === 'fn_name' && this.mouse_location.major.length === 0) {
-                    drawer.drawMolecule(this.mouse_holding, getFnkNameView(main_view));
+                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(getFnkNameView(main_view), this.mouse_location.minor));
                 }
                 else if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
