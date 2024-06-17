@@ -72,15 +72,17 @@ function asListPlusSentinel(x: SexprTemplate): { list: SexprTemplate[], sentinel
     }
 }
 
-export function sexprToString(input: SexprTemplate): string {
+export function sexprToString(input: SexprTemplate, mode: "#" | "@" | "#@" = "#"): string {
     const { list, sentinel } = asListPlusSentinel(input);
-    const sentinel_str = sentinel.type === 'atom' ? '#' + sentinel.value : sentinel.value;
+    const sentinel_str = sentinel.type === 'atom'
+        ? mode.includes('#') ? '#' + sentinel.value : sentinel.value
+        : mode.includes('@') ? '@' + sentinel.value : sentinel.value;
     if (list.length === 0) {
         return sentinel_str;
     }
     else {
-        if (sentinel_str === '#nil') {
-            return `(${list.map(x => sexprToString(x)).join(' ')})`;
+        if (sentinel.type === 'atom' && sentinel.value === 'nil') {
+            return `(${list.map(x => sexprToString(x, mode)).join(' ')})`;
         }
         else {
             // option 1
@@ -88,7 +90,7 @@ export function sexprToString(input: SexprTemplate): string {
 
             // option 2
             if (input.type !== 'pair') throw new Error('unreachable');
-            return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
+            return `(${sexprToString(input.left, mode)} . ${sexprToString(input.right, mode)})`;
         }
     }
     // return `(${sexprToString(input.left)} . ${sexprToString(input.right)})`;
@@ -513,7 +515,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield * allCases(match_case.next, [...parent_address, k]);
+            yield* allCases(match_case.next, [...parent_address, k]);
         }
     }
 }
