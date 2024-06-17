@@ -142,7 +142,7 @@ export class EditingSolution {
             }
             else if (this.mouse_location.type === 'cell') {
                 drawer.highlightMolecule(
-                    this.valueAtMouseLocation(this.mouse_location).type,
+                    this.getValueAtMouseLocation(this.mouse_location).type,
                     getSexprGrandChildView(this.getCellView(drawer.getScreenSize(), this.mouse_location.cell), this.mouse_location.address));
             }
             else if (this.mouse_location.major.length === 0) {
@@ -159,7 +159,7 @@ export class EditingSolution {
 
         // print atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
-            const hovered_value = this.valueAtMouseLocation(this.mouse_location);
+            const hovered_value = this.getValueAtMouseLocation(this.mouse_location);
             drawer.ctx.fillStyle = 'black';
             const screen_size = drawer.getScreenSize();
             drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
@@ -257,10 +257,12 @@ export class EditingSolution {
 
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
-                this.mouse_holding = cloneSexpr(this.valueAtMouseLocation(this.mouse_location));
+                // pick up
+                this.mouse_holding = cloneSexpr(this.getValueAtMouseLocation(this.mouse_location));
             }
-            else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
-                const name = this.valueAtMouseLocation(this.mouse_location);
+            else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Middle)) {
+                // go to function
+                const name = this.getValueAtMouseLocation(this.mouse_location);
                 if (isLiteral(name)) {
                     const lit_name = assertLiteral(name);
                     const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
@@ -269,15 +271,11 @@ export class EditingSolution {
                     }
                 }
             }
-            else if (this.mouse_location?.type === 'other_fnks' && mouse.wasPressed(MouseButton.Middle)) {
-                const name = this.mouse_location.value;
-                const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, name));
-                if (other_fnk !== undefined) {
-                    this.all_fnks.push({
-                        name: { type: 'pair', left: { type: 'atom', value: '1' }, right: assertLiteral(cloneSexpr(other_fnk.name)) },
-                        cases: other_fnk.cases,
-                    });
-                }
+            else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Right)) {
+                // split
+                const cur_value = this.getValueAtMouseLocation(this.mouse_location);
+                const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
+                this.dropValueAtMouseLocation(this.mouse_location, new_value);
             }
             else if (this.mouse_location === null && mouse.wasPressed(MouseButton.Middle)) {
                 this.all_fnks.push({
@@ -290,34 +288,7 @@ export class EditingSolution {
             // Drop the holding thing
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
-                    if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'other_fnks') {
-                        // nothing
-                    }
-                    else if (this.mouse_location.type === 'input') {
-                        try {
-                            this.input = assertLiteral(setAtLocalAddress(this.input, this.mouse_location.address, this.mouse_holding));
-                        }
-                        catch {
-                            // nothing
-                        }
-                    }
-                    else if (this.mouse_location.type === 'cell') {
-                        this.cells[this.mouse_location.cell] = setAtLocalAddress(
-                            this.cells[this.mouse_location.cell], this.mouse_location.address, this.mouse_holding,
-                        );
-                    }
-                    else if (this.mouse_location.major.length === 0) {
-                        try {
-                            const lit = assertLiteral(setAtLocalAddress(this.fnk.name, this.mouse_location.minor, this.mouse_holding));
-                            this.fnk.name = lit;
-                        }
-                        catch {
-                            // nothing
-                        }
-                    }
-                    else {
-                        this.fnk.cases = setAt(this.fnk.cases, this.mouse_location, this.mouse_holding);
-                    }
+                    this.dropValueAtMouseLocation(this.mouse_location, this.mouse_holding);
                 }
                 this.mouse_holding = null;
             }
@@ -325,7 +296,7 @@ export class EditingSolution {
 
         // change atom names
         if (this.mouse_location !== null && this.mouse_holding === null) {
-            const hovered_value = this.valueAtMouseLocation(this.mouse_location);
+            const hovered_value = this.getValueAtMouseLocation(this.mouse_location);
             if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
                 if (keyboard.wasPressed(KeyCode.Backspace)) {
                     hovered_value.value = hovered_value.value.slice(0, -1);
@@ -351,7 +322,38 @@ export class EditingSolution {
         return this;
     }
 
-    private valueAtMouseLocation(loc: MouseLocation): SexprTemplate {
+    private dropValueAtMouseLocation(loc: MouseLocation, value: SexprTemplate): void {
+        if (loc.type === 'toolbar' || loc.type === 'other_fnks') {
+            // nothing
+        }
+        else if (loc.type === 'input') {
+            try {
+                this.input = assertLiteral(setAtLocalAddress(this.input, loc.address, value));
+            }
+            catch {
+                // nothing
+            }
+        }
+        else if (loc.type === 'cell') {
+            this.cells[loc.cell] = setAtLocalAddress(
+                this.cells[loc.cell], loc.address, value,
+            );
+        }
+        else if (loc.major.length === 0) {
+            try {
+                const lit = assertLiteral(setAtLocalAddress(this.fnk.name, loc.minor, value));
+                this.fnk.name = lit;
+            }
+            catch {
+                // nothing
+            }
+        }
+        else {
+            this.fnk.cases = setAt(this.fnk.cases, loc, value);
+        }
+    }
+
+    private getValueAtMouseLocation(loc: MouseLocation): SexprTemplate {
         if (loc.type === 'toolbar') {
             return loc.value;
         }
