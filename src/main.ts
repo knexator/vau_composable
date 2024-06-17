@@ -22,54 +22,41 @@ const CONFIG = {
 const gui = new GUI();
 gui.add(CONFIG, '_0_1', 0, 1).listen();
 
-const asdfTest: FunktionDefinition = {
-    name: { type: 'atom', value: 'asdfTest' },
+const launch: FunktionDefinition = {
+    name: { type: 'atom', value: 'launch' },
     cases: [
         {
-            pattern: parseSexprTemplate(`(#v1 . thing)`),
-            template: parseSexprTemplate(`thing`),
-            fn_name_template: parseSexprTemplate(`#asdfTest`),
+            pattern: parseSexprTemplate(`any`),
+            template: parseSexprTemplate(`(#true #true #true)`),
+            fn_name_template: parseSexprTemplate(`#increment`),
             next: 'return',
         },
         {
-            pattern: parseSexprTemplate(`thing`),
-            template: parseSexprTemplate(`(#X . thing)`),
-            fn_name_template: parseSexprTemplate(`#bubbleUp`),
+            pattern: parseSexprTemplate(`any`),
+            template: parseSexprTemplate(`(#true #true #true #true)`),
+            fn_name_template: parseSexprTemplate(`#increment`),
             next: 'return',
         },
     ],
 };
 
-const bubbleUpFnk: FunktionDefinition = {
-    name: { type: 'atom', value: 'bubbleUp' },
+const increment: FunktionDefinition = {
+    name: { type: 'atom', value: 'increment' },
     cases: [
         {
-            pattern: parseSexprTemplate(`(#X . rest)`),
-            template: parseSexprTemplate(`(#X . rest)`),
+            pattern: parseSexprTemplate(`number`),
+            template: parseSexprTemplate(`(#true . number)`),
             fn_name_template: parseSexprTemplate(`#identity`),
             next: 'return',
-        },
-        {
-            pattern: parseSexprTemplate(`(a . b)`),
-            template: parseSexprTemplate(`b`),
-            fn_name_template: parseSexprTemplate(`#bubbleUp`),
-            next: [
-                {
-                    pattern: parseSexprTemplate(`(#X . rest)`),
-                    template: parseSexprTemplate(`(#X a . rest)`),
-                    fn_name_template: parseSexprTemplate(`#identity`),
-                    next: 'return',
-                },
-            ],
         },
     ],
 };
 
 // FUTURE: proper validation
-const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [asdfTest, bubbleUpFnk]);
+const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [launch, increment]);
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'), cells);
+let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #f1 #v2)'), cells);
 let view_offset = Vec2.zero;
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,

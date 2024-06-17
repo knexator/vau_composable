@@ -10,7 +10,6 @@ const SPIKE_PERC = 1 / 2;
 export type SexprView = { pos: Vec2, halfside: number, turns: number };
 
 const COLORS = {
-    background: Color.fromInt(0x6e6e6e),
     chair: Color.fromInt(0x4e6ebe),
     cons: Color.fromInt(0x404040),
     pole: Color.fromInt(0x404040),
@@ -817,7 +816,7 @@ export function getFnkNameView(parent: SexprView): SexprView {
 
 const colorFromAtom: (atom: string) => Color = (() => {
     const generated = new Map<string, Color>();
-    generated.set('nil', new Color(0.5, 0.5, 0.5));
+    generated.set('nil', new Color(0.45, 0.45, 0.45));
     generated.set('true', new Color(0.5, 0.9, 0.5));
     generated.set('false', new Color(0.9, 0.5, 0.5));
     generated.set('input', new Color(0.1, 0.6, 0.6));
@@ -860,6 +859,7 @@ function randomShape(name: string) {
 // (0, 0) & (1, 0) are implicit
 type AtomProfile = Vec2[];
 const atom_shapes = new DefaultMap<string, AtomProfile>(name => randomShape(name), new Map(Object.entries({
+    identity: [],
     nil: [new Vec2(0.75, -0.25)],
     input: [new Vec2(0.2, 0.2), new Vec2(0.8, 0.2)],
     output: [new Vec2(0.2, -0.2), new Vec2(0.8, -0.2)],
