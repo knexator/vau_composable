@@ -4,7 +4,9 @@ import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate } from './model';
+
+type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
 type ExecutionAnimationState =
     { type: 'input_moving_to_next_option', target: MatchCaseAddress }
@@ -53,7 +55,7 @@ export class ExecutionState {
     }
 
     // TODO: these parameters are a code smell
-    next(all_fnks: FunktionDefinition[], main_view: SexprView, global_t: number): ExecutionState | null {
+    next(all_fnks: FunktionDefinition[], main_view: SexprView, global_t: number): ExecutionState | ExecutionResult {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
@@ -62,8 +64,7 @@ export class ExecutionState {
             case 'failing_to_match': {
                 const new_target = nextMatchCaseSibling(this.animation.which);
                 if (!validCaseAddress(this.fnk, new_target)) {
-                    // TODO URGENT: do this better
-                    throw new Error('Ran out of options!');
+                    return { type: 'failure', reason: 'Ran out of options!' };
                 }
                 let new_collapsed = structuredClone(this.collapsed);
                 new_collapsed = fakeCollapsed(toggleCollapsed(new_collapsed.inside, this.animation.which, global_t));
@@ -79,20 +80,27 @@ export class ExecutionState {
                 const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
                 if (bindings.length === 0) {
-                    return next_state.next(all_fnks, main_view, global_t)!.next(all_fnks, main_view, global_t);
+                    const asdf = next_state.next(all_fnks, main_view, global_t);
+                    if (!(asdf instanceof ExecutionState)) return asdf;
+                    return asdf.next(all_fnks, main_view, global_t);
                 }
                 else {
                     return next_state;
                 }
             }
             case 'floating_bindings': {
-                const new_input = fillTemplate(
-                    getCaseAt(this.fnk, this.animation.next_input_address).template,
-                    this.animation.bindings);
-                const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
-                const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
-                return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
-                    { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
+                try {
+                    const new_input = fillTemplate(
+                        getCaseAt(this.fnk, this.animation.next_input_address).template,
+                        this.animation.bindings);
+                    const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
+                    const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
+                    return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
+                        { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
+                }
+                catch {
+                    return { type: 'failure', reason: 'Used an unbound variable!' };
+                }
             }
             case 'dissolve_bindings': {
                 const match_case = getCaseAt(this.fnk, this.animation.input_address);
@@ -100,7 +108,8 @@ export class ExecutionState {
                 if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
                     if (match_case.next === 'return') {
                         if (this.parent === null) {
-                            return null;
+                            // OJO: unchecked
+                            return { type: 'success', result: this.input };
                         }
                         else {
                             if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
@@ -116,7 +125,8 @@ export class ExecutionState {
                     const result = builtIn_eqAtoms(this.input);
                     if (match_case.next === 'return') {
                         if (this.parent === null) {
-                            return null;
+                            // OJO: unchecked
+                            return { type: 'success', result: this.input };
                         }
                         else {
                             if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
@@ -136,8 +146,7 @@ export class ExecutionState {
                     const fn_name = assertLiteral(match_case.fn_name_template);
                     const next_fnk = all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (next_fnk === undefined) {
-                        // TODO: how to handle this user error?
-                        throw new Error(`can't find function of name ${sexprToString(fn_name)}`);
+                        return { type: 'failure', reason: `Can't find function of name: ${sexprToString(fn_name)}` };
                     }
 
                     if (match_case.next === 'return') {
@@ -173,7 +182,8 @@ export class ExecutionState {
                 const match_case = getCaseAt(this.fnk, this.animation.return_address);
                 if (match_case.next === 'return') {
                     if (this.parent === null) {
-                        return null;
+                        // OJO: unchecked
+                        return { type: 'success', result: this.input };
                     }
                     else {
                         if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
@@ -377,18 +387,21 @@ export class ExecutingSolution {
     }
 
     // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer, view_offset: Vec2, global_t: number): EditingSolution | null {
+    update(delta_time: number, drawer: Drawer, view_offset: Vec2, global_t: number): AfterExecutingSolution | null {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
 
         this.anim_t += delta_time * this.speed;
         while (this.anim_t >= 1) {
             this.anim_t -= 1;
             const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
-            if (next_state === null) {
-                return this.original_editing;
+            if (next_state instanceof ExecutionState) {
+                this.cur_execution_state = next_state;
+                // return next_state; this.original_editing;
                 // return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
             }
-            this.cur_execution_state = next_state;
+            else {
+                return new AfterExecutingSolution(this.original_editing, next_state);
+            }
         }
         return null;
     }
@@ -419,4 +432,36 @@ function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
 
 function nextMatchCaseSibling(thing: MatchCaseAddress): MatchCaseAddress {
     return [...thing.slice(0, -1), thing[thing.length - 1] + 1];
+}
+
+export class AfterExecutingSolution {
+    constructor(
+        public original_editing: EditingSolution,
+        // TODO: baaaad
+        public result: ExecutionResult,
+    ) { }
+
+    draw(drawer: Drawer) {
+        drawer.ctx.fillStyle = 'black';
+        const screen_size = drawer.getScreenSize();
+        drawer.ctx.font = `bold ${Math.floor(screen_size.y / 15)}px sans-serif`;
+        drawer.ctx.textAlign = 'center';
+        if (this.result.type === 'success') {
+            drawer.ctx.fillText('Got this result:', screen_size.x * 0.5, screen_size.y * 0.3);
+            drawer.drawMolecule(this.result.result, this.getMainView(drawer.getScreenSize()));
+        }
+        else {
+            drawer.ctx.fillText('Error during execution!', screen_size.x * 0.5, screen_size.y * 0.4);
+            drawer.ctx.fillText(this.result.reason, screen_size.x * 0.5, screen_size.y * 0.6);
+        }
+    }
+
+    private getMainView(screen_size: Vec2): SexprView {
+        const view = {
+            pos: screen_size.mul(new Vec2(0.4, 0.6)),
+            halfside: screen_size.y / 5,
+            turns: 0,
+        };
+        return view;
+    }
 }

@@ -15,7 +15,8 @@ export class EditingSolution {
     private collapsed: Collapsed;
 
     private mouse_location: MouseLocation | null;
-    private mouse_holding: SexprTemplate | null;
+    // TODO: baaad
+    public mouse_holding: SexprTemplate | null;
 
     constructor(
         private all_fnks: FunktionDefinition[],

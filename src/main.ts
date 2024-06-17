@@ -6,7 +6,7 @@ import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
-import { ExecutingSolution } from './executing_solution';
+import { AfterExecutingSolution, ExecutingSolution } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 
 // TODO: duplicate vaus
@@ -69,7 +69,7 @@ const bubbleUpFnk: FunktionDefinition = {
 const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [asdfTest, bubbleUpFnk]);
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-let cur_thing: EditingSolution | ExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'), cells);
+let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'), cells);
 let view_offset = Vec2.zero;
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
@@ -117,13 +117,29 @@ function every_frame(cur_timestamp_millis: number) {
     }
     else if (cur_thing instanceof ExecutingSolution) {
         cur_thing.draw(drawer, view_offset, global_t);
-        [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4].forEach((key, index) => {
+        [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4, KeyCode.Digit5, KeyCode.Digit6].forEach((key, index) => {
             if (input.keyboard.wasPressed(key)) {
                 if (!(cur_thing instanceof ExecutingSolution)) throw new Error('unreachable');
                 cur_thing.speed = index * index;
             }
         });
         cur_thing = cur_thing.update(delta_time, drawer, view_offset, global_t) ?? cur_thing;
+    }
+    else if (cur_thing instanceof AfterExecutingSolution) {
+        cur_thing.draw(drawer);
+        if (input.keyboard.wasPressed(KeyCode.Escape)) {
+            cur_thing = cur_thing.original_editing;
+        }
+        else if (input.mouse.wasPressed(MouseButton.Left)) {
+            if (cur_thing.result.type === 'success') {
+                const asdf = cur_thing.result.result;
+                cur_thing = cur_thing.original_editing;
+                cur_thing.mouse_holding = asdf;
+            }
+            else {
+                cur_thing = cur_thing.original_editing;
+            }
+        }
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
