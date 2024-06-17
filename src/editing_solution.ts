@@ -277,7 +277,7 @@ export class EditingSolution {
                 const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
                 this.dropValueAtMouseLocation(this.mouse_location, new_value);
             }
-            else if (this.mouse_location === null && mouse.wasPressed(MouseButton.Middle)) {
+            else if (this.mouse_location === null && pole === null && mouse.wasPressed(MouseButton.Middle)) {
                 this.all_fnks.push({
                     name: { type: 'atom', value: this.all_fnks.length.toString() },
                     cases: [DEFAULT_MATCH_CASE],
