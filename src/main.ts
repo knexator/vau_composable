@@ -1,7 +1,7 @@
 import * as twgl from 'twgl.js';
 import GUI from 'lil-gui';
 import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, assertNotNull, fromCount, fromRange, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
+import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
@@ -65,23 +65,12 @@ const bubbleUpFnk: FunktionDefinition = {
     ],
 };
 
-let all_fnks: FunktionDefinition[];
-let cur_thing: EditingSolution | ExecutingSolution;
+// FUTURE: proper validation
+const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [asdfTest, bubbleUpFnk]);
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
+let cur_thing: EditingSolution | ExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'), cells);
 let view_offset = Vec2.zero;
-
-const stored = localStorage.getItem('vau_composable');
-if (stored === null) {
-    all_fnks = [asdfTest, bubbleUpFnk];
-    cur_thing = new EditingSolution(all_fnks, bubbleUpFnk, parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'));
-}
-else {
-    // FUTURE: validation
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    all_fnks = parseFnks(stored);
-    // all_fnks = JSON.parse(stored);
-    cur_thing = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #v2 #X #v3 #v1)'));
-    all_fnks.forEach(x => console.log(fnkToString(x)));
-}
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
 //     parseSexprLiteral('(v1 v2 X v3 v1)'));
@@ -140,6 +129,7 @@ function every_frame(cur_timestamp_millis: number) {
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
         // localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
         localStorage.setItem('vau_composable', all_fnks.map(x => fnkToString(x)).join('\n'));
+        localStorage.setItem('vau_composable_cells', JSON.stringify(cells));
     }
 
     animation_id = requestAnimationFrame(every_frame);

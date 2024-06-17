@@ -2,31 +2,33 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView } from './drawer';
 import { ExecutingSolution } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, last } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded, isLiteral } from './model';
+import { assertNotNull, at, assert, fromCount } from './kommon/kommon';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable } from './model';
+import { inRange } from './kommon/math';
 
 type MouseLocation = FullAddress
     | { type: 'input', address: SexprAddress }
     | { type: 'toolbar', value: SexprTemplate, view: SexprView }
+    | { type: 'cell', cell: number, address: SexprAddress }
     | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
-    // private matched: MatchedInput[];
 
     private mouse_location: MouseLocation | null;
-
     private mouse_holding: SexprTemplate | null;
 
     constructor(
         private all_fnks: FunktionDefinition[],
         private fnk: FunktionDefinition,
         private input: SexprLiteral,
+        private cells: SexprTemplate[],
         private previously_editing: EditingSolution | null = null,
     ) {
         this.collapsed = fakeCollapsed(nothingCollapsed(fnk.cases));
         // this.matched = nothingMatched(fnk.cases);
         this.mouse_location = null;
         this.mouse_holding = null;
+        // this.cells = fromCount(3, _ => parseSexprTemplate('1'));
     }
 
     private *toolbarThings(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
@@ -88,6 +90,10 @@ export class EditingSolution {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
 
+        for (let k = 0; k < 3; k++) {
+            drawer.drawMolecule(this.cells[k], this.getCellView(drawer.getScreenSize(), k));
+        }
+
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, nothingMatched(this.fnk.cases));
         drawer.drawMolecule(this.input, main_view);
 
@@ -114,6 +120,9 @@ export class EditingSolution {
                 else if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
+                else if (this.mouse_location.type === 'cell') {
+                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(this.getCellView(drawer.getScreenSize(), this.mouse_location.cell), this.mouse_location.address));
+                }
                 else {
                     drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
@@ -130,6 +139,11 @@ export class EditingSolution {
             }
             else if (this.mouse_location.type === 'input') {
                 drawer.highlightMolecule(getAtLocalAddress(this.input, this.mouse_location.address)!.type, getSexprGrandChildView(main_view, this.mouse_location.address));
+            }
+            else if (this.mouse_location.type === 'cell') {
+                drawer.highlightMolecule(
+                    this.valueAtMouseLocation(this.mouse_location).type,
+                    getSexprGrandChildView(this.getCellView(drawer.getScreenSize(), this.mouse_location.cell), this.mouse_location.address));
             }
             else if (this.mouse_location.major.length === 0) {
                 drawer.highlightMolecule(getAtLocalAddress(this.fnk.name, this.mouse_location.minor)!.type,
@@ -231,6 +245,16 @@ export class EditingSolution {
             }
         }
 
+        if (this.mouse_location === null) {
+            for (let k = 0; k < 3; k++) {
+                const asdf = sexprAdressFromScreenPosition(raw_mouse_pos, this.cells[k], this.getCellView(drawer.getScreenSize(), k));
+                if (asdf !== null) {
+                    this.mouse_location = { type: 'cell', cell: k, address: asdf };
+                    break;
+                }
+            }
+        }
+
         if (this.mouse_holding === null) {
             if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Left)) {
                 this.mouse_holding = cloneSexpr(this.valueAtMouseLocation(this.mouse_location));
@@ -240,8 +264,8 @@ export class EditingSolution {
                 if (isLiteral(name)) {
                     const lit_name = assertLiteral(name);
                     const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
-                    if (other_fnk !== undefined) {
-                        return new EditingSolution(this.all_fnks, other_fnk, this.input, this.withoutInteractions());
+                    if (other_fnk !== undefined && other_fnk !== this.fnk) {
+                        return new EditingSolution(this.all_fnks, other_fnk, this.input, this.cells, this.withoutInteractions());
                     }
                 }
             }
@@ -263,6 +287,7 @@ export class EditingSolution {
             }
         }
         else {
+            // Drop the holding thing
             if (!mouse.isDown(MouseButton.Left) && this.mouse_holding !== null) {
                 if (this.mouse_location !== null) {
                     if (this.mouse_location.type === 'toolbar' || this.mouse_location.type === 'other_fnks') {
@@ -275,6 +300,11 @@ export class EditingSolution {
                         catch {
                             // nothing
                         }
+                    }
+                    else if (this.mouse_location.type === 'cell') {
+                        this.cells[this.mouse_location.cell] = setAtLocalAddress(
+                            this.cells[this.mouse_location.cell], this.mouse_location.address, this.mouse_holding,
+                        );
                     }
                     else if (this.mouse_location.major.length === 0) {
                         try {
@@ -310,10 +340,11 @@ export class EditingSolution {
 
         if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
             return this.previously_editing;
-        } 
+        }
 
         return null;
     }
+
     withoutInteractions(): EditingSolution {
         this.mouse_location = null;
         this.mouse_holding = null;
@@ -329,6 +360,9 @@ export class EditingSolution {
         }
         else if (loc.type === 'input') {
             return assertNotNull(getAtLocalAddress(this.input, loc.address));
+        }
+        else if (loc.type === 'cell') {
+            return assertNotNull(getAtLocalAddress(this.cells[loc.cell], loc.address));
         }
         else if (loc.major.length === 0) {
             return assertNotNull(getAtLocalAddress(this.fnk.name, loc.minor));
@@ -356,6 +390,15 @@ export class EditingSolution {
         return {
             pos: screen_size.mul(new Vec2(0.625, 0.2125)),
             halfside: screen_size.y / 5.5,
+            turns: 0,
+        };
+    }
+
+    private getCellView(screen_size: Vec2, k: number): SexprView {
+        assert(inRange(k, 0, 3));
+        return {
+            pos: screen_size.mul(new Vec2(0.7775, 0.5 + k * 0.1975)),
+            halfside: screen_size.y * 0.5 / 5.5,
             turns: 0,
         };
     }

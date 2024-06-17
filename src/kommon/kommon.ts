@@ -219,6 +219,22 @@ export function assertNotNull<T>(element: T | null): T {
     return element;
 }
 
+export function assert(shouldBeTrue: boolean, msg?: string): void {
+    if (!shouldBeTrue) {
+        throw new Error(msg ?? 'failed assertion');
+    }
+}
+
+export function getFromStorage<T>(key_name: string, if_found: (value: string) => T, if_not: T): T {
+    const str = localStorage.getItem(key_name);
+    if (str === null) {
+        return if_not;
+    }
+    else {
+        return if_found(str);
+    }
+}
+
 /** Only for Vite, and only for reference! you must paste it into your script :( */
 // function absoluteUrl(url: string): string {
 //     return new URL(url, import.meta.url).href;
