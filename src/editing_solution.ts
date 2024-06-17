@@ -65,7 +65,7 @@ export class EditingSolution {
             yield {
                 value: this.all_fnks[k].name,
                 view: {
-                    pos: offsetView(main_view, new Vec2(-6, 15 + k * 8)).pos,
+                    pos: offsetView(main_view, new Vec2(-6 - Math.floor(k / 6) * 6, 15 + (k % 6) * 8)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
