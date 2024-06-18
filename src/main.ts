@@ -19,8 +19,8 @@ const CONFIG = {
     _0_1: 0.0,
 };
 
-const gui = new GUI();
-gui.add(CONFIG, '_0_1', 0, 1).listen();
+// const gui = new GUI();
+// gui.add(CONFIG, '_0_1', 0, 1).listen();
 
 const incrementTwice: FunktionDefinition = {
     name: { type: 'atom', value: 'incrementTwice' },

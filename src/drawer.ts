@@ -265,6 +265,25 @@ export class Drawer {
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
+
+            const cross_points = [
+                new Vec2(1, 0),
+                new Vec2(-1, 0),
+                new Vec2(0, 1),
+                new Vec2(0, -1),
+            ].map(v => v.addXY(-2.5, 4))
+                .map(v => v.addXY(7, 7))
+                .map(v => v.scale(unit))
+                .map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+            this.ctx.beginPath();
+            this.ctx.lineWidth = 2;
+            this.moveTo(cross_points[0]);
+            this.lineTo(cross_points[1]);
+            this.moveTo(cross_points[2]);
+            this.lineTo(cross_points[3]);
+            this.ctx.stroke();
+            this.ctx.lineWidth = 1;
         }
 
         this.drawSingleMatchCase(cases[0], {
