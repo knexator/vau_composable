@@ -22,20 +22,21 @@ const CONFIG = {
 const gui = new GUI();
 gui.add(CONFIG, '_0_1', 0, 1).listen();
 
-const launch: FunktionDefinition = {
-    name: { type: 'atom', value: 'launch' },
+const incrementTwice: FunktionDefinition = {
+    name: { type: 'atom', value: 'incrementTwice' },
     cases: [
         {
-            pattern: parseSexprTemplate(`any`),
-            template: parseSexprTemplate(`(#true #true #true)`),
+            pattern: parseSexprTemplate(`first`),
+            template: parseSexprTemplate(`first`),
             fn_name_template: parseSexprTemplate(`#increment`),
-            next: 'return',
-        },
-        {
-            pattern: parseSexprTemplate(`any`),
-            template: parseSexprTemplate(`(#true #true #true #true)`),
-            fn_name_template: parseSexprTemplate(`#increment`),
-            next: 'return',
+            next: [
+                {
+                    pattern: parseSexprTemplate(`second`),
+                    template: parseSexprTemplate(`second`),
+                    fn_name_template: parseSexprTemplate(`#increment`),
+                    next: 'return',
+                },
+            ],
         },
     ],
 };
@@ -53,10 +54,10 @@ const increment: FunktionDefinition = {
 };
 
 // FUTURE: proper validation
-const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [launch, increment]);
+const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [incrementTwice, increment]);
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#v1 #f1 #v2)'), cells);
+let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
 let view_offset = Vec2.zero;
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
