@@ -229,14 +229,14 @@ export class EditingSolution {
             else if (pole.type === 'add') {
                 if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
                     // TODO: add pole at the proper place
-                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address.slice(0, -1));
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address.slice(0, -1), global_t);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
             else if (pole.type === 'return') {
                 if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
-                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address);
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address, global_t);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }

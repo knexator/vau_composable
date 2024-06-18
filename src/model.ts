@@ -421,20 +421,20 @@ export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
     next: 'return',
 };
 
-const DEFAULT_MATCH_CASE_COLLAPSE: Collapsed = {
-    main: {
-        collapsed: false,
-        changedAt: -Infinity,
-        extra_poles: 0,
-    },
-    inside: [],
-};
+export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress, global_t: number): [MatchCaseDefinition[], Collapsed[]] {
+    const DEFAULT_MATCH_CASE_COLLAPSE: Collapsed = {
+        main: {
+            collapsed: false,
+            changedAt: global_t,
+            extra_poles: 0,
+        },
+        inside: [],
+    };
 
-export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress): [MatchCaseDefinition[], Collapsed[]] {
     if (address.length === 0) {
         return [
             addAt(haystack, DEFAULT_MATCH_CASE, 0),
-            addAt(collapsed, structuredClone(DEFAULT_MATCH_CASE_COLLAPSE), 0),
+            addAt(collapsed, DEFAULT_MATCH_CASE_COLLAPSE, 0),
         ];
     }
     const index = address[0];
@@ -448,11 +448,11 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: 
             }, index),
             replace(collapsed, {
                 main: collapsed[index].main,
-                inside: [structuredClone(DEFAULT_MATCH_CASE_COLLAPSE)],
+                inside: [DEFAULT_MATCH_CASE_COLLAPSE],
             }, index),
         ];
     }
-    const [new_next, new_collapsed] = addPoleAsFirstChild(match_case.next, collapsed[index].inside, address.slice(1));
+    const [new_next, new_collapsed] = addPoleAsFirstChild(match_case.next, collapsed[index].inside, address.slice(1), global_t);
     return [
         replace(haystack, {
             pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
@@ -515,7 +515,7 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
         const match_case = cases[k];
         yield { match_case, address: [...parent_address, k] };
         if (match_case.next !== 'return') {
-            yield * allCases(match_case.next, [...parent_address, k]);
+            yield* allCases(match_case.next, [...parent_address, k]);
         }
     }
 }

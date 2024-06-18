@@ -18,6 +18,7 @@ export default tseslint.config(
   // }),
   stylistic.configs['recommended-flat'],
   {
+    ignores: ['*.config.js'],
     languageOptions: {
       parserOptions: {
         project: true,
@@ -59,7 +60,8 @@ export default tseslint.config(
         'error',
         'stroustrup',
         { allowSingleLine: true }
-      ]
+      ],
+      '@stylistic/yield-star-spacing': ['error', 'after']
     },
     plugins: {
       '@stylistic': stylistic
