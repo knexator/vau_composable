@@ -396,14 +396,24 @@ export class ExecutingSolution {
             const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
             if (next_state instanceof ExecutionState) {
                 this.cur_execution_state = next_state;
-                // return next_state; this.original_editing;
-                // return new EditingSolution(this.all_fnks, this.original_fnk, this.original_input);
             }
             else {
                 return new AfterExecutingSolution(this.original_editing, next_state);
             }
         }
         return null;
+    }
+
+    // TODO: drawer as a parameter is a code smell
+    skip(drawer: Drawer, view_offset: Vec2, global_t: number): AfterExecutingSolution {
+        const view = this.getMainView(drawer.getScreenSize(), view_offset);
+
+        let next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
+        while (next_state instanceof ExecutionState) {
+            next_state = next_state.next(this.all_fnks, view, global_t);
+        }
+
+        return new AfterExecutingSolution(this.original_editing, next_state);
     }
 
     draw(drawer: Drawer, view_offset: Vec2, global_t: number) {

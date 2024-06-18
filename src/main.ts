@@ -112,7 +112,12 @@ function every_frame(cur_timestamp_millis: number) {
                 cur_thing.speed = index * index;
             }
         });
-        cur_thing = cur_thing.update(delta_time, drawer, view_offset, global_t) ?? cur_thing;
+        if (input.keyboard.wasPressed(KeyCode.Escape)) {
+            cur_thing = cur_thing.skip(drawer, view_offset, global_t);
+        }
+        else {
+            cur_thing = cur_thing.update(delta_time, drawer, view_offset, global_t) ?? cur_thing;
+        }
     }
     else if (cur_thing instanceof AfterExecutingSolution) {
         cur_thing.draw(drawer);
