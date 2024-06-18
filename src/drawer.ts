@@ -816,6 +816,7 @@ export function getFnkNameView(parent: SexprView): SexprView {
 
 const colorFromAtom: (atom: string) => Color = (() => {
     const generated = new Map<string, Color>();
+    generated.set('X', new Color(0.1, 0.6, 0.3));
     generated.set('nil', new Color(0.45, 0.45, 0.45));
     generated.set('true', new Color(0.5, 0.9, 0.5));
     generated.set('false', new Color(0.9, 0.5, 0.5));

@@ -55,6 +55,7 @@ const increment: FunktionDefinition = {
 
 // FUTURE: proper validation
 const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [incrementTwice, increment]);
+all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
 let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
