@@ -285,18 +285,13 @@ export class Mouse {
 
 // Presents the keyboard state
 export class Keyboard {
+    public text: string = '';
     public pressed: Set<KeyCode> = new Set();
     public prev_pressed!: Set<KeyCode>;// = new Set();
 
     constructor(
         private readonly keyboard_listener: KeyboardListener = new KeyboardListener(),
     ) { }
-
-    getText(): string {
-        const result = this.keyboard_listener.text;
-        this.keyboard_listener.text = '';
-        return result;
-    }
 
     isDown(code: KeyCode): boolean {
         return this.pressed.has(code);
@@ -313,6 +308,8 @@ export class Keyboard {
     startFrame() {
         this.prev_pressed = this.pressed;
         this.pressed = new Set(this.keyboard_listener.pressed);
+        this.text = this.keyboard_listener.text;
+        this.keyboard_listener.text = '';
     }
 
     dispose() {

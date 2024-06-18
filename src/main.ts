@@ -151,7 +151,7 @@ if (import.meta.hot) {
         input.mouse.dispose();
         input.keyboard.dispose();
         cancelAnimationFrame(animation_id);
-        gui.destroy();
+        // gui.destroy();
         // data.stuff = stuff;
     });
 }

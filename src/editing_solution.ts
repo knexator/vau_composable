@@ -301,14 +301,12 @@ export class EditingSolution {
             if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
                 if (keyboard.wasPressed(KeyCode.Backspace)) {
                     hovered_value.value = hovered_value.value.slice(0, -1);
-                    keyboard.getText();
                 }
                 else {
-                    hovered_value.value += keyboard.getText();
+                    hovered_value.value += keyboard.text;
                 }
             }
         }
-        keyboard.getText();
 
         if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
             return this.previously_editing;
