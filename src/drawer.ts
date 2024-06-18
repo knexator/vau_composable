@@ -641,7 +641,7 @@ export class Drawer {
         }
     }
 
-    private drawCircle(center: Vec2, radius: number) {
+    drawCircle(center: Vec2, radius: number) {
         this.ctx.moveTo(center.x + radius, center.y);
         this.ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
     }

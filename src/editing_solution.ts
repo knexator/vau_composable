@@ -79,7 +79,7 @@ export class EditingSolution {
             yield {
                 value: built_in[k],
                 view: {
-                    pos: offsetView(main_view, new Vec2(0, 15 + k * 8)).pos,
+                    pos: offsetView(main_view, new Vec2(0, 23 + k * 8)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
@@ -87,9 +87,31 @@ export class EditingSolution {
         }
     }
 
+    private newFnkButton(main_view: SexprView): { center: Vec2, radius: number } {
+        return {
+            center: offsetView(main_view, new Vec2(0, 13.5)).pos,
+            radius: main_view.halfside / 2,
+        };
+    }
+
     draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
+
+        {
+            const { center, radius } = this.newFnkButton(main_view);
+            drawer.ctx.beginPath();
+            drawer.ctx.strokeStyle = 'black';
+            drawer.drawCircle(center, radius);
+            drawer.ctx.stroke();
+
+            drawer.ctx.beginPath();
+            drawer.ctx.moveTo(center.x - radius / 2, center.y);
+            drawer.ctx.lineTo(center.x + radius / 2, center.y);
+            drawer.ctx.moveTo(center.x, center.y - radius / 2);
+            drawer.ctx.lineTo(center.x, center.y + radius / 2);
+            drawer.ctx.stroke();
+        }
 
         for (let k = 0; k < 3; k++) {
             drawer.drawMolecule(this.cells[k], this.getCellView(drawer.getScreenSize(), k));
@@ -174,6 +196,16 @@ export class EditingSolution {
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
+
+        {
+            const { center, radius } = this.newFnkButton(main_view);
+            if (mouse.wasPressed(MouseButton.Left) && raw_mouse_pos.sub(center).mag() <= radius) {
+                this.all_fnks.push({
+                    name: { type: 'atom', value: this.all_fnks.length.toString() },
+                    cases: [DEFAULT_MATCH_CASE],
+                });
+            }
+        }
 
         const pole = getPoleAtPosition(this.fnk, main_view, this.collapsed.inside, raw_mouse_pos);
         if (pole !== null) {
@@ -277,12 +309,6 @@ export class EditingSolution {
                 const cur_value = this.getValueAtMouseLocation(this.mouse_location);
                 const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
                 this.dropValueAtMouseLocation(this.mouse_location, new_value);
-            }
-            else if (this.mouse_location === null && pole === null && mouse.wasPressed(MouseButton.Middle)) {
-                this.all_fnks.push({
-                    name: { type: 'atom', value: this.all_fnks.length.toString() },
-                    cases: [DEFAULT_MATCH_CASE],
-                });
             }
         }
         else {
