@@ -1,10 +1,10 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, last } from './kommon/kommon';
 import { remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
@@ -244,14 +244,19 @@ export class ExecutionState {
         }
     }
 
-    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView) {
+    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Mouse) {
         const original_main_view = {
             pos: new Vec2(main_view.pos.x, main_view.pos.y), halfside: main_view.halfside, turns: main_view.turns,
         };
         main_view = this.getActualMainView(main_view);
 
+        const rect = drawer.ctx.canvas.getBoundingClientRect();
+        const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
+
+        let hovered_value: SexprTemplate | null = null;
+
         if (this.parent !== null) {
-            this.parent.draw(drawer, anim_t, global_t, original_main_view);
+            this.parent.draw(drawer, anim_t, global_t, original_main_view, mouse);
         }
 
         const view: SexprView = {
@@ -294,6 +299,17 @@ export class ExecutionState {
         }
 
         drawer.drawFunktion(this.fnk, view, this.collapsed.inside, global_t, this.matched);
+        {
+            const maybe_address = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
+            if (maybe_address !== null) {
+                hovered_value = getAt(this.fnk.cases, maybe_address);
+            }
+            const maybe_main_fnk_address = sexprAdressFromScreenPosition(raw_mouse_pos, this.fnk.name, getFnkNameView(view));
+            if (maybe_main_fnk_address !== null) {
+                hovered_value = getAtLocalAddress(this.fnk.name, maybe_main_fnk_address);
+            }
+        }
+
         if (this.animation.type === 'input_moving_to_next_option') {
             const source_view = (last(this.animation.target) === 0)
                 ? getView(view, {
@@ -302,25 +318,25 @@ export class ExecutionState {
                     minor: [],
                 }, this.collapsed)
                 : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1], global_t);
-            drawer.drawMolecule(this.input, lerpSexprView(
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
                 source_view,
                 this.getViewOfMovingInput(view, this.animation.target, global_t),
                 anim_t,
-            ));
+            ), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'failing_to_match') {
-            drawer.drawMolecule(this.input, lerpSexprView(
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
                 getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
                 (anim_t - 1) * (anim_t - 0) * -4,
-            ));
+            ), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'matching') {
-            drawer.drawMolecule(this.input, lerpSexprView(
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
                 this.getViewOfMovingInput(view, this.animation.which),
                 getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
                 anim_t,
-            ));
+            ), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'floating_bindings') {
             drawer.drawBindingsNew(main_view, this.animation.bindings, anim_t, this.collapsed);
@@ -338,7 +354,7 @@ export class ExecutionState {
                     halfside: base_view.halfside * (1 - anim_t),
                 });
             });
-            drawer.drawMolecule(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }, this.collapsed));
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }, this.collapsed), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'fading_out_to_child') {
             // nothing
@@ -347,18 +363,18 @@ export class ExecutionState {
             // nothing
         }
         else if (this.animation.type === 'fading_in_from_parent') {
-            drawer.drawMolecule(this.input, lerpSexprView(
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
                 getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.source_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 getView(view, { type: 'template', major: [], minor: [] }, this.collapsed),
                 anim_t,
-            ));
+            ), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'fading_out_to_parent') {
-            drawer.drawMolecule(this.input, lerpSexprView(
+            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
                 getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }, this.collapsed),
                 getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.parent_address, minor: [] }, assertNotNull(this.parent).collapsed),
                 anim_t,
-            ));
+            ), raw_mouse_pos)?.value ?? hovered_value;
         }
         else if (this.animation.type === 'waiting_for_child') {
             // nothing
@@ -368,6 +384,15 @@ export class ExecutionState {
         }
         else {
             throw new Error('unimplemented');
+        }
+
+        // print atom names
+        if (hovered_value !== null) {
+            drawer.ctx.fillStyle = 'black';
+            const screen_size = drawer.getScreenSize();
+            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+            drawer.ctx.textAlign = 'center';
+            drawer.ctx.fillText(sexprToString(hovered_value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
         }
     }
 }
@@ -416,9 +441,9 @@ export class ExecutingSolution {
         return new AfterExecutingSolution(this.original_editing, next_state);
     }
 
-    draw(drawer: Drawer, view_offset: Vec2, global_t: number) {
+    draw(drawer: Drawer, view_offset: Vec2, global_t: number, mouse: Mouse) {
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
-        this.cur_execution_state.draw(drawer, this.anim_t, global_t, view);
+        this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, mouse);
     }
 
     private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {

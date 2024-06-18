@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { DefaultMap, assertNotNull, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, randomFloat, randomInt, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded } from './model';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress } from './model';
 import Rand from 'rand-seed';
 import { Random } from './kommon/random';
 
@@ -68,6 +68,17 @@ export class Drawer {
             this.ctx.stroke();
         }
         this.drawMatchers(fnk.cases, view, collapsed, cur_time, matched);
+    }
+
+    drawMoleculeAndReturnThingUnderMouse(data: SexprTemplate, view: SexprView, mouse_screen_pos: Vec2): { address: SexprAddress, value: SexprTemplate } | null {
+        this.drawMoleculeNonRecursive(data, view);
+        if (data.type === 'pair') {
+            this.drawMolecule(data.left, getSexprChildView(view, true));
+            this.drawMolecule(data.right, getSexprChildView(view, false));
+        }
+        const address = sexprAdressFromScreenPosition(mouse_screen_pos, data, view);
+        if (address === null) return null;
+        return { address, value: assertNotNull(getAtLocalAddress(data, address)) };
     }
 
     drawMolecule(data: SexprNullable, view: SexprView) {
