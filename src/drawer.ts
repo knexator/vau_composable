@@ -643,12 +643,7 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            const unit = view.halfside / 4;
-            this.drawMoleculeNonRecursive(data, {
-                pos: view.pos.addX(unit * 12),
-                halfside: view.halfside,
-                turns: view.turns + 0.5,
-            });
+            this.drawMoleculeNonRecursive(data, view);
         }
     }
 
