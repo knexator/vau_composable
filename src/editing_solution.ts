@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { ExecutingSolution, ExecutionState } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, DEFAULT_MATCH_CASE, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk } from './model';
 import { inRange } from './kommon/math';
 
 type MouseLocation = FullAddress
@@ -200,10 +200,7 @@ export class EditingSolution {
         {
             const { center, radius } = this.newFnkButton(main_view);
             if (mouse.wasPressed(MouseButton.Left) && raw_mouse_pos.sub(center).mag() <= radius) {
-                this.all_fnks.push({
-                    name: { type: 'atom', value: this.all_fnks.length.toString() },
-                    cases: [DEFAULT_MATCH_CASE],
-                });
+                this.all_fnks.push(newFnk(this.all_fnks));
             }
         }
 
@@ -229,14 +226,14 @@ export class EditingSolution {
             else if (pole.type === 'add') {
                 if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
                     // TODO: add pole at the proper place
-                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address.slice(0, -1), global_t);
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address.slice(0, -1), global_t, []);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
             else if (pole.type === 'return') {
                 if (mouse.wasPressed(MouseButton.Left) || mouse.wasPressed(MouseButton.Right)) {
-                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address, global_t);
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, pole.address, global_t, []);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }

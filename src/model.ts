@@ -414,14 +414,23 @@ export function movePole(haystack: MatchCaseDefinition[], collapsed: Collapsed[]
     ];
 }
 
-export const DEFAULT_MATCH_CASE: MatchCaseDefinition = {
-    pattern: parseSexprTemplate('X'),
-    template: parseSexprTemplate('X'),
-    fn_name_template: parseSexprTemplate('#identity'),
-    next: 'return',
-};
+export function newFnk(all_fnks: FunktionDefinition[]): FunktionDefinition {
+    return {
+        name: { type: 'atom', value: all_fnks.length.toString() },
+        cases: [defaultMatchCase('X')],
+    };
+}
 
-export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress, global_t: number): [MatchCaseDefinition[], Collapsed[]] {
+function defaultMatchCase(var_name: string): MatchCaseDefinition {
+    return {
+        pattern: { type: 'variable', value: var_name },
+        template: { type: 'variable', value: var_name },
+        fn_name_template: parseSexprTemplate('#identity'),
+        next: 'return',
+    };
+}
+
+export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: Collapsed[], address: MatchCaseAddress, global_t: number, used_variables: string[]): [MatchCaseDefinition[], Collapsed[]] {
     const DEFAULT_MATCH_CASE_COLLAPSE: Collapsed = {
         main: {
             collapsed: false,
@@ -433,18 +442,19 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: 
 
     if (address.length === 0) {
         return [
-            addAt(haystack, DEFAULT_MATCH_CASE, 0),
+            addAt(haystack, defaultMatchCase(newVariableName(used_variables)), 0),
             addAt(collapsed, DEFAULT_MATCH_CASE_COLLAPSE, 0),
         ];
     }
     const index = address[0];
     const match_case = haystack[index];
+    const new_used_variables = [...used_variables, ...allVariableNames(match_case.pattern)];
     if (match_case.next === 'return') {
         if (address.length > 1) throw new Error('bad address');
         return [
             replace(haystack, {
                 pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
-                next: [DEFAULT_MATCH_CASE],
+                next: [defaultMatchCase(newVariableName(new_used_variables))],
             }, index),
             replace(collapsed, {
                 main: collapsed[index].main,
@@ -452,7 +462,7 @@ export function addPoleAsFirstChild(haystack: MatchCaseDefinition[], collapsed: 
             }, index),
         ];
     }
-    const [new_next, new_collapsed] = addPoleAsFirstChild(match_case.next, collapsed[index].inside, address.slice(1), global_t);
+    const [new_next, new_collapsed] = addPoleAsFirstChild(match_case.next, collapsed[index].inside, address.slice(1), global_t, new_used_variables);
     return [
         replace(haystack, {
             pattern: match_case.pattern, template: match_case.template, fn_name_template: match_case.fn_name_template,
@@ -540,4 +550,26 @@ export function parseFnks(input: string): FunktionDefinition[] {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const raw_thing = parser.parse(input) as FunktionDefinition[];
     return raw_thing;
+}
+
+function allVariableNames(thing: SexprTemplate): string[] {
+    switch (thing.type) {
+        case 'variable':
+            return [thing.value];
+        case 'atom':
+            return [];
+        case 'pair':
+            return [...allVariableNames(thing.left), ...allVariableNames(thing.left)];
+    }
+}
+
+function newVariableName(taken: string[]): string {
+    console.log(taken);
+    let k = 0;
+    let name = k.toString();
+    while (taken.includes(name)) {
+        k += 1;
+        name = k.toString();
+    }
+    return name;
 }
