@@ -1,0 +1,3 @@
+- change all A to X, B to Y, C to Z
+- add 0 or 1 to the given number
+- add N to the given number

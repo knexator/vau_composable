@@ -106,7 +106,7 @@ function every_frame(cur_timestamp_millis: number) {
     }
     else if (cur_thing instanceof ExecutingSolution) {
         cur_thing.draw(drawer, view_offset, global_t, input.mouse);
-        [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4, KeyCode.Digit5, KeyCode.Digit6].forEach((key, index) => {
+        [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4, KeyCode.Digit5, KeyCode.Digit6, KeyCode.Digit7, KeyCode.Digit8].forEach((key, index) => {
             if (input.keyboard.wasPressed(key)) {
                 if (!(cur_thing instanceof ExecutingSolution)) throw new Error('unreachable');
                 cur_thing.speed = index * index;

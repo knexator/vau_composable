@@ -189,7 +189,7 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     for (const fnk of all_fnks) {
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
-    throw new Error(`Couldnt find the requrest funktion: ${sexprToString(fnk_name)}`);
+    throw new Error(`Couldn't find the requested funktion: ${sexprToString(fnk_name)}`);
 }
 
 export function applyFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {

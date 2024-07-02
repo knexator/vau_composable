@@ -326,7 +326,9 @@ export class EditingSolution {
                     hovered_value.value = hovered_value.value.slice(0, -1);
                 }
                 else {
-                    hovered_value.value += keyboard.text;
+                    if (!(['(', ')', ' ', '{', '}', ':', ';'].includes(keyboard.text))) {
+                        hovered_value.value += keyboard.text;
+                    }
                 }
             }
         }
