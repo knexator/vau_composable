@@ -564,7 +564,6 @@ function allVariableNames(thing: SexprTemplate): string[] {
 }
 
 function newVariableName(taken: string[]): string {
-    console.log(taken);
     let k = 0;
     let name = k.toString();
     while (taken.includes(name)) {
@@ -572,4 +571,10 @@ function newVariableName(taken: string[]): string {
         name = k.toString();
     }
     return name;
+}
+
+export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition[] {
+    const siblings = address.length === 1 ? fnk.cases : getCaseAt(fnk, address.slice(0, -1)).next;
+    if (siblings === 'return') throw new Error('unreachable');
+    return siblings.slice(at(address, -1));
 }

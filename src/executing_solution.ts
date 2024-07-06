@@ -1,10 +1,10 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, last } from './kommon/kommon';
-import { remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable } from './model';
+import { assertNotNull, eqArrays, last, subdivideT } from './kommon/kommon';
+import { lerp, remap } from './kommon/math';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
@@ -22,8 +22,8 @@ type ExecutionAnimationState =
     | { type: 'breaking_to_tail_optimization' };
 
 export class ExecutionState {
-    private constructor(
-        private parent: ExecutionState | null,
+    constructor(
+        public parent: ExecutionState | null,
         private fnk: FunktionDefinition,
         private collapsed: Collapsed,
         private matched: MatchedInput[],
@@ -80,9 +80,10 @@ export class ExecutionState {
                 const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
                 if (bindings.length === 0) {
-                    const asdf = next_state.next(all_fnks, main_view, global_t);
-                    if (!(asdf instanceof ExecutionState)) return asdf;
-                    return asdf.next(all_fnks, main_view, global_t);
+                    return next_state.next(all_fnks, main_view, global_t);
+                    // const asdf = next_state.next(all_fnks, main_view, global_t);
+                    // if (!(asdf instanceof ExecutionState)) return asdf;
+                    // return asdf.next(all_fnks, main_view, global_t);
                 }
                 else {
                     return next_state;
@@ -96,7 +97,8 @@ export class ExecutionState {
                     const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
                     const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
                     return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
-                        { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address });
+                        { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address })
+                        .next(all_fnks, main_view, global_t);
                 }
                 catch {
                     return { type: 'failure', reason: 'Used an unbound variable!' };
@@ -118,7 +120,13 @@ export class ExecutionState {
                         }
                     }
                     else {
-                        return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
+                        console.log('TURBIO');
+                        // return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
+                        return this
+                            .withParent(this.withAnimation({ type: 'fading_in_from_child', return_address: this.animation.input_address }))
+                            .withAnimation({
+                                type: 'fading_out_to_parent', parent_address: this.animation.input_address, child_address: this.animation.input_address,
+                            });
                     }
                 }
                 else if (equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })) {
@@ -130,14 +138,19 @@ export class ExecutionState {
                         }
                         else {
                             if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
-                            return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched,
-                                result, { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
+                            return new ExecutionState(
+                                this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }),
+                                this.fnk, this.collapsed, this.matched, result,
+                                { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
                         }
                     }
                     else {
+                        console.log('TURBIO');
                         return this
-                            .withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] })
-                            .withInput(result);
+                            .withParent(this.withAnimation({ type: 'fading_in_from_child', return_address: this.animation.input_address }))
+                            .withAnimation({
+                                type: 'fading_out_to_parent', parent_address: this.animation.input_address, child_address: this.animation.input_address,
+                            }).withInput(result);
                     }
                 }
                 else {
@@ -244,155 +257,295 @@ export class ExecutionState {
         }
     }
 
-    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Mouse) {
-        const original_main_view = {
-            pos: new Vec2(main_view.pos.x, main_view.pos.y), halfside: main_view.halfside, turns: main_view.turns,
-        };
-        main_view = this.getActualMainView(main_view);
+    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Mouse | null) {
+        // console.log(this.animation.type);
+        main_view = offsetView(main_view, new Vec2(24, 0));
+        // drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
+        switch (this.animation.type) {
+            case 'input_moving_to_next_option': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.input, main_view);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.line(main_view, [
+                    new Vec2(-2, 0),
+                    new Vec2(-50, 0),
+                ]);
+                const next = getCasesAfter(this.fnk, this.animation.target);
+                next.forEach((v, k) => {
+                    drawCase(drawer, v, offsetView(main_view,
+                        k === 0
+                            ? new Vec2(4, 12 * (1 - anim_t))
+                            : new Vec2(4, 12 + 18 * (k - anim_t))));
 
-        const rect = drawer.ctx.canvas.getBoundingClientRect();
-        const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
-
-        let hovered_value: SexprTemplate | null = null;
-
-        if (this.parent !== null) {
-            this.parent.draw(drawer, anim_t, global_t, original_main_view, mouse);
-        }
-
-        const view: SexprView = {
-            pos: main_view.pos, halfside: main_view.halfside, turns: main_view.turns,
-        };
-
-        if (this.animation.type === 'fading_out_to_child') {
-            // view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
-            drawer.ctx.globalAlpha = remap(anim_t, 0, 1, 1, 0.1);
-        }
-        else if (this.animation.type === 'fading_in_from_child') {
-            // view.pos = view.pos.add(Vec2.both((1 - anim_t) * view.halfside));
-            drawer.ctx.globalAlpha = remap(anim_t, 0, 1, 0.1, 1);
-        }
-        else if (this.animation.type === 'waiting_for_child') {
-            drawer.ctx.globalAlpha = 0.1;
-        }
-        else if (this.animation.type === 'breaking_to_tail_optimization') {
-            view.pos = view.pos.add(Vec2.both(anim_t * view.halfside));
-            drawer.ctx.globalAlpha = 0.1;
-        }
-        else if (this.animation.type === 'fading_in_from_parent') {
-            if (this.parent === null) throw new Error('unreachable');
-            // this.parent.draw(drawer, anim_t, global_t, original_main_view);
-            drawer.ctx.globalAlpha = 1;
-
-            view.pos = view.pos.add(new Vec2(0, (1 - anim_t) * 18 * view.halfside));
-            // drawer.ctx.globalAlpha = anim_t;
-        }
-        else if (this.animation.type === 'fading_out_to_parent') {
-            if (this.parent === null) throw new Error('unreachable');
-            // this.parent.draw(drawer, anim_t, global_t, original_main_view);
-            drawer.ctx.globalAlpha = 1;
-
-            view.pos = view.pos.add(new Vec2(0, anim_t * 18 * view.halfside));
-            // drawer.ctx.globalAlpha = anim_t;
-        }
-        else {
-            drawer.ctx.globalAlpha = 1;
-        }
-
-        drawer.drawFunktion(this.fnk, view, this.collapsed.inside, global_t, this.matched);
-        {
-            const maybe_address = getAtPosition(this.fnk, view, this.collapsed, raw_mouse_pos);
-            if (maybe_address !== null) {
-                hovered_value = getAt(this.fnk.cases, maybe_address);
-            }
-            const maybe_main_fnk_address = sexprAdressFromScreenPosition(raw_mouse_pos, this.fnk.name, getFnkNameView(view));
-            if (maybe_main_fnk_address !== null) {
-                hovered_value = getAtLocalAddress(this.fnk.name, maybe_main_fnk_address);
-            }
-        }
-
-        if (this.animation.type === 'input_moving_to_next_option') {
-            const source_view = (last(this.animation.target) === 0)
-                ? getView(view, {
-                    type: 'template',
-                    major: this.animation.target.slice(0, -1),
-                    minor: [],
-                }, this.collapsed)
-                : this.getViewOfMovingInput(view, [...this.animation.target.slice(0, -1), last(this.animation.target) - 1], global_t);
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
-                source_view,
-                this.getViewOfMovingInput(view, this.animation.target, global_t),
-                anim_t,
-            ), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'failing_to_match') {
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
-                this.getViewOfMovingInput(view, this.animation.which),
-                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
-                (anim_t - 1) * (anim_t - 0) * -4,
-            ), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'matching') {
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
-                this.getViewOfMovingInput(view, this.animation.which),
-                getView(view, { type: 'pattern', major: this.animation.which, minor: [] }, this.collapsed),
-                anim_t,
-            ), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'floating_bindings') {
-            drawer.drawBindingsNew(main_view, this.animation.bindings, anim_t, this.collapsed);
-        }
-        else if (this.animation.type === 'dissolve_bindings') {
-            this.animation.bindings.forEach((binding) => {
-                const base_view = getView(view, binding.target_address, this.collapsed);
-                drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
-                    pos: base_view.pos, turns: base_view.turns,
-                    halfside: base_view.halfside * (1 - anim_t),
+                    if (k === 0) {
+                        drawer.line(main_view, [
+                            new Vec2(-5, 0),
+                            new Vec2(-5, 16 - 12 * anim_t),
+                            new Vec2(16, 16 - 12 * anim_t),
+                        ]);
+                    }
+                    else {
+                        drawer.line(main_view, [
+                            new Vec2(-5, -2 + (k - anim_t) * 18),
+                            new Vec2(-5, -2 + (k - anim_t + 1) * 18),
+                            new Vec2(16, -2 + (k - anim_t + 1) * 18),
+                        ]);
+                    }
                 });
-                // draw twice to match the opacity
-                drawer.drawPattern({ type: 'variable', value: binding.variable_name }, {
-                    pos: base_view.pos, turns: base_view.turns,
-                    halfside: base_view.halfside * (1 - anim_t),
-                });
-            });
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, getView(view, { type: 'template', major: this.animation.input_address, minor: [] }, this.collapsed), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'fading_out_to_child') {
-            // nothing
-        }
-        else if (this.animation.type === 'fading_in_from_child') {
-            // nothing
-        }
-        else if (this.animation.type === 'fading_in_from_parent') {
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
-                getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.source_address, minor: [] }, assertNotNull(this.parent).collapsed),
-                getView(view, { type: 'template', major: [], minor: [] }, this.collapsed),
-                anim_t,
-            ), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'fading_out_to_parent') {
-            hovered_value = drawer.drawMoleculeAndReturnThingUnderMouse(this.input, lerpSexprView(
-                getView(main_view, { type: 'template', major: this.animation.child_address, minor: [] }, this.collapsed),
-                getView(this.parent!.getActualMainView(original_main_view), { type: 'template', major: this.animation.parent_address, minor: [] }, assertNotNull(this.parent).collapsed),
-                anim_t,
-            ), raw_mouse_pos)?.value ?? hovered_value;
-        }
-        else if (this.animation.type === 'waiting_for_child') {
-            // nothing
-        }
-        else if (this.animation.type === 'breaking_to_tail_optimization') {
-            // nothing
-        }
-        else {
-            throw new Error('unimplemented');
-        }
+                break;
+            }
+            case 'failing_to_match': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.input, main_view);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.line(main_view, [
+                    new Vec2(-50, 0),
+                    new Vec2(-2, 0),
+                ]);
+                const next = getCasesAfter(this.fnk, this.animation.which);
+                next.forEach((v, k) => {
+                    if (k === 0) {
+                        drawCase(drawer, v, offsetView(main_view,
+                            subdivideT(anim_t, [
+                                [0, 0.5, t => new Vec2(4 - t * 4, 0)],
+                                [0.5, 1, t => new Vec2(0, -t * 12)],
+                            ]),
+                        ));
+                    }
+                    else {
+                        drawCase(drawer, v, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
+                    }
 
-        // print atom names
-        if (hovered_value !== null) {
-            drawer.ctx.fillStyle = 'black';
-            const screen_size = drawer.getScreenSize();
-            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-            drawer.ctx.textAlign = 'center';
-            drawer.ctx.fillText(sexprToString(hovered_value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+                    if (k === 0) {
+                        drawer.line(main_view, [
+                            new Vec2(-5, 0),
+                            new Vec2(-5, 16 - 12),
+                            new Vec2(16 - anim_t * 8, 16 - 12),
+                        ]);
+                    }
+                    else if (k === 1) {
+                        drawer.line(main_view, [
+                            new Vec2(-5, -2 + 6),
+                            new Vec2(-5, -2 + 18),
+                            new Vec2(16, -2 + 18),
+                        ]);
+                    }
+                    else {
+                        drawer.line(main_view, [
+                            new Vec2(-5, -2 + (k - 1) * 18),
+                            new Vec2(-5, -2 + (k - 1 + 1) * 18),
+                            new Vec2(16, -2 + (k - 1 + 1) * 18),
+                        ]);
+                    }
+                });
+                break;
+            }
+            case 'matching': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.input, main_view);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.line(main_view, [
+                    new Vec2(-2, 0),
+                    new Vec2(-50, 0),
+                ]);
+
+                drawer.line(main_view, [
+                    new Vec2(-5, 0),
+                    new Vec2(-5, 4),
+                    new Vec2(12, 4),
+                ]);
+                const next = getCasesAfter(this.fnk, this.animation.which);
+                next.forEach((v, k) => {
+                    if (k === 0) {
+                        drawCase(drawer, v, offsetView(main_view, new Vec2(4 - anim_t * 4, 0)));
+                        if (v.next !== 'return') {
+                            v.next.forEach((asdf, j) => {
+                                const aaa = offsetView(main_view, new Vec2(16 - anim_t * 4, 12 + 18 * j));
+                                drawCase(drawer, asdf, aaa);
+                                drawer.ctx.beginPath();
+                                drawer.ctx.strokeStyle = 'black';
+                                drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
+                                drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
+                                drawer.lineTo(offsetView(aaa, new Vec2(12, 4)).pos);
+                                drawer.ctx.stroke();
+                            });
+                        }
+                    }
+                    else {
+                        drawCase(drawer, v, offsetView(main_view,
+                            new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t))));
+                    }
+                });
+                break;
+            }
+            case 'floating_bindings': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.input, main_view);
+
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.line(main_view, [
+                    new Vec2(-2, 0),
+                    new Vec2(-50, 0),
+                ]);
+
+                const v = getCaseAt(this.fnk, this.animation.next_input_address);
+                drawCase(drawer, v, main_view);
+                if (v.next !== 'return') {
+                    v.next.forEach((asdf, j) => {
+                        const aaa = offsetView(main_view, new Vec2(12, 12 + 18 * j));
+                        drawCase(drawer, asdf, aaa);
+                        drawer.line(aaa, [
+                            new Vec2(3, j === 0 ? -12 : -14),
+                            new Vec2(3, 4),
+                            new Vec2(12, 4),
+                        ]);
+                    });
+                }
+
+                this.animation.bindings.forEach((x) => {
+                    // TODO: draw all bindings
+                    // TODO: bindings for rotated targets
+                    if (eqArrays(x.target_address.major, x.source_address.major)) {
+                        // if (x.target_address.major.length <= 1) {
+                        const cur_view = lerpSexprView(
+                            getSexprGrandChildView(main_view, x.source_address.minor),
+                            // getView(main_view, x.source_address, this.collapsed),
+                            // getView(main_view, x.target_address, this.collapsed),
+                            getSexprGrandChildView(
+                                offsetView(main_view, new Vec2(32, 0)),
+                                x.target_address.minor),
+                            anim_t);
+                        drawer.drawPattern({ type: 'variable', value: x.variable_name }, cur_view);
+                        drawer.drawMolecule(x.value, cur_view);
+                    }
+                }, this);
+                // this.animation.bindings
+                // const next = getCasesAfter(this.fnk, this.animation.next_input_address.slice(0, -1));
+                // drawCase(drawer, next[0], offsetView(main_view, new Vec2(0, 0)));
+                break;
+            }
+            case 'dissolve_bindings': {
+                throw new Error('no');
+            }
+            case 'fading_out_to_child': {
+                main_view = offsetView(main_view, new Vec2(-14 * anim_t, 0));
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
+
+                drawer.line(main_view, [
+                    new Vec2(-50, 0),
+                    new Vec2(lerp(32, 12, anim_t), 0),
+                ]);
+
+                drawer.line(main_view, [
+                    new Vec2(-5, 0),
+                    new Vec2(4, 0),
+                ]);
+
+                if (thing.next !== 'return') {
+                    thing.next.forEach((asdf, j) => {
+                        const aaa = offsetView(main_view, new Vec2(lerp(12, -8, anim_t), 12 + 18 * j));
+                        drawer.drawPattern(asdf.pattern, aaa);
+                        drawer.ctx.beginPath();
+                        drawer.ctx.strokeStyle = 'black';
+                        drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(12, 4)).pos);
+                        drawer.ctx.stroke();
+                    });
+                }
+                break;
+            }
+            case 'fading_in_from_parent':
+                if (this.parent === null) throw new Error('unreachable');
+                this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
+                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+                drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                    rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
+                    rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
+                    anim_t));
+                this.fnk.cases.forEach((v, k) => {
+                    const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
+                    drawCase(drawer, v, aaa);
+
+                    drawer.line(aaa, [
+                        new Vec2(-9, k === 0 ? -12 : -14),
+                        new Vec2(-9, 4),
+                        new Vec2(12, 4),
+                    ]);
+                });
+                break;
+            case 'fading_out_to_parent': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+
+                drawer.line(main_view, [
+                    new Vec2(30 - 32 * anim_t, 0),
+                    new Vec2(-50, 0),
+                ]);
+
+                break;
+            }
+            case 'fading_in_from_child': {
+                main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+
+                const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
+                if (thing.next !== 'return') {
+                    thing.next.forEach((asdf, j) => {
+                        const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
+                        drawer.drawPattern(asdf.pattern, offsetView(aaa, new Vec2(anim_t * 12, 0)));
+                        drawer.ctx.beginPath();
+                        drawer.ctx.strokeStyle = 'black';
+                        drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(12 + anim_t * 12, 4)).pos);
+                        drawer.ctx.stroke();
+                    });
+                }
+
+                break;
+            }
+            case 'waiting_for_child': {
+                main_view = offsetView(main_view, new Vec2(-14, 0));
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+
+                drawer.line(main_view, [
+                    new Vec2(-50, 0),
+                    new Vec2(12, 0),
+                ]);
+
+                drawer.line(main_view, [
+                    new Vec2(-5, 0),
+                    new Vec2(4, 0),
+                ]);
+
+                const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
+                if (thing.next !== 'return') {
+                    thing.next.forEach((asdf, j) => {
+                        const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
+                        drawer.drawPattern(asdf.pattern, aaa);
+                        drawer.ctx.beginPath();
+                        drawer.ctx.strokeStyle = 'black';
+                        drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
+                        drawer.lineTo(offsetView(aaa, new Vec2(12, 4)).pos);
+                        drawer.ctx.stroke();
+                    });
+                }
+                break;
+            }
+            case 'breaking_to_tail_optimization': {
+                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                drawer.line(main_view, [
+                    new Vec2(30 - 32 * anim_t, 0),
+                    new Vec2(-50, 0),
+                ]);
+                break;
+            }
         }
     }
 }
@@ -499,4 +652,16 @@ export class AfterExecutingSolution {
         };
         return view;
     }
+}
+
+function drawCase(drawer: Drawer, v: MatchCaseDefinition, view: SexprView) {
+    drawer.drawPattern(v.pattern, view);
+    drawer.drawMolecule(v.template, offsetView(view, new Vec2(32, 0)));
+    drawer.drawMolecule(v.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
+
+    drawer.ctx.beginPath();
+    drawer.ctx.strokeStyle = 'black';
+    drawer.moveTo(offsetView(view, new Vec2(14, 0)).pos);
+    drawer.lineTo(offsetView(view, new Vec2(30, 0)).pos);
+    drawer.ctx.stroke();
 }

@@ -6,7 +6,7 @@ import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
-import { AfterExecutingSolution, ExecutingSolution } from './executing_solution';
+import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 
 // TODO: duplicate vaus
@@ -55,7 +55,7 @@ const increment: FunktionDefinition = {
 
 // FUTURE: proper validation
 const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [incrementTwice, increment]);
-all_fnks.map(x => console.log(fnkToString(x)));
+// all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
 let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
@@ -109,7 +109,7 @@ function every_frame(cur_timestamp_millis: number) {
         [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4, KeyCode.Digit5, KeyCode.Digit6, KeyCode.Digit7, KeyCode.Digit8].forEach((key, index) => {
             if (input.keyboard.wasPressed(key)) {
                 if (!(cur_thing instanceof ExecutingSolution)) throw new Error('unreachable');
-                cur_thing.speed = index * index;
+                cur_thing.speed = [0, 1, 2, 3, 4, 8, 16][index] ?? index * index;
             }
         });
         if (input.keyboard.wasPressed(KeyCode.Escape)) {
@@ -146,18 +146,47 @@ function every_frame(cur_timestamp_millis: number) {
 }
 
 if (import.meta.hot) {
-    // if (import.meta.hot.data.stuff) {
-    //   stuff = import.meta.hot.data.stuff;
-    // }
+    if (import.meta.hot.data.cur_thing !== undefined) {
+        // cur_thing = import.meta.hot.data.cur_thing;
+        const old_thing = import.meta.hot.data.cur_thing as ExecutingSolution;
+        if (old_thing.constructor.name == 'ExecutingSolution') {
+            console.log('stuff')
+            cur_thing = old_thing as ExecutingSolution;
+            Object.setPrototypeOf(cur_thing, ExecutingSolution.prototype);
+            // cur_thing = Object.assign(new ExecutingSolution(), old_thing);
 
-    // import.meta.hot.accept();
+            let cosa = cur_thing.cur_execution_state;
+            Object.setPrototypeOf(cosa, ExecutionState.prototype);
+            while (cosa.parent !== null) {
+                Object.setPrototypeOf(cosa.parent, ExecutionState.prototype);
+                cosa = cosa.parent;
+            }
+
+            // cur_thing.cur_execution_state = Object.assign(new ExecutionState(), cur_thing.cur_execution_state);
+            // let cosa = cur_thing.cur_execution_state;
+            // while (cosa.parent) {
+            //     cosa.parent = Object.assign(new ExecutionState(), cosa.parent);
+            //     cosa = cosa.parent;
+            // }
+
+            // Object.getOwnPropertyNames(ExecutionState.prototype).forEach((name) => {
+            //     if (name !== 'constructor') {
+            //         cur_thing.cur_execution_state[name] = ExecutionState.prototype[name];
+            //     }
+            // });
+        }
+    }
+
+    if (import.meta.hot === undefined) throw new Error('unreachable');
+    import.meta.hot.accept();
+    import.meta.hot.accept('./executing_solution.ts', (_) => { });
 
     import.meta.hot.dispose((data) => {
         input.mouse.dispose();
         input.keyboard.dispose();
         cancelAnimationFrame(animation_id);
         // gui.destroy();
-        // data.stuff = stuff;
+        data.cur_thing = cur_thing;
     });
 }
 

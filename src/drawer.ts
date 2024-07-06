@@ -21,6 +21,17 @@ export class Drawer {
         public ctx: CanvasRenderingContext2D,
     ) { }
 
+    line(view: SexprView, points: Vec2[]): void {
+        if (points.length < 2) return;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = 'black';
+        this.moveTo(offsetView(view, points[0]).pos);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(offsetView(view, points[k]).pos);
+        }
+        this.ctx.stroke();
+    }
+
     getScreenSize(): Vec2 {
         return new Vec2(this.ctx.canvas.width, this.ctx.canvas.height);
     }
@@ -525,9 +536,9 @@ export class Drawer {
             const points = [
                 new Vec2(-view.halfside * SPIKE_PERC, 0),
                 new Vec2(0, -view.halfside),
-                new Vec2(view.halfside * 3, -view.halfside),
-                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
-                new Vec2(view.halfside * 3, view.halfside),
+                new Vec2(view.halfside * 1.5, -view.halfside),
+                new Vec2(view.halfside * (1.5 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 1.5, view.halfside),
                 new Vec2(0, view.halfside),
             ].map(v => v.rotateTurns(view.turns))
                 .map(v => view.pos.add(v));
@@ -643,7 +654,25 @@ export class Drawer {
             this.ctx.stroke();
         }
         else {
-            this.drawMoleculeNonRecursive(data, view);
+            const points = [
+                new Vec2(-view.halfside * (SPIKE_PERC - 1.5), 0),
+                new Vec2(view.halfside * 1.5, -view.halfside),
+                new Vec2(view.halfside * 3, -view.halfside),
+                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+                new Vec2(view.halfside * 3, view.halfside),
+                new Vec2(view.halfside * 1.5, view.halfside),
+            ].map(v => v.rotateTurns(view.turns))
+                .map(v => view.pos.add(v));
+            this.ctx.beginPath();
+            this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
+            this.ctx.strokeStyle = 'black';
+            this.moveTo(points[0]);
+            for (let k = 1; k < points.length; k++) {
+                this.lineTo(points[k]);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
         }
     }
 
@@ -652,11 +681,11 @@ export class Drawer {
         this.ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
     }
 
-    private moveTo(pos: Vec2) {
+    moveTo(pos: Vec2) {
         this.ctx.moveTo(pos.x, pos.y);
     }
 
-    private lineTo(pos: Vec2) {
+    lineTo(pos: Vec2) {
         this.ctx.lineTo(pos.x, pos.y);
     }
 
@@ -876,7 +905,6 @@ const colorFromAtom: (atom: string) => Color = (() => {
 })();
 
 function randomShape(name: string) {
-    console.log(name);
     const rand = new Random(name);
     return fromCount(rand.int(2, 15), _ => new Vec2(rand.float(0, 1), rand.float(-0.2, 0.2))).sort((a, b) => a.x - b.x);
 }
@@ -1174,4 +1202,8 @@ export function offsetView(view: SexprView, units: Vec2): SexprView {
         halfside: view.halfside, turns: view.turns,
         pos: view.pos.add(units.scale(view.halfside / 4).rotateTurns(view.turns)),
     };
+}
+
+export function rotateAndScaleView(view: SexprView, turns: number, scale: number): SexprView {
+    return { halfside: view.halfside * scale, turns: view.turns + turns, pos: view.pos };
 }

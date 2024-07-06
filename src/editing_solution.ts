@@ -97,6 +97,10 @@ export class EditingSolution {
     draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
         drawer.ctx.globalAlpha = 1;
         const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
+        // const asdf = ExecutionState.init(this.fnk, this.input);
+        // asdf.draw(drawer, 0, global_t, main_view, null);
+        // drawer.ctx.globalAlpha = 0.1;
+        // return;
 
         {
             const { center, radius } = this.newFnkButton(main_view);
