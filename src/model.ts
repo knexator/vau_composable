@@ -553,11 +553,12 @@ export function parseFnks(input: string): FunktionDefinition[] {
     return raw_thing;
 }
 
-function allVariableNames(thing: SexprTemplate): string[] {
+export function allVariableNames(thing: SexprNullable): string[] {
     switch (thing.type) {
         case 'variable':
             return [thing.value];
         case 'atom':
+        case 'null':
             return [];
         case 'pair':
             return [...allVariableNames(thing.right), ...allVariableNames(thing.left)];

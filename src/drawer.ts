@@ -1,7 +1,7 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, assertNotNull, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { DefaultMap, DefaultMapExtra, assertNotNull, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, randomFloat, randomInt, remap } from './kommon/math';
-import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress } from './model';
+import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress, allVariableNames } from './model';
 import Rand from 'rand-seed';
 import { Random } from './kommon/random';
 
@@ -30,6 +30,19 @@ export class Drawer {
             this.lineTo(offsetView(view, points[k]).pos);
         }
         this.ctx.stroke();
+    }
+
+    drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
+        if (points.length < 2) return;
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = cable_patterns.get(variable_names);
+        this.ctx.lineWidth = 5;
+        this.moveTo(offsetView(view, points[0]).pos);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(offsetView(view, points[k]).pos);
+        }
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
     }
 
     getScreenSize(): Vec2 {
@@ -97,6 +110,23 @@ export class Drawer {
         if (data.type === 'pair') {
             this.drawMolecule(data.left, getSexprChildView(view, true));
             this.drawMolecule(data.right, getSexprChildView(view, false));
+
+            const vars_left = allVariableNames(data.left);
+            const vars_right = allVariableNames(data.right);
+            if (vars_left.length > 0) {
+                this.drawCable(view, vars_left, [
+                    new Vec2(-2, 0),
+                    new Vec2(0, -2),
+                    new Vec2(1, -2),
+                ]);
+            }
+            if (vars_right.length > 0) {
+                this.drawCable(view, vars_right, [
+                    new Vec2(-2, 0),
+                    new Vec2(0, 2),
+                    new Vec2(1, 2),
+                ]);
+            }
         }
     }
 
@@ -105,6 +135,23 @@ export class Drawer {
         if (data.type === 'pair') {
             this.drawPattern(data.left, getSexprChildView(view, true));
             this.drawPattern(data.right, getSexprChildView(view, false));
+
+            const vars_left = allVariableNames(data.left);
+            const vars_right = allVariableNames(data.right);
+            if (vars_left.length > 0) {
+                this.drawCable(view, vars_left, [
+                    new Vec2(14, 0),
+                    new Vec2(11, -2),
+                    new Vec2(9, -2),
+                ]);
+            }
+            if (vars_right.length > 0) {
+                this.drawCable(view, vars_right, [
+                    new Vec2(14, 0),
+                    new Vec2(11, 2),
+                    new Vec2(9, 2),
+                ]);
+            }
         }
     }
 
@@ -1207,3 +1254,21 @@ export function offsetView(view: SexprView, units: Vec2): SexprView {
 export function rotateAndScaleView(view: SexprView, turns: number, scale: number): SexprView {
     return { halfside: view.halfside * scale, turns: view.turns + turns, pos: view.pos };
 }
+
+function patternForCable(variable_names: string[]): CanvasPattern {
+    const canvas = document.createElement('canvas');
+    const ctx = assertNotNull(canvas.getContext('2d'));
+    ctx.fillStyle = 'black';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const w = 10;
+    canvas.width = variable_names.length * w;
+    canvas.height = 20;
+    for (let k = 0; k < variable_names.length; k++) {
+        ctx.fillStyle = colorFromAtom(variable_names[k]).toHex();
+        ctx.fillRect(k * w, 0, 20, 20);
+    }
+    return assertNotNull(ctx.createPattern(canvas, 'repeat'));
+}
+
+const cable_patterns = new DefaultMapExtra<string[], string, CanvasPattern>(
+    variable_names => variable_names.join(' '), patternForCable);

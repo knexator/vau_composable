@@ -4,7 +4,7 @@ import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, eqArrays, last, subdivideT } from './kommon/kommon';
 import { lerp, remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
@@ -724,9 +724,13 @@ function drawCase(drawer: Drawer, v: MatchCaseDefinition, view: SexprView) {
     drawer.drawMolecule(v.template, offsetView(view, new Vec2(32, 0)));
     drawer.drawMolecule(v.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
 
-    drawer.ctx.beginPath();
-    drawer.ctx.strokeStyle = 'black';
-    drawer.moveTo(offsetView(view, new Vec2(14, 0)).pos);
-    drawer.lineTo(offsetView(view, new Vec2(30, 0)).pos);
-    drawer.ctx.stroke();
+    drawer.line(view, [
+        new Vec2(14, 0),
+        new Vec2(30, 0),
+    ]);
+
+    drawer.drawCable(view, allVariableNames(v.pattern), [
+        new Vec2(14, 0),
+        new Vec2(30, 0),
+    ]);
 }

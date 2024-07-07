@@ -126,6 +126,28 @@ export class DefaultMap<K, V> {
     }
 }
 
+export class DefaultMapExtra<K, Q, V> {
+    constructor(
+        private serialize_key: (key: K) => Q,
+        private init_fn: (key: K) => V,
+        public inner_map = new Map<Q, V>(),
+    ) { }
+
+    get(key: K): V {
+        const real_key = this.serialize_key(key);
+        let result = this.inner_map.get(real_key);
+        if (result === undefined) {
+            result = this.init_fn(key);
+            this.inner_map.set(real_key, result);
+        }
+        return result;
+    }
+
+    set(key: K, value: V): void {
+        this.inner_map.set(this.serialize_key(key), value);
+    }
+}
+
 export class DefaultDict<T> {
     constructor(init_fn: () => T) {
         // typing doesn't work :(
