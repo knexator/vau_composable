@@ -217,8 +217,9 @@ export class EditingSolution {
                         this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                     }
                 }
-                else if (mouse.wheel != 0) {
-                    const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole.address, mouse.wheel < 0);
+                else if (mouse.wheel != 0 || keyboard.wasPressed(KeyCode.KeyW) || keyboard.wasPressed(KeyCode.KeyS)) {
+                    const move_up = mouse.wheel < 0 || keyboard.wasPressed(KeyCode.KeyW);
+                    const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole.address, move_up);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
@@ -290,7 +291,8 @@ export class EditingSolution {
                 // pick up
                 this.mouse_holding = cloneSexpr(this.getValueAtMouseLocation(this.mouse_location));
             }
-            else if (this.mouse_location !== null && mouse.wasPressed(MouseButton.Middle)) {
+            else if (this.mouse_location !== null && 
+                (mouse.wasPressed(MouseButton.Middle) || keyboard.wasPressed(KeyCode.Enter))) {
                 // go to function
                 const name = this.getValueAtMouseLocation(this.mouse_location);
                 if (isLiteral(name)) {
