@@ -559,7 +559,7 @@ function allVariableNames(thing: SexprTemplate): string[] {
         case 'atom':
             return [];
         case 'pair':
-            return [...allVariableNames(thing.left), ...allVariableNames(thing.left)];
+            return [...allVariableNames(thing.right), ...allVariableNames(thing.left)];
     }
 }
 
