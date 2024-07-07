@@ -16,6 +16,7 @@ type ExecutionAnimationState =
     | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress }
     | { type: 'fading_out_to_child', return_address: MatchCaseAddress }
     | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
+    | { type: 'skipping_computation', source_address: MatchCaseAddress } // fading in and also skipping computation
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
     | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
     | { type: 'waiting_for_child', return_address: MatchCaseAddress }
@@ -104,10 +105,30 @@ export class ExecutionState {
                     return { type: 'failure', reason: 'Used an unbound variable!' };
                 }
             }
+            case 'skipping_computation': {
+                // if (this.parent === null) throw new Error('unreachable');
+                // return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
+
+                if (this.parent === null || (this.parent.animation.type !== 'fading_out_to_child' && this.parent.animation.type !== 'breaking_to_tail_optimization')) throw new Error('unreachable');
+
+                // TODO: fix this
+                if (this.parent.animation.type === 'breaking_to_tail_optimization') {
+                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
+                        .withParent(this.parent.parent);
+                }
+                else {
+                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
+                        .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
+                }
+            }
             case 'dissolve_bindings': {
-                const match_case = getCaseAt(this.fnk, this.animation.input_address);
+                const input_address = this.animation.input_address;
+                const match_case = getCaseAt(this.fnk, input_address);
                 const fn_name = assertLiteral(match_case.fn_name_template);
-                if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
+                const skipped_fn_result: SexprLiteral | null = equalSexprs(fn_name, { type: 'atom', value: 'identity' })
+                    ? this.input
+                    : null;
+                if (false && equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
                     if (match_case.next === 'return') {
                         if (this.parent === null) {
                             // OJO: unchecked
@@ -120,6 +141,8 @@ export class ExecutionState {
                         }
                     }
                     else {
+                        // return this.withAnimation({ type: 'skipping_child_computation', return_address: this.animation.input_address });
+
                         console.log('TURBIO');
                         // return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
                         return this
@@ -145,18 +168,26 @@ export class ExecutionState {
                         }
                     }
                     else {
-                        console.log('TURBIO');
                         return this
-                            .withParent(this.withAnimation({ type: 'fading_in_from_child', return_address: this.animation.input_address }))
-                            .withAnimation({
-                                type: 'fading_out_to_parent', parent_address: this.animation.input_address, child_address: this.animation.input_address,
-                            }).withInput(result);
+                            .withAnimation({ type: 'skipping_child_computation', return_address: this.animation.input_address })
+                            .withInput(result);
+                    }
+                }
+                else if (skipped_fn_result !== null) {
+                    if (match_case.next === 'return') {
+                        return this
+                            .withParent(this.withAnimation({ type: 'breaking_to_tail_optimization' }))
+                            .withAnimation({ type: 'skipping_computation', source_address: input_address })
+                            .withInput(skipped_fn_result);
+                    }
+                    else {
+                        return this
+                            .withParent(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }))
+                            .withAnimation({ type: 'skipping_computation', source_address: input_address })
+                            .withInput(skipped_fn_result);
                     }
                 }
                 else {
-                    const input_address = this.animation.input_address;
-                    const match_case = getCaseAt(this.fnk, input_address);
-                    const fn_name = assertLiteral(match_case.fn_name_template);
                     const next_fnk = all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (next_fnk === undefined) {
                         return { type: 'failure', reason: `Can't find function of name: ${sexprToString(fn_name)}` };
@@ -447,17 +478,16 @@ export class ExecutionState {
                     thing.next.forEach((asdf, j) => {
                         const aaa = offsetView(main_view, new Vec2(lerp(12, -8, anim_t), 12 + 18 * j));
                         drawer.drawPattern(asdf.pattern, aaa);
-                        drawer.ctx.beginPath();
-                        drawer.ctx.strokeStyle = 'black';
-                        drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
-                        drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
-                        drawer.lineTo(offsetView(aaa, new Vec2(12, 4)).pos);
-                        drawer.ctx.stroke();
+                        drawer.line(aaa, [
+                            new Vec2(3, j === 0 ? -12 : -14),
+                            new Vec2(3, 4),
+                            new Vec2(12, 4),
+                        ]);
                     });
                 }
                 break;
             }
-            case 'fading_in_from_parent':
+            case 'fading_in_from_parent': {
                 if (this.parent === null) throw new Error('unreachable');
                 this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
                 drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
@@ -476,6 +506,27 @@ export class ExecutionState {
                     ]);
                 });
                 break;
+            }
+            case 'skipping_computation': {
+                if (this.parent === null) throw new Error('unreachable');
+                this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
+                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+                drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                    rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
+                    rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
+                    anim_t));
+                this.fnk.cases.forEach((v, k) => {
+                    const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
+                    drawCase(drawer, v, aaa);
+
+                    drawer.line(aaa, [
+                        new Vec2(-9, k === 0 ? -12 : -14),
+                        new Vec2(-9, 4),
+                        new Vec2(12, 4),
+                    ]);
+                });
+                break;
+            }
             case 'fading_out_to_parent': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
                 drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
@@ -497,17 +548,39 @@ export class ExecutionState {
                     thing.next.forEach((asdf, j) => {
                         const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
                         drawer.drawPattern(asdf.pattern, offsetView(aaa, new Vec2(anim_t * 12, 0)));
-                        drawer.ctx.beginPath();
-                        drawer.ctx.strokeStyle = 'black';
-                        drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
-                        drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
-                        drawer.lineTo(offsetView(aaa, new Vec2(12 + anim_t * 12, 4)).pos);
-                        drawer.ctx.stroke();
+                        drawer.line(aaa, [
+                            new Vec2(3, j === 0 ? -12 : -14),
+                            new Vec2(3, 4),
+                            new Vec2(12 + anim_t * 12, 4),
+                        ]);
                     });
                 }
-
                 break;
             }
+            // case 'skipping_child_computation': {
+            //     this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+            //     drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+            //     drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(lerp(32, 0, anim_t), 0)));
+
+            //     drawer.line(main_view, [
+            //         new Vec2(lerp(30, -2, anim_t), 0),
+            //         new Vec2(-50, 0),
+            //     ]);
+
+            //     const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
+            //     if (thing.next !== 'return') {
+            //         thing.next.forEach((asdf, j) => {
+            //             const aaa = offsetView(main_view, new Vec2(lerp(12, 4, anim_t), 12 + 18 * j));
+            //             drawer.drawPattern(asdf.pattern, offsetView(aaa, new Vec2(0, 0)));
+            //             drawer.line(aaa, [
+            //                 new Vec2(lerp(3, -9, anim_t), j === 0 ? -12 : -14),
+            //                 new Vec2(lerp(3, -9, anim_t), 4),
+            //                 new Vec2(lerp(12, 12, anim_t), 4),
+            //             ]);
+            //         });
+            //     }
+            //     break;
+            // }
             case 'waiting_for_child': {
                 main_view = offsetView(main_view, new Vec2(-14, 0));
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
