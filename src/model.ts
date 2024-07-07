@@ -559,12 +559,11 @@ function allVariableNames(thing: SexprTemplate): string[] {
         case 'atom':
             return [];
         case 'pair':
-            return [...allVariableNames(thing.left), ...allVariableNames(thing.left)];
+            return [...allVariableNames(thing.right), ...allVariableNames(thing.left)];
     }
 }
 
 function newVariableName(taken: string[]): string {
-    console.log(taken);
     let k = 0;
     let name = k.toString();
     while (taken.includes(name)) {
