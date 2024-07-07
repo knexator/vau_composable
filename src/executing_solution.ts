@@ -4,7 +4,7 @@ import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, eqArrays, last, subdivideT } from './kommon/kommon';
 import { lerp, remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
@@ -681,14 +681,6 @@ export class ExecutingSolution {
         };
         return view;
     }
-}
-
-function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
-    const falseAtom: SexprLiteral = { type: 'atom', value: 'false' };
-    const trueAtom: SexprLiteral = { type: 'atom', value: 'true' };
-    if (input.type === 'atom') return falseAtom;
-    if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
-    return (input.left.value === input.right.value) ? trueAtom : falseAtom;
 }
 
 function nextMatchCaseSibling(thing: MatchCaseAddress): MatchCaseAddress {

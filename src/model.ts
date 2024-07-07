@@ -194,6 +194,7 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
 
 export function applyFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
     if (fnk_name.type === 'atom' && fnk_name.value === 'identity') return argument;
+    if (fnk_name.type === 'atom' && fnk_name.value === 'eqAtoms?') return builtIn_eqAtoms(argument);
     const fnk = findFunktion(all_fnks, fnk_name);
     return applyMatchOptions(all_fnks, fnk.cases, argument, []);
 }
@@ -577,4 +578,12 @@ export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress
     const siblings = address.length === 1 ? fnk.cases : getCaseAt(fnk, address.slice(0, -1)).next;
     if (siblings === 'return') throw new Error('unreachable');
     return siblings.slice(at(address, -1));
+}
+
+export function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
+    const falseAtom: SexprLiteral = { type: 'atom', value: 'false' };
+    const trueAtom: SexprLiteral = { type: 'atom', value: 'true' };
+    if (input.type === 'atom') return falseAtom;
+    if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
+    return (input.left.value === input.right.value) ? trueAtom : falseAtom;
 }
