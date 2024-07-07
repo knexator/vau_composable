@@ -16,7 +16,7 @@ type ExecutionAnimationState =
     | { type: 'dissolve_bindings', bindings: FloatingBinding[], input_address: MatchCaseAddress }
     | { type: 'fading_out_to_child', return_address: MatchCaseAddress }
     | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
-    | { type: 'skipping_computation', source_address: MatchCaseAddress } // fading in and also skipping computation
+    | { type: 'skipping_computation', source_address: MatchCaseAddress, old_input: SexprLiteral } // fading in and also skipping computation
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
     | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
     | { type: 'waiting_for_child', return_address: MatchCaseAddress }
@@ -106,85 +106,61 @@ export class ExecutionState {
                 }
             }
             case 'skipping_computation': {
-                // if (this.parent === null) throw new Error('unreachable');
-                // return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
-
                 if (this.parent === null || (this.parent.animation.type !== 'fading_out_to_child' && this.parent.animation.type !== 'breaking_to_tail_optimization')) throw new Error('unreachable');
 
                 // TODO: fix this
                 if (this.parent.animation.type === 'breaking_to_tail_optimization') {
-                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
-                        .withParent(this.parent.parent);
+                    if (this.parent.parent === null) {
+                        return { type: 'success', result: this.input };
+                    }
+                    if (this.parent.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
+                    return this
+                        .withAnimation({
+                            type: 'fading_out_to_parent',
+                            parent_address: this.parent.parent.animation.return_address,
+                            child_address: this.animation.source_address
+                        })
+                        .withParent(this.parent.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.parent.animation.return_address }));
                 }
                 else {
-                    return this.withAnimation({ type: 'input_moving_to_next_option', target: [0] })
-                        .withParent(this.parent.withAnimation({ type: 'waiting_for_child', return_address: this.parent.animation.return_address }));
+                    if (this.parent.animation.type !== 'fading_out_to_child') throw new Error('unreachable');
+
+                    return this
+                        .withAnimation({
+                            type: 'fading_out_to_parent',
+                            parent_address: this.parent.animation.return_address,
+                            child_address: this.animation.source_address,
+                        })
+                        .withParent(this.parent.withAnimation({
+                            type: 'fading_in_from_child',
+                            return_address: this.parent.animation.return_address,
+                        }));
                 }
             }
             case 'dissolve_bindings': {
                 const input_address = this.animation.input_address;
                 const match_case = getCaseAt(this.fnk, input_address);
                 const fn_name = assertLiteral(match_case.fn_name_template);
-                const skipped_fn_result: SexprLiteral | null = equalSexprs(fn_name, { type: 'atom', value: 'identity' })
-                    ? this.input
-                    : null;
-                if (false && equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
-                    if (match_case.next === 'return') {
-                        if (this.parent === null) {
-                            // OJO: unchecked
-                            return { type: 'success', result: this.input };
-                        }
-                        else {
-                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
-                            return new ExecutionState(this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }), this.fnk, this.collapsed, this.matched, this.input,
-                                { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
-                        }
-                    }
-                    else {
-                        // return this.withAnimation({ type: 'skipping_child_computation', return_address: this.animation.input_address });
-
-                        console.log('TURBIO');
-                        // return this.withAnimation({ type: 'input_moving_to_next_option', target: [...this.animation.input_address, 0] });
-                        return this
-                            .withParent(this.withAnimation({ type: 'fading_in_from_child', return_address: this.animation.input_address }))
-                            .withAnimation({
-                                type: 'fading_out_to_parent', parent_address: this.animation.input_address, child_address: this.animation.input_address,
-                            });
-                    }
-                }
-                else if (equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })) {
-                    const result = builtIn_eqAtoms(this.input);
-                    if (match_case.next === 'return') {
-                        if (this.parent === null) {
-                            // OJO: unchecked
-                            return { type: 'success', result: this.input };
-                        }
-                        else {
-                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
-                            return new ExecutionState(
-                                this.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.animation.return_address }),
-                                this.fnk, this.collapsed, this.matched, result,
-                                { type: 'fading_out_to_parent', parent_address: this.parent.animation.return_address, child_address: this.animation.input_address });
-                        }
-                    }
-                    else {
-                        return this
-                            .withAnimation({ type: 'skipping_child_computation', return_address: this.animation.input_address })
-                            .withInput(result);
-                    }
-                }
-                else if (skipped_fn_result !== null) {
+                const skipped_fn_result: SexprLiteral | null =
+                    equalSexprs(fn_name, { type: 'atom', value: 'identity' })
+                        ? this.input
+                        : equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })
+                            ? builtIn_eqAtoms(this.input)
+                            : null;
+                if (skipped_fn_result !== null) {
                     if (match_case.next === 'return') {
                         return this
                             .withParent(this.withAnimation({ type: 'breaking_to_tail_optimization' }))
-                            .withAnimation({ type: 'skipping_computation', source_address: input_address })
-                            .withInput(skipped_fn_result);
+                            .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
+                            .withInput(skipped_fn_result)
+                            .withFakeFnk(fn_name);
                     }
                     else {
                         return this
                             .withParent(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }))
-                            .withAnimation({ type: 'skipping_computation', source_address: input_address })
-                            .withInput(skipped_fn_result);
+                            .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
+                            .withInput(skipped_fn_result)
+                            .withFakeFnk(fn_name);
                     }
                 }
                 else {
@@ -247,8 +223,12 @@ export class ExecutionState {
                 }
             }
             default:
-                throw new Error('unhandled');
+                throw new Error(`unhandled: ${this.animation.type}`);
         }
+    }
+
+    private withFakeFnk(fn_name: SexprLiteral): ExecutionState | ExecutionResult {
+        return new ExecutionState(this.parent, { name: fn_name, cases: [] }, this.collapsed, this.matched, this.input, this.animation);
     }
 
     private withAnimation(new_animation: ExecutionAnimationState): ExecutionState {
@@ -510,21 +490,41 @@ export class ExecutionState {
             case 'skipping_computation': {
                 if (this.parent === null) throw new Error('unreachable');
                 this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
-                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
-                drawer.drawMolecule(this.fnk.name, lerpSexprView(
-                    rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
-                    rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
-                    anim_t));
-                this.fnk.cases.forEach((v, k) => {
-                    const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
-                    drawCase(drawer, v, aaa);
+                drawer.line(main_view, [
+                    new Vec2(30, 0),
+                    new Vec2(-50, 0),
+                ]);
+                const old_input = this.animation.old_input;
+                subdivideT(anim_t, [
+                    [0, .25, t => {
+                        drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
+                        drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                            rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
+                            rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
+                            t));
+                    }],
+                    [.25, 1, t => {
+                        if (t < .5) {
+                            drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
+                        } else {
+                            drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32, 0)));
+                        }
+                        drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                            rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
+                            rotateAndScaleView(offsetView(main_view, new Vec2(46, 4)), -1 / 4, 1),
+                            t));
+                    }],
+                ]);
 
-                    drawer.line(aaa, [
-                        new Vec2(-9, k === 0 ? -12 : -14),
-                        new Vec2(-9, 4),
-                        new Vec2(12, 4),
-                    ]);
-                });
+                // if (anim_t < .5) {
+                //     drawer.drawMolecule(this.animation.old_input, offsetView(main_view, new Vec2(32, 0)));
+                // } else {
+                //     drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32, 0)));
+                // }
+                // drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                //     rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
+                //     rotateAndScaleView(offsetView(main_view, new Vec2(45, 4)), -1 / 4, 1),
+                //     anim_t));
                 break;
             }
             case 'fading_out_to_parent': {
