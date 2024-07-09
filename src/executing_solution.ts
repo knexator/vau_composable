@@ -118,7 +118,7 @@ export class ExecutionState {
                         .withAnimation({
                             type: 'fading_out_to_parent',
                             parent_address: this.parent.parent.animation.return_address,
-                            child_address: this.animation.source_address
+                            child_address: this.animation.source_address,
                         })
                         .withParent(this.parent.parent.withAnimation({ type: 'fading_in_from_child', return_address: this.parent.parent.animation.return_address }));
                 }
@@ -141,12 +141,11 @@ export class ExecutionState {
                 const input_address = this.animation.input_address;
                 const match_case = getCaseAt(this.fnk, input_address);
                 const fn_name = assertLiteral(match_case.fn_name_template);
-                const skipped_fn_result: SexprLiteral | null =
-                    equalSexprs(fn_name, { type: 'atom', value: 'identity' })
-                        ? this.input
-                        : equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })
-                            ? builtIn_eqAtoms(this.input)
-                            : null;
+                const skipped_fn_result: SexprLiteral | null = equalSexprs(fn_name, { type: 'atom', value: 'identity' })
+                    ? this.input
+                    : equalSexprs(fn_name, { type: 'atom', value: 'eqAtoms?' })
+                        ? builtIn_eqAtoms(this.input)
+                        : null;
                 if (skipped_fn_result !== null) {
                     if (match_case.next === 'return') {
                         return this
@@ -496,17 +495,18 @@ export class ExecutionState {
                 ]);
                 const old_input = this.animation.old_input;
                 subdivideT(anim_t, [
-                    [0, .25, t => {
+                    [0, 0.25, (t) => {
                         drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
                         drawer.drawMolecule(this.fnk.name, lerpSexprView(
                             rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                             rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
                             t));
                     }],
-                    [.25, 1, t => {
-                        if (t < .5) {
+                    [0.25, 1, (t) => {
+                        if (t < 0.5) {
                             drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
-                        } else {
+                        }
+                        else {
                             drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32, 0)));
                         }
                         drawer.drawMolecule(this.fnk.name, lerpSexprView(

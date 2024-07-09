@@ -1258,8 +1258,13 @@ export function rotateAndScaleView(view: SexprView, turns: number, scale: number
 function patternForCable(variable_names: string[]): CanvasPattern {
     const canvas = document.createElement('canvas');
     const ctx = assertNotNull(canvas.getContext('2d'));
-    ctx.fillStyle = 'black';
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (variable_names.length === 0) {
+        canvas.width = 10;
+        canvas.height = 10;
+        ctx.fillStyle = 'black';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return assertNotNull(ctx.createPattern(canvas, 'repeat'));
+    }
     const w = 10;
     canvas.width = variable_names.length * w;
     canvas.height = 20;

@@ -295,8 +295,8 @@ export class EditingSolution {
                 // pick up
                 this.mouse_holding = cloneSexpr(this.getValueAtMouseLocation(this.mouse_location));
             }
-            else if (this.mouse_location !== null && 
-                (mouse.wasPressed(MouseButton.Middle) || keyboard.wasPressed(KeyCode.Enter))) {
+            else if (this.mouse_location !== null
+                && (mouse.wasPressed(MouseButton.Middle) || keyboard.wasPressed(KeyCode.Enter))) {
                 // go to function
                 const name = this.getValueAtMouseLocation(this.mouse_location);
                 if (isLiteral(name)) {

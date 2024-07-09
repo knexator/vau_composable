@@ -150,8 +150,8 @@ if (import.meta.hot) {
         // cur_thing = import.meta.hot.data.cur_thing;
         const old_thing = import.meta.hot.data.cur_thing as ExecutingSolution;
         if (old_thing.constructor.name == 'ExecutingSolution') {
-            console.log('stuff')
-            cur_thing = old_thing as ExecutingSolution;
+            console.log('stuff');
+            cur_thing = old_thing;
             Object.setPrototypeOf(cur_thing, ExecutingSolution.prototype);
             // cur_thing = Object.assign(new ExecutingSolution(), old_thing);
 
