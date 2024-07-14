@@ -69,6 +69,17 @@ export function* pairwise<T>(arr: Iterable<T>): Generator<[T, T], void, void> {
     }
 }
 
+export function* enumerate<T>(array: Iterable<T>): Generator<[number, T]> {
+    const iterator = array[Symbol.iterator]();
+    let k = 0;
+    while (true) {
+        const next = iterator.next();
+        if (next.done ?? false) return;
+        yield [k, next.value];
+        k += 1;
+    }
+}
+
 export function* zip2<T, S>(array1: Iterable<T>, array2: Iterable<S>): Generator<[T, S]> {
     const iterator1 = array1[Symbol.iterator]();
     const iterator2 = array2[Symbol.iterator]();
