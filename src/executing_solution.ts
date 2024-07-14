@@ -2,7 +2,7 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, eqArrays, last, subdivideT } from './kommon/kommon';
+import { assertNotNull, enumerate, eqArrays, last, subdivideT, zip2 } from './kommon/kommon';
 import { lerp, remap } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames } from './model';
 
@@ -30,6 +30,7 @@ export class ExecutionState {
         private matched: MatchedInput[],
         private input: SexprLiteral,
         private animation: ExecutionAnimationState,
+        public original_fnk: FunktionDefinition = structuredClone(fnk),
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): ExecutionState {
@@ -281,8 +282,9 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.target);
-                next.forEach((v, k) => {
-                    drawCase(drawer, v, offsetView(main_view,
+                const next_original = getCasesAfter(this.original_fnk, this.animation.target);
+                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
+                    drawCase(drawer, [v, v_original], offsetView(main_view,
                         k === 0
                             ? new Vec2(4, 12 * (1 - anim_t))
                             : new Vec2(4, 12 + 18 * (k - anim_t))));
@@ -301,7 +303,7 @@ export class ExecutionState {
                             new Vec2(16, -2 + (k - anim_t + 1) * 18),
                         ]);
                     }
-                });
+                };
                 break;
             }
             case 'failing_to_match': {
@@ -313,9 +315,10 @@ export class ExecutionState {
                     new Vec2(-2, 0),
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.which);
-                next.forEach((v, k) => {
+                const next_original = getCasesAfter(this.original_fnk, this.animation.which);
+                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
                     if (k === 0) {
-                        drawCase(drawer, v, offsetView(main_view,
+                        drawCase(drawer, [v, v_original], offsetView(main_view,
                             subdivideT(anim_t, [
                                 [0, 0.5, t => new Vec2(4 - t * 4, 0)],
                                 [0.5, 1, t => new Vec2(0, -t * 12)],
@@ -323,7 +326,7 @@ export class ExecutionState {
                         ));
                     }
                     else {
-                        drawCase(drawer, v, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
+                        drawCase(drawer, [v, v_original], offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
                     }
 
                     if (k === 0) {
@@ -347,7 +350,7 @@ export class ExecutionState {
                             new Vec2(16, -2 + (k - 1 + 1) * 18),
                         ]);
                     }
-                });
+                };
                 break;
             }
             case 'matching': {
@@ -365,27 +368,29 @@ export class ExecutionState {
                     new Vec2(12, 4),
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.which);
-                next.forEach((v, k) => {
+                const next_original = getCasesAfter(this.original_fnk, this.animation.which);
+                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
                     if (k === 0) {
-                        drawCase(drawer, v, offsetView(main_view, new Vec2(4 - anim_t * 4, 0)));
+                        drawCase(drawer, [v, v_original], offsetView(main_view, new Vec2(4 - anim_t * 4, 0)));
                         if (v.next !== 'return') {
-                            v.next.forEach((asdf, j) => {
+                            if (v_original.next === 'return') throw new Error('unreachable');
+                            for (const [j, [asdf, asdf_original]] of enumerate(zip2(v.next, v_original.next))) {
                                 const aaa = offsetView(main_view, new Vec2(16 - anim_t * 4, 12 + 18 * j));
-                                drawCase(drawer, asdf, aaa);
+                                drawCase(drawer, [asdf, asdf_original], aaa);
                                 drawer.ctx.beginPath();
                                 drawer.ctx.strokeStyle = 'black';
                                 drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
                                 drawer.lineTo(offsetView(aaa, new Vec2(3, 4)).pos);
                                 drawer.lineTo(offsetView(aaa, new Vec2(12, 4)).pos);
                                 drawer.ctx.stroke();
-                            });
+                            };
                         }
                     }
                     else {
-                        drawCase(drawer, v, offsetView(main_view,
+                        drawCase(drawer, [v, v_original], offsetView(main_view,
                             new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t))));
                     }
-                });
+                }
                 break;
             }
             case 'floating_bindings': {
@@ -399,17 +404,19 @@ export class ExecutionState {
                 ]);
 
                 const v = getCaseAt(this.fnk, this.animation.next_input_address);
-                drawCase(drawer, v, main_view);
+                const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
+                drawCase(drawer, [v, v_original], main_view);
                 if (v.next !== 'return') {
-                    v.next.forEach((asdf, j) => {
+                    if (v_original.next === 'return') throw new Error('unreachable');
+                    for (const [j, [asdf, asdf_original]] of enumerate(zip2(v.next, v_original.next))) {
                         const aaa = offsetView(main_view, new Vec2(12, 12 + 18 * j));
-                        drawCase(drawer, asdf, aaa);
+                        drawCase(drawer, [asdf, asdf_original], aaa);
                         drawer.line(aaa, [
                             new Vec2(3, j === 0 ? -12 : -14),
                             new Vec2(3, 4),
                             new Vec2(12, 4),
                         ]);
-                    });
+                    }
                 }
 
                 this.animation.bindings.forEach((x) => {
@@ -474,16 +481,16 @@ export class ExecutionState {
                     rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                     rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
                     anim_t));
-                this.fnk.cases.forEach((v, k) => {
+                for (const [k, [v, v_original]] of enumerate(zip2(this.fnk.cases, this.original_fnk.cases))) {
                     const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
-                    drawCase(drawer, v, aaa);
+                    drawCase(drawer, [v, v_original], aaa);
 
                     drawer.line(aaa, [
                         new Vec2(-9, k === 0 ? -12 : -14),
                         new Vec2(-9, 4),
                         new Vec2(12, 4),
                     ]);
-                });
+                };
                 break;
             }
             case 'skipping_computation': {
@@ -629,11 +636,11 @@ export class ExecutingSolution {
     public speed: number = 1;
     constructor(
         private all_fnks: FunktionDefinition[],
-        original_fnk: FunktionDefinition,
+        private original_fnk: FunktionDefinition,
         original_input: SexprLiteral,
         private original_editing: EditingSolution,
     ) {
-        this.cur_execution_state = ExecutionState.init(original_fnk, original_input);
+        this.cur_execution_state = ExecutionState.init(structuredClone(original_fnk), original_input);
         this.anim_t = 0;
     }
 
@@ -646,6 +653,7 @@ export class ExecutingSolution {
             this.anim_t -= 1;
             const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
             if (next_state instanceof ExecutionState) {
+                next_state.original_fnk = this.original_fnk;
                 this.cur_execution_state = next_state;
             }
             else {
@@ -719,9 +727,10 @@ export class AfterExecutingSolution {
     }
 }
 
-function drawCase(drawer: Drawer, v: MatchCaseDefinition, view: SexprView) {
+function drawCase(drawer: Drawer, [v, v_original]: [MatchCaseDefinition, MatchCaseDefinition], view: SexprView) {
     drawer.drawPattern(v.pattern, view);
     drawer.drawMolecule(v.template, offsetView(view, new Vec2(32, 0)));
+    drawer.drawMolecule(v_original.template, offsetView(view, new Vec2(32, 0)));
     drawer.drawMolecule(v.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
 
     drawer.line(view, [
@@ -729,7 +738,7 @@ function drawCase(drawer: Drawer, v: MatchCaseDefinition, view: SexprView) {
         new Vec2(30, 0),
     ]);
 
-    drawer.drawCable(view, allVariableNames(v.pattern), [
+    drawer.drawCable(view, allVariableNames(v_original.template), [
         new Vec2(14, 0),
         new Vec2(30, 0),
     ]);
