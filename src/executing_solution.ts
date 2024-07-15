@@ -1,9 +1,9 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, enumerate, eqArrays, last, subdivideT, zip2 } from './kommon/kommon';
-import { lerp, remap } from './kommon/math';
+import { assertNotNull, enumerate, eqArrays, last, subdivideT, zip2, zip3 } from './kommon/kommon';
+import { clamp01, in01, lerp, remap } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
@@ -60,6 +60,8 @@ export class ExecutionState {
 
     // TODO: these parameters are a code smell
     next(all_fnks: FunktionDefinition[], main_view: SexprView, global_t: number): ExecutionState | ExecutionResult {
+        // console.log(this.collapsed.main);
+        // console.log(this.collapsed.inside.map(x => x.main.collapsed).join(','));
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
@@ -285,8 +287,9 @@ export class ExecutionState {
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.target);
                 const next_original = getCasesAfter(this.original_fnk, this.animation.target);
-                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
-                    drawCase(drawer, [v, v_original], offsetView(main_view,
+                const next_collaped = getCollapsedAfter(this.collapsed, this.animation.target);
+                for (const [k, [v, v_original, collapse]] of enumerate(zip3(next, next_original, next_collaped))) {
+                    drawCase(drawer, global_t, [v, v_original, collapse], offsetView(main_view,
                         k === 0
                             ? new Vec2(4, 12 * (1 - anim_t))
                             : new Vec2(4, 12 + 18 * (k - anim_t))));
@@ -318,9 +321,10 @@ export class ExecutionState {
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.which);
                 const next_original = getCasesAfter(this.original_fnk, this.animation.which);
-                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
+                const next_collaped = getCollapsedAfter(this.collapsed, this.animation.which);
+                for (const [k, [v, v_original, collapse]] of enumerate(zip3(next, next_original, next_collaped))) {
                     if (k === 0) {
-                        drawCase(drawer, [v, v_original], offsetView(main_view,
+                        drawCase(drawer, global_t, [v, v_original, collapse], offsetView(main_view,
                             subdivideT(anim_t, [
                                 [0, 0.5, t => new Vec2(4 - t * 4, 0)],
                                 [0.5, 1, t => new Vec2(0, -t * 12)],
@@ -328,7 +332,7 @@ export class ExecutionState {
                         ));
                     }
                     else {
-                        drawCase(drawer, [v, v_original], offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
+                        drawCase(drawer, global_t, [v, v_original, collapse], offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
                     }
 
                     if (k === 0) {
@@ -371,14 +375,15 @@ export class ExecutionState {
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.which);
                 const next_original = getCasesAfter(this.original_fnk, this.animation.which);
-                for (const [k, [v, v_original]] of enumerate(zip2(next, next_original))) {
+                const next_collaped = getCollapsedAfter(this.collapsed, this.animation.which);
+                for (const [k, [v, v_original, collapse]] of enumerate(zip3(next, next_original, next_collaped))) {
                     if (k === 0) {
-                        drawCase(drawer, [v, v_original], offsetView(main_view, new Vec2(4 - anim_t * 4, 0)));
+                        drawCase(drawer, global_t, [v, v_original, collapse], offsetView(main_view, new Vec2(4 - anim_t * 4, 0)));
                         if (v.next !== 'return') {
                             if (v_original.next === 'return') throw new Error('unreachable');
-                            for (const [j, [asdf, asdf_original]] of enumerate(zip2(v.next, v_original.next))) {
+                            for (const [j, [asdf, asdf_original, asdf_collapse]] of enumerate(zip3(v.next, v_original.next, collapse.inside))) {
                                 const aaa = offsetView(main_view, new Vec2(16 - anim_t * 4, 12 + 18 * j));
-                                drawCase(drawer, [asdf, asdf_original], aaa);
+                                drawCase(drawer, global_t, [asdf, asdf_original, asdf_collapse], aaa);
                                 drawer.ctx.beginPath();
                                 drawer.ctx.strokeStyle = 'black';
                                 drawer.moveTo(offsetView(aaa, new Vec2(3, j === 0 ? -12 : -14)).pos);
@@ -389,7 +394,7 @@ export class ExecutionState {
                         }
                     }
                     else {
-                        drawCase(drawer, [v, v_original], offsetView(main_view,
+                        drawCase(drawer, global_t, [v, v_original, collapse], offsetView(main_view,
                             new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t))));
                     }
                 }
@@ -407,12 +412,13 @@ export class ExecutionState {
 
                 const v = getCaseAt(this.fnk, this.animation.next_input_address);
                 const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
-                drawCase(drawer, [v, v_original], main_view);
+                const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
+                drawCase(drawer, global_t, [v, v_original, v_collapse], main_view);
                 if (v.next !== 'return') {
                     if (v_original.next === 'return') throw new Error('unreachable');
-                    for (const [j, [asdf, asdf_original]] of enumerate(zip2(v.next, v_original.next))) {
+                    for (const [j, [asdf, asdf_original, asdf_collapse]] of enumerate(zip3(v.next, v_original.next, v_collapse.inside))) {
                         const aaa = offsetView(main_view, new Vec2(12, 12 + 18 * j));
-                        drawCase(drawer, [asdf, asdf_original], aaa);
+                        drawCase(drawer, global_t, [asdf, asdf_original, asdf_collapse], aaa);
                         drawer.line(aaa, [
                             new Vec2(3, j === 0 ? -12 : -14),
                             new Vec2(3, 4),
@@ -483,9 +489,9 @@ export class ExecutionState {
                     rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                     rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
                     anim_t));
-                for (const [k, [v, v_original]] of enumerate(zip2(this.fnk.cases, this.original_fnk.cases))) {
+                for (const [k, [v, v_original, collapse]] of enumerate(zip3(this.fnk.cases, this.original_fnk.cases, this.collapsed.inside))) {
                     const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
-                    drawCase(drawer, [v, v_original], aaa);
+                    drawCase(drawer, global_t, [v, v_original, collapse], aaa);
 
                     drawer.line(aaa, [
                         new Vec2(-9, k === 0 ? -12 : -14),
@@ -729,7 +735,10 @@ export class AfterExecutingSolution {
     }
 }
 
-function drawCase(drawer: Drawer, [v, v_original]: [MatchCaseDefinition, MatchCaseDefinition], view: SexprView) {
+function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed], view: SexprView) {
+    const collapsed_t = clamp01((cur_time - collapsed.main.changedAt) / COLLAPSE_DURATION);
+    const collapse_amount = collapsed.main.collapsed ? collapsed_t : 1 - collapsed_t;
+    view.halfside *= lerp(1, 0.5, collapse_amount);
     drawer.drawPattern(v.pattern, view);
     drawer.drawTemplate(v.template, v_original.template, offsetView(view, new Vec2(32, 0)));
     drawer.drawTemplate(v.fn_name_template, v_original.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));

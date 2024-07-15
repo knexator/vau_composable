@@ -92,6 +92,20 @@ export function* zip2<T, S>(array1: Iterable<T>, array2: Iterable<S>): Generator
     }
 }
 
+export function* zip3<T, S, K>(array1: Iterable<T>, array2: Iterable<S>, array3: Iterable<K>): Generator<[T, S, K]> {
+    const iterator1 = array1[Symbol.iterator]();
+    const iterator2 = array2[Symbol.iterator]();
+    const iterator3 = array3[Symbol.iterator]();
+    while (true) {
+        const next1 = iterator1.next();
+        const next2 = iterator2.next();
+        const next3 = iterator3.next();
+        const done = (next1.done ?? false) || (next2.done ?? false) || (next3.done ?? false);
+        if (done) return;
+        yield [next1.value, next2.value, next3.value];
+    }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function* zip<T extends Array<any>>(
     ...toZip: { [K in keyof T]: Iterable<T[K]> }

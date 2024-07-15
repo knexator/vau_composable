@@ -5,7 +5,7 @@ import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress
 import Rand from 'rand-seed';
 import { Random } from './kommon/random';
 
-const COLLAPSE_DURATION = 0.2;
+export const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
 export type SexprView = { pos: Vec2, halfside: number, turns: number };
 
@@ -893,6 +893,21 @@ export function everythingCollapsedExceptFirsts(cases: MatchCaseDefinition[]): C
         };
     }
     return cases.map(helper);
+}
+
+export function getCollapsedAfter(collapsed_main: Collapsed, address: MatchCaseAddress): Collapsed[] {
+    const siblings = address.length === 1 ? collapsed_main.inside : getCollapseAt(collapsed_main, address.slice(0, -1)).inside;
+    return siblings.slice(at(address, -1));
+}
+
+export function getCollapseAt(collapse: Collapsed, address: MatchCaseAddress): Collapsed {
+    if (address.length === 0) {
+        return collapse;
+    }
+    else {
+        const [head, ...tail] = address;
+        return getCollapseAt(at(collapse.inside, head), tail);
+    }
 }
 
 export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress, cur_time: number): Collapsed[] {
