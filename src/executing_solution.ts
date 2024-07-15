@@ -113,7 +113,6 @@ export class ExecutionState {
             case 'skipping_computation': {
                 if (this.parent === null || (this.parent.animation.type !== 'fading_out_to_child' && this.parent.animation.type !== 'breaking_to_tail_optimization')) throw new Error('unreachable');
 
-                // TODO: fix this
                 if (this.parent.animation.type === 'breaking_to_tail_optimization') {
                     if (this.parent.parent === null) {
                         return { type: 'success', result: this.input };
@@ -153,18 +152,35 @@ export class ExecutionState {
                         : null;
                 if (skipped_fn_result !== null) {
                     if (match_case.next === 'return') {
-                        return this
+                        if (this.parent === null) {
+                            // TODO: handle final better
+                        }
+                        const res = this
                             .withParent(this.withAnimation({ type: 'breaking_to_tail_optimization' }))
                             .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
                             .withInput(skipped_fn_result)
                             .withFakeFnk(fn_name);
+                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
+                            if (!(res instanceof ExecutionState)) throw new Error('unreachable');
+                            return res.next(all_fnks, main_view, global_t);
+                        }
+                        else {
+                            return res;
+                        }
                     }
                     else {
-                        return this
+                        const res = this
                             .withParent(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }))
                             .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
                             .withInput(skipped_fn_result)
                             .withFakeFnk(fn_name);
+                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
+                            if (!(res instanceof ExecutionState)) throw new Error('unreachable');
+                            return res.next(all_fnks, main_view, global_t);
+                        }
+                        else {
+                            return res;
+                        }
                     }
                 }
                 else {
