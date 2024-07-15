@@ -30,7 +30,8 @@ export class ExecutionState {
         private matched: MatchedInput[],
         private input: SexprLiteral,
         private animation: ExecutionAnimationState,
-        public original_fnk: FunktionDefinition = structuredClone(fnk),
+        // public original_fnk: FunktionDefinition = structuredClone(fnk),
+        public original_fnk: FunktionDefinition,
     ) { }
 
     static init(fnk: FunktionDefinition, input: SexprLiteral): ExecutionState {
@@ -43,6 +44,7 @@ export class ExecutionState {
             { type: 'input_moving_to_next_option', target: [0] },
             // { type: 'failing_to_match', which: [1, 0] },
             // { type: 'matching', which: [1] },
+            structuredClone(fnk),
         );
     }
 
@@ -80,7 +82,7 @@ export class ExecutionState {
                 const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getActualMainView(main_view), this.collapsed);
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
                 const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
-                    { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which });
+                    { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which }, this.original_fnk);
                 if (bindings.length === 0) {
                     return next_state.next(all_fnks, main_view, global_t);
                     // const asdf = next_state.next(all_fnks, main_view, global_t);
@@ -99,7 +101,7 @@ export class ExecutionState {
                     const new_matched = updateMatchedForMissingTemplate(this.matched, this.animation.next_input_address);
                     const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
                     return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
-                        { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address })
+                        { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address }, this.original_fnk)
                         .next(all_fnks, main_view, global_t);
                 }
                 catch {
@@ -173,12 +175,12 @@ export class ExecutionState {
                         return new ExecutionState(
                             this.withAnimation({ type: 'breaking_to_tail_optimization' }),
                             next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
-                            { type: 'fading_in_from_parent', source_address: input_address });
+                            { type: 'fading_in_from_parent', source_address: input_address }, structuredClone(next_fnk));
                     }
                     else {
                         return new ExecutionState(this.withAnimation({ type: 'fading_out_to_child', return_address: input_address }),
                             next_fnk, fakeCollapsed(everythingCollapsedExceptFirsts(next_fnk.cases)), nothingMatched(next_fnk.cases), this.input,
-                            { type: 'fading_in_from_parent', source_address: input_address });
+                            { type: 'fading_in_from_parent', source_address: input_address }, structuredClone(next_fnk));
                     }
                 }
             }
@@ -228,19 +230,19 @@ export class ExecutionState {
     }
 
     private withFakeFnk(fn_name: SexprLiteral): ExecutionState | ExecutionResult {
-        return new ExecutionState(this.parent, { name: fn_name, cases: [] }, this.collapsed, this.matched, this.input, this.animation);
+        return new ExecutionState(this.parent, { name: fn_name, cases: [] }, this.collapsed, this.matched, this.input, this.animation, { name: fn_name, cases: [] });
     }
 
     private withAnimation(new_animation: ExecutionAnimationState): ExecutionState {
-        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, this.input, new_animation);
+        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, this.input, new_animation, this.original_fnk);
     }
 
     private withInput(new_input: SexprLiteral): ExecutionState {
-        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, new_input, this.animation);
+        return new ExecutionState(this.parent, this.fnk, this.collapsed, this.matched, new_input, this.animation, this.original_fnk);
     }
 
     private withParent(new_parent: ExecutionState | null): ExecutionState {
-        return new ExecutionState(new_parent, this.fnk, this.collapsed, this.matched, this.input, this.animation);
+        return new ExecutionState(new_parent, this.fnk, this.collapsed, this.matched, this.input, this.animation, this.original_fnk);
     }
 
     private getActualMainView(main_view: SexprView): SexprView {
@@ -275,8 +277,8 @@ export class ExecutionState {
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.input, main_view);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawMoleculePlease(this.input, main_view);
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
@@ -308,8 +310,8 @@ export class ExecutionState {
             }
             case 'failing_to_match': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.input, main_view);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawMoleculePlease(this.input, main_view);
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
                 drawer.line(main_view, [
                     new Vec2(-50, 0),
                     new Vec2(-2, 0),
@@ -355,8 +357,8 @@ export class ExecutionState {
             }
             case 'matching': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.input, main_view);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawMoleculePlease(this.input, main_view);
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
@@ -395,9 +397,9 @@ export class ExecutionState {
             }
             case 'floating_bindings': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.input, main_view);
+                drawer.drawMoleculePlease(this.input, main_view);
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
 
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
@@ -420,7 +422,7 @@ export class ExecutionState {
                 }
 
                 this.animation.bindings.forEach((x) => {
-                    // TODO: draw all bindings
+                    // TODO: draw all bindings // later: huh?
                     // TODO: bindings for rotated targets
                     if (eqArrays(x.target_address.major, x.source_address.major)) {
                         // if (x.target_address.major.length <= 1) {
@@ -432,8 +434,8 @@ export class ExecutionState {
                                 offsetView(main_view, new Vec2(32, 0)),
                                 x.target_address.minor),
                             anim_t);
-                        drawer.drawPattern({ type: 'variable', value: x.variable_name }, cur_view);
-                        drawer.drawMolecule(x.value, cur_view);
+                        // drawer.drawMoleculePlease(x.value, cur_view);
+                        drawer.drawTemplate(x.value, { type: 'variable', value: x.variable_name }, cur_view);
                     }
                 }, this);
                 // this.animation.bindings
@@ -447,7 +449,7 @@ export class ExecutionState {
             case 'fading_out_to_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * anim_t, 0));
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
                 const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
 
                 drawer.line(main_view, [
@@ -476,8 +478,8 @@ export class ExecutionState {
             case 'fading_in_from_parent': {
                 if (this.parent === null) throw new Error('unreachable');
                 this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
-                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
-                drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
                     rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                     rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
                     anim_t));
@@ -503,20 +505,20 @@ export class ExecutionState {
                 const old_input = this.animation.old_input;
                 subdivideT(anim_t, [
                     [0, 0.25, (t) => {
-                        drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
-                        drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                        drawer.drawMoleculePlease(old_input, offsetView(main_view, new Vec2(32, 0)));
+                        drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
                             rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                             rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
                             t));
                     }],
                     [0.25, 1, (t) => {
                         if (t < 0.5) {
-                            drawer.drawMolecule(old_input, offsetView(main_view, new Vec2(32, 0)));
+                            drawer.drawMoleculePlease(old_input, offsetView(main_view, new Vec2(32, 0)));
                         }
                         else {
-                            drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32, 0)));
+                            drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32, 0)));
                         }
-                        drawer.drawMolecule(this.fnk.name, lerpSexprView(
+                        drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
                             rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
                             rotateAndScaleView(offsetView(main_view, new Vec2(46, 4)), -1 / 4, 1),
                             t));
@@ -536,7 +538,7 @@ export class ExecutionState {
             }
             case 'fading_out_to_parent': {
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+                drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
 
                 drawer.line(main_view, [
                     new Vec2(30 - 32 * anim_t, 0),
@@ -548,7 +550,7 @@ export class ExecutionState {
             case 'fading_in_from_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
 
                 const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
                 if (thing.next !== 'return') {
@@ -591,7 +593,7 @@ export class ExecutionState {
             case 'waiting_for_child': {
                 main_view = offsetView(main_view, new Vec2(-14, 0));
                 this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
 
                 drawer.line(main_view, [
                     new Vec2(-50, 0),
@@ -636,7 +638,7 @@ export class ExecutingSolution {
     public speed: number = 1;
     constructor(
         private all_fnks: FunktionDefinition[],
-        private original_fnk: FunktionDefinition,
+        original_fnk: FunktionDefinition,
         original_input: SexprLiteral,
         private original_editing: EditingSolution,
     ) {
@@ -653,7 +655,7 @@ export class ExecutingSolution {
             this.anim_t -= 1;
             const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
             if (next_state instanceof ExecutionState) {
-                next_state.original_fnk = this.original_fnk;
+                // next_state.original_fnk = this.original_fnk;
                 this.cur_execution_state = next_state;
             }
             else {
@@ -709,7 +711,7 @@ export class AfterExecutingSolution {
         drawer.ctx.textAlign = 'center';
         if (this.result.type === 'success') {
             drawer.ctx.fillText('Got this result:', screen_size.x * 0.5, screen_size.y * 0.3);
-            drawer.drawMolecule(this.result.result, this.getMainView(drawer.getScreenSize()));
+            drawer.drawMoleculePlease(this.result.result, this.getMainView(drawer.getScreenSize()));
         }
         else {
             drawer.ctx.fillText('Error during execution!', screen_size.x * 0.5, screen_size.y * 0.4);
@@ -729,9 +731,8 @@ export class AfterExecutingSolution {
 
 function drawCase(drawer: Drawer, [v, v_original]: [MatchCaseDefinition, MatchCaseDefinition], view: SexprView) {
     drawer.drawPattern(v.pattern, view);
-    drawer.drawMolecule(v.template, offsetView(view, new Vec2(32, 0)));
-    drawer.drawMolecule(v_original.template, offsetView(view, new Vec2(32, 0)));
-    drawer.drawMolecule(v.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
+    drawer.drawTemplate(v.template, v_original.template, offsetView(view, new Vec2(32, 0)));
+    drawer.drawTemplate(v.fn_name_template, v_original.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
 
     drawer.line(view, [
         new Vec2(14, 0),

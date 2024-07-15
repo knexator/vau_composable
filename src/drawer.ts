@@ -1,5 +1,5 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, DefaultMapExtra, assertNotNull, at, fromCount, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { DefaultMap, DefaultMapExtra, assertNotNull, at, fromCount, or, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, randomFloat, randomInt, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress, allVariableNames } from './model';
 import Rand from 'rand-seed';
@@ -58,7 +58,7 @@ export class Drawer {
 
     drawFunktion(fnk: FunktionDefinition, view: SexprView, collapsed: Collapsed[], cur_time: number, matched: MatchedInput[]): void {
         const unit = view.halfside / 4;
-        this.drawMolecule(fnk.name, {
+        this.drawMoleculePlease(fnk.name, {
             pos: view.pos.add(new Vec2(-unit * 5, -unit * 2).rotateTurns(view.turns)),
             halfside: view.halfside,
             turns: view.turns - 0.25,
@@ -94,41 +94,80 @@ export class Drawer {
         this.drawMatchers(fnk.cases, view, collapsed, cur_time, matched);
     }
 
-    drawMoleculeAndReturnThingUnderMouse(data: SexprTemplate, view: SexprView, mouse_screen_pos: Vec2): { address: SexprAddress, value: SexprTemplate } | null {
-        this.drawMoleculeNonRecursive(data, view);
-        if (data.type === 'pair') {
-            this.drawMolecule(data.left, getSexprChildView(view, true));
-            this.drawMolecule(data.right, getSexprChildView(view, false));
-        }
-        const address = sexprAdressFromScreenPosition(mouse_screen_pos, data, view);
+    // drawMoleculeAndReturnThingUnderMouse(data: SexprTemplate, view: SexprView, mouse_screen_pos: Vec2): { address: SexprAddress, value: SexprTemplate } | null {
+    //     this.drawMoleculeNonRecursive(data, view);
+    //     if (data.type === 'pair') {
+    //         this.drawMolecule(data.left, getSexprChildView(view, true));
+    //         this.drawMolecule(data.right, getSexprChildView(view, false));
+    //     }
+    //     const address = sexprAdressFromScreenPosition(mouse_screen_pos, data, view);
+    //     if (address === null) return null;
+    //     return { address, value: assertNotNull(getAtLocalAddress(data, address)) };
+    // }
+
+    drawTemplateAndReturnThingUnderMouse(cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView, mouse_screen_pos: Vec2): { address: SexprAddress, value: SexprTemplate } | null {
+        this.drawTemplate(cur_data, original_data, view);
+        const address = sexprAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
-        return { address, value: assertNotNull(getAtLocalAddress(data, address)) };
+        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)) };
     }
 
-    drawMolecule(data: SexprNullable, view: SexprView) {
-        this.drawMoleculeNonRecursive(data, view);
-        if (data.type === 'pair') {
-            this.drawMolecule(data.left, getSexprChildView(view, true));
-            this.drawMolecule(data.right, getSexprChildView(view, false));
+    drawMoleculePlease(data: SexprTemplate, view: SexprView) {
+        this.drawTemplate(data, data, view);
+    }
 
-            const vars_left = allVariableNames(data.left);
-            const vars_right = allVariableNames(data.right);
-            if (vars_left.length > 0) {
-                this.drawCable(view, vars_left, [
-                    new Vec2(-2, 0),
-                    new Vec2(0, -2),
-                    new Vec2(1, -2),
-                ]);
+    drawTemplate(cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView) {
+        switch (original_data.type) {
+            case 'atom':
+                if (cur_data.type !== 'atom') throw new Error('unreachable');
+                this.drawMoleculeNonRecursive(original_data, view);
+                break;
+            case 'pair': {
+                if (cur_data.type !== 'pair') throw new Error('unreachable');
+                this.drawMoleculeNonRecursive(cur_data, view);
+                this.drawTemplate(cur_data.left, original_data.left, getSexprChildView(view, true));
+                this.drawTemplate(cur_data.right, original_data.right, getSexprChildView(view, false));
+
+                const vars_left = allVariableNames(original_data.left);
+                const vars_right = allVariableNames(original_data.right);
+                if (vars_left.length > 0) {
+                    this.drawCable(view, vars_left, [
+                        new Vec2(-2, 0),
+                        new Vec2(0, -2),
+                        new Vec2(1, -2),
+                    ]);
+                }
+                if (vars_right.length > 0) {
+                    this.drawCable(view, vars_right, [
+                        new Vec2(-2, 0),
+                        new Vec2(0, 2),
+                        new Vec2(1, 2),
+                    ]);
+                }
+                break;
             }
-            if (vars_right.length > 0) {
-                this.drawCable(view, vars_right, [
-                    new Vec2(-2, 0),
-                    new Vec2(0, 2),
-                    new Vec2(1, 2),
-                ]);
-            }
+            case 'variable':
+                if (cur_data.type === 'variable') {
+                    this.drawMoleculeNonRecursive(original_data, view);
+                }
+                else {
+                    this.drawMoleculePlease(cur_data, view);
+                    this.drawBoundedVariable(original_data.value, view);
+                }
+                break;
+            default:
+                throw new Error('unreachable');
         }
+        // this.drawMoleculeNonRecursive(data, view);
     }
+
+    // drawMolecule(data: SexprNullable, view: SexprView) {
+    //     this.drawMoleculeNonRecursive(data, view);
+    //     if (data.type === 'pair') {
+    //         this.drawMolecule(data.left, getSexprChildView(view, true));
+    //         this.drawMolecule(data.right, getSexprChildView(view, false));
+    //     }
+    // }
 
     drawPattern(data: SexprTemplate, view: SexprView) {
         this.drawPatternNonRecursive(data, view);
@@ -166,8 +205,7 @@ export class Drawer {
     drawBindingsNew(parent_view: SexprView, bindings: FloatingBinding[], t: number, collapsed: Collapsed) {
         bindings.forEach((x) => {
             const cur_view = lerpSexprView(getView(parent_view, x.source_address, collapsed), getView(parent_view, x.target_address, collapsed), t);
-            this.drawPatternNonRecursive({ type: 'variable', value: x.variable_name }, cur_view);
-            this.drawMolecule(x.value, cur_view);
+            this.drawTemplate(x.value, { type: 'variable', value: x.variable_name }, cur_view);
         }, this);
     }
 
@@ -399,7 +437,8 @@ export class Drawer {
         const unit = view.halfside / 4;
 
         if (matched.new_pattern !== null) {
-            this.drawMolecule(matched.new_pattern, {
+            // @ts-expect-error idk why new_pattern might be nullable
+            this.drawMoleculePlease(matched.new_pattern, {
                 pos: view.pos.add(new Vec2(-17, 2).scale(unit).rotateTurns(view.turns)),
                 halfside: view.halfside,
                 turns: view.turns,
@@ -419,10 +458,10 @@ export class Drawer {
         }
 
         if (!matched.missing_template) {
-            this.drawMolecule(match_case.template, view);
+            this.drawMoleculePlease(match_case.template, view);
         }
 
-        this.drawMolecule(match_case.fn_name_template, {
+        this.drawMoleculePlease(match_case.fn_name_template, {
             pos: view.pos.add(new Vec2(-3, -2).scale(unit).rotateTurns(view.turns)),
             halfside: view.halfside / 2,
             turns: view.turns - 0.25,
@@ -578,19 +617,41 @@ export class Drawer {
         this.ctx.lineWidth = 1;
     }
 
+    private drawBoundedVariable(name: string, view: SexprView) {
+        const points = [
+            new Vec2(-view.halfside * SPIKE_PERC, 0),
+            new Vec2(0, -view.halfside),
+            new Vec2(view.halfside * 0.5, -view.halfside),
+            new Vec2(view.halfside * (0.5 - SPIKE_PERC), 0),
+            new Vec2(view.halfside * 0.5, view.halfside),
+            new Vec2(0, view.halfside),
+        ].map(v => v.rotateTurns(view.turns))
+            .map(v => view.pos.add(v));
+        this.ctx.beginPath();
+        this.ctx.fillStyle = colorFromAtom(name).toHex();
+        this.ctx.strokeStyle = 'black';
+        this.moveTo(points[0]);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(points[k]);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
+    }
+
     private drawMoleculeNonRecursive(data: SexprNullable, view: SexprView) {
         if (data.type === 'variable') {
             const points = [
                 new Vec2(-view.halfside * SPIKE_PERC, 0),
                 new Vec2(0, -view.halfside),
-                new Vec2(view.halfside * 1.5, -view.halfside),
-                new Vec2(view.halfside * (1.5 + SPIKE_PERC), 0),
-                new Vec2(view.halfside * 1.5, view.halfside),
+                new Vec2(view.halfside * 0.5, -view.halfside),
+                new Vec2(view.halfside * (0.5 - SPIKE_PERC), 0),
+                new Vec2(view.halfside * 0.5, view.halfside),
                 new Vec2(0, view.halfside),
             ].map(v => v.rotateTurns(view.turns))
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
-            this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
+            this.ctx.fillStyle = colorFromAtom(data.value).toHex();
             this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {
@@ -702,16 +763,16 @@ export class Drawer {
         }
         else {
             const points = [
-                new Vec2(-view.halfside * (SPIKE_PERC - 1.5), 0),
-                new Vec2(view.halfside * 1.5, -view.halfside),
+                new Vec2(-view.halfside * (-SPIKE_PERC - 2.5), 0),
+                new Vec2(view.halfside * 2.5, -view.halfside),
                 new Vec2(view.halfside * 3, -view.halfside),
                 new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
                 new Vec2(view.halfside * 3, view.halfside),
-                new Vec2(view.halfside * 1.5, view.halfside),
+                new Vec2(view.halfside * 2.5, view.halfside),
             ].map(v => v.rotateTurns(view.turns))
                 .map(v => view.pos.add(v));
             this.ctx.beginPath();
-            this.ctx.fillStyle = colorFromAtom(data.value).withAlpha(0.2).toHex(true);
+            this.ctx.fillStyle = colorFromAtom(data.value).toHex();
             this.ctx.strokeStyle = 'black';
             this.moveTo(points[0]);
             for (let k = 1; k < points.length; k++) {

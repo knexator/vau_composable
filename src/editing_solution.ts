@@ -118,18 +118,18 @@ export class EditingSolution {
         }
 
         for (let k = 0; k < 3; k++) {
-            drawer.drawMolecule(this.cells[k], this.getCellView(drawer.getScreenSize(), k));
+            drawer.drawMoleculePlease(this.cells[k], this.getCellView(drawer.getScreenSize(), k));
         }
 
         drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, nothingMatched(this.fnk.cases));
-        drawer.drawMolecule(this.input, main_view);
+        drawer.drawMoleculePlease(this.input, main_view);
 
         for (const { value, view } of this.otherFnks(main_view)) {
-            drawer.drawMolecule(value, view);
+            drawer.drawMoleculePlease(value, view);
         }
 
         for (const { value, view } of this.toolbarThings(main_view)) {
-            drawer.drawMolecule(value, view);
+            drawer.drawMoleculePlease(value, view);
         }
 
         if (this.mouse_holding !== null) {
@@ -138,23 +138,23 @@ export class EditingSolution {
                     // nothing
                 }
                 else if (this.mouse_location.type === 'input') {
-                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(main_view, this.mouse_location.address));
+                    drawer.drawMoleculePlease(this.mouse_holding, getSexprGrandChildView(main_view, this.mouse_location.address));
                 }
                 // TODO: this case wouldnt be needed if getView worked for main fnk name
                 else if (this.mouse_location.type === 'fn_name' && this.mouse_location.major.length === 0) {
-                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(getFnkNameView(main_view), this.mouse_location.minor));
+                    drawer.drawMoleculePlease(this.mouse_holding, getSexprGrandChildView(getFnkNameView(main_view), this.mouse_location.minor));
                 }
                 else if (this.mouse_location.type === 'pattern') {
                     drawer.drawPattern(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
                 else if (this.mouse_location.type === 'cell') {
-                    drawer.drawMolecule(this.mouse_holding, getSexprGrandChildView(this.getCellView(drawer.getScreenSize(), this.mouse_location.cell), this.mouse_location.address));
+                    drawer.drawMoleculePlease(this.mouse_holding, getSexprGrandChildView(this.getCellView(drawer.getScreenSize(), this.mouse_location.cell), this.mouse_location.address));
                 }
                 else {
-                    drawer.drawMolecule(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
+                    drawer.drawMoleculePlease(this.mouse_holding, getView(main_view, this.mouse_location, this.collapsed));
                 }
             }
-            drawer.drawMolecule(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
+            drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
         }
 
         if (this.mouse_location !== null) {
