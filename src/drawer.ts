@@ -1,6 +1,6 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
 import { DefaultMap, DefaultMapExtra, assertNotNull, at, fromCount, or, replace, reversedForEach, single, zip2 } from './kommon/kommon';
-import { in01, inRange, isPointInPolygon, lerp, randomFloat, randomInt, remap } from './kommon/math';
+import { in01, inRange, isPointInPolygon, lerp, mod, randomFloat, randomInt, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress, allVariableNames } from './model';
 import Rand from 'rand-seed';
 import { Random } from './kommon/random';
@@ -1338,15 +1338,23 @@ function patternForCable(variable_names: string[]): CanvasPattern {
         canvas.width = 10;
         canvas.height = 10;
         ctx.fillStyle = 'black';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         return assertNotNull(ctx.createPattern(canvas, 'repeat'));
     }
-    const w = 10;
+    if (variable_names.length === 1) {
+        canvas.width = 10;
+        canvas.height = 10;
+        ctx.fillStyle = colorFromAtom(variable_names[0]).toHex();
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return assertNotNull(ctx.createPattern(canvas, 'repeat'));
+    }
+    const w = 15;
     canvas.width = variable_names.length * w;
-    canvas.height = 20;
-    for (let k = 0; k < variable_names.length; k++) {
-        ctx.fillStyle = colorFromAtom(variable_names[k]).toHex();
-        ctx.fillRect(k * w, 0, 20, 20);
+    canvas.height = w * 4;
+    ctx.transform(1, 0, -0.5, 1, 1, 1);
+    for (let k = 0; k <= variable_names.length * 2; k++) {
+        ctx.fillStyle = colorFromAtom(variable_names[mod(k, variable_names.length)]).toHex();
+        ctx.fillRect(k * w, 0, w, canvas.height);
     }
     return assertNotNull(ctx.createPattern(canvas, 'repeat'));
 }
