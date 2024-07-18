@@ -1350,9 +1350,9 @@ function patternForCable(variable_names: string[]): CanvasPattern {
     }
     const w = 15;
     canvas.width = variable_names.length * w;
-    canvas.height = w * 4;
+    canvas.height = w * 4 * variable_names.length;
     ctx.transform(1, 0, -0.5, 1, 1, 1);
-    for (let k = 0; k <= variable_names.length * 2; k++) {
+    for (let k = 0; k <= variable_names.length * 4; k++) {
         ctx.fillStyle = colorFromAtom(variable_names[mod(k, variable_names.length)]).toHex();
         ctx.fillRect(k * w, 0, w, canvas.height);
     }

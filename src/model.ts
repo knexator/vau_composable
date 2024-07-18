@@ -588,3 +588,17 @@ export function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
     if (input.left.type !== 'atom' || input.right.type !== 'atom') return falseAtom;
     return (input.left.value === input.right.value) ? trueAtom : falseAtom;
 }
+
+export type KnownVariables = { main: string[], inside: KnownVariables[] };
+export function knownVariables(fnk: FunktionDefinition): KnownVariables {
+    function helper(c: MatchCaseDefinition, known_to_parent: string[]): KnownVariables {
+        const cur = [...allVariableNames(c.pattern), ...known_to_parent];
+        if (c.next === 'return') {
+            return { main: cur, inside: [] };
+        }
+        else {
+            return { main: cur, inside: c.next.map(c2 => helper(c2, cur)) };
+        }
+    }
+    return { main: [], inside: fnk.cases.map(c => helper(c, [])) };
+}
