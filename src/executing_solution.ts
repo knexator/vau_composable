@@ -1,10 +1,10 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, OverlappedThing } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, enumerate, eqArrays, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
+import { assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
 import { clamp01, in01, lerp, remap } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress } from './model';
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
 
@@ -290,15 +290,16 @@ export class ExecutionState {
         }
     }
 
-    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Mouse | null) {
+    draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Vec2): OverlappedThing | null {
         // console.log(this.animation.type);
         main_view = offsetView(main_view, new Vec2(24, 0));
+        const overlaps: (OverlappedThing | null)[] = [];
         // drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         switch (this.animation.type) {
             case 'input_moving_to_next_option': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMoleculePlease(this.input, main_view);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
@@ -309,10 +310,10 @@ export class ExecutionState {
                 const next_collaped = getCollapsedAfter(this.collapsed, this.animation.target);
                 const next_names = getNamesAfter(knownVariables(this.original_fnk), this.animation.target);
                 for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    drawCase(drawer, global_t, stuff, offsetView(main_view,
+                    overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
                         k === 0
                             ? new Vec2(4, 12 * (1 - anim_t))
-                            : new Vec2(4, 12 + 18 * (k - anim_t))));
+                            : new Vec2(4, 12 + 18 * (k - anim_t)))));
 
                     if (k === 0) {
                         drawer.drawCable(main_view, names, [
@@ -332,9 +333,9 @@ export class ExecutionState {
                 break;
             }
             case 'failing_to_match': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMoleculePlease(this.input, main_view);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
                 drawer.line(main_view, [
                     new Vec2(-50, 0),
                     new Vec2(-2, 0),
@@ -347,15 +348,15 @@ export class ExecutionState {
                 const next_names = getNamesAfter(knownVariables(this.original_fnk), this.animation.which);
                 for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
                     if (k === 0) {
-                        drawCase(drawer, global_t, stuff, offsetView(main_view,
+                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
                             subdivideT(anim_t, [
                                 [0, 0.5, t => new Vec2(4 - t * 4, 0)],
                                 [0.5, 1, t => new Vec2(0, -t * 12)],
                             ]),
-                        ));
+                        )));
                     }
                     else {
-                        drawCase(drawer, global_t, stuff, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))));
+                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1)))));
                     }
 
                     if (k === 0) {
@@ -383,9 +384,9 @@ export class ExecutionState {
                 break;
             }
             case 'matching': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMoleculePlease(this.input, main_view);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
@@ -404,21 +405,21 @@ export class ExecutionState {
                 for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
                     if (k === 0) {
                         // main case being matched
-                        drawCase(drawer, global_t, stuff, offsetView(main_view,
-                            new Vec2(4 - anim_t * 4, 0)));
+                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
+                            new Vec2(4 - anim_t * 4, 0))));
                     }
                     else {
                         // sibling cases to be discarded
-                        drawCase(drawer, global_t, stuff, offsetView(main_view,
-                            new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t))));
+                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
+                            new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t)))));
                     }
                 }
                 break;
             }
             case 'floating_bindings': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMoleculePlease(this.input, main_view);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
 
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
@@ -429,7 +430,7 @@ export class ExecutionState {
                 const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
                 const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
                 const v_names = getNamesAt(knownVariables(this.original_fnk), this.animation.next_input_address);
-                drawCase(drawer, global_t, [v, v_original, v_collapse, v_names], main_view);
+                overlaps.push(drawCase(mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view));
 
                 this.animation.bindings.forEach((x) => {
                     // TODO: draw all bindings, not only those that pass the eqArrays condition
@@ -444,12 +445,12 @@ export class ExecutionState {
                                 x.target_address.minor),
                             anim_t);
                         // drawer.drawMoleculePlease(x.value, cur_view);
-                        drawer.drawTemplate(x.value, { type: 'variable', value: x.variable_name }, cur_view);
+                        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, x.value, { type: 'variable', value: x.variable_name }, cur_view));
                     }
                 }, this);
                 // this.animation.bindings
                 // const next = getCasesAfter(this.fnk, this.animation.next_input_address.slice(0, -1));
-                // drawCase(drawer, next[0], offsetView(main_view, new Vec2(0, 0)));
+                // drawCase(mouse, drawer, next[0], offsetView(main_view, new Vec2(0, 0)));
                 break;
             }
             case 'dissolve_bindings': {
@@ -457,8 +458,8 @@ export class ExecutionState {
             }
             case 'fading_out_to_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * anim_t, 0));
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
                 const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
 
                 drawer.line(main_view, [
@@ -475,7 +476,7 @@ export class ExecutionState {
                 if (thing.next !== 'return') {
                     thing.next.forEach((asdf, j) => {
                         const aaa = offsetView(main_view, new Vec2(lerp(12, -8, anim_t), 12 + 18 * j));
-                        drawer.drawPattern(asdf.pattern, aaa);
+                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, aaa));
                         drawer.drawCable(aaa, names, [
                             new Vec2(3, j === 0 ? -12 : -14),
                             new Vec2(3, 4),
@@ -487,15 +488,15 @@ export class ExecutionState {
             }
             case 'fading_in_from_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
-                drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
+                overlaps.push(this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse));
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0))));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, lerpSexprView(
                     rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                     rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
-                    anim_t));
+                    anim_t)));
                 for (const [k, stuff] of enumerate(zip4(this.fnk.cases, this.original_fnk.cases, this.collapsed.inside, knownVariables(this.original_fnk).inside))) {
                     const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
-                    drawCase(drawer, global_t, stuff, aaa);
+                    overlaps.push(drawCase(mouse, drawer, global_t, stuff, aaa));
 
                     drawer.drawCable(aaa, [], [
                         new Vec2(-9, k === 0 ? -12 : -14),
@@ -507,7 +508,7 @@ export class ExecutionState {
             }
             case 'skipping_computation': {
                 if (this.parent === null) throw new Error('unreachable');
-                this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), null);
+                overlaps.push(this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse));
                 drawer.line(main_view, [
                     new Vec2(30, 0),
                     new Vec2(-50, 0),
@@ -515,23 +516,23 @@ export class ExecutionState {
                 const old_input = this.animation.old_input;
                 subdivideT(anim_t, [
                     [0, 0.25, (t) => {
-                        drawer.drawMoleculePlease(old_input, offsetView(main_view, new Vec2(32, 0)));
-                        drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
+                        overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, old_input, offsetView(main_view, new Vec2(32, 0))));
+                        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, lerpSexprView(
                             rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
                             rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
-                            t));
+                            t)));
                     }],
                     [0.25, 1, (t) => {
                         if (t < 0.5) {
-                            drawer.drawMoleculePlease(old_input, offsetView(main_view, new Vec2(32, 0)));
+                            overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, old_input, offsetView(main_view, new Vec2(32, 0))));
                         }
                         else {
-                            drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32, 0)));
+                            overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32, 0))));
                         }
-                        drawer.drawTemplate(this.fnk.name, this.original_fnk.name, lerpSexprView(
+                        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, lerpSexprView(
                             rotateAndScaleView(offsetView(main_view, new Vec2(27, 4)), -1 / 4, 1),
                             rotateAndScaleView(offsetView(main_view, new Vec2(46, 4)), -1 / 4, 1),
-                            t));
+                            t)));
                     }],
                 ]);
 
@@ -547,8 +548,8 @@ export class ExecutionState {
                 break;
             }
             case 'fading_out_to_parent': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawMoleculePlease(this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0))));
 
                 drawer.line(main_view, [
                     new Vec2(30 - 32 * anim_t, 0),
@@ -559,15 +560,15 @@ export class ExecutionState {
             }
             case 'fading_in_from_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
 
                 const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
                 const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
                 if (thing.next !== 'return') {
                     thing.next.forEach((asdf, j) => {
                         const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
-                        drawer.drawPattern(asdf.pattern, offsetView(aaa, new Vec2(anim_t * 12, 0)));
+                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, offsetView(aaa, new Vec2(anim_t * 12, 0))));
                         drawer.drawCable(aaa, names, [
                             new Vec2(3, j === 0 ? -12 : -14),
                             new Vec2(3, 4),
@@ -603,8 +604,8 @@ export class ExecutionState {
             // }
             case 'waiting_for_child': {
                 main_view = offsetView(main_view, new Vec2(-14, 0));
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
-                drawer.drawTemplate(this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
 
                 drawer.line(main_view, [
                     new Vec2(-50, 0),
@@ -621,7 +622,7 @@ export class ExecutionState {
                 if (thing.next !== 'return') {
                     thing.next.forEach((asdf, j) => {
                         const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
-                        drawer.drawPattern(asdf.pattern, aaa);
+                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, aaa));
 
                         drawer.drawCable(aaa, names, [
                             new Vec2(3, j === 0 ? -12 : -14),
@@ -633,7 +634,7 @@ export class ExecutionState {
                 break;
             }
             case 'breaking_to_tail_optimization': {
-                this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
                 drawer.line(main_view, [
                     new Vec2(30 - 32 * anim_t, 0),
                     new Vec2(-50, 0),
@@ -641,6 +642,7 @@ export class ExecutionState {
                 break;
             }
         }
+        return firstNonNull(overlaps);
     }
 }
 
@@ -690,8 +692,19 @@ export class ExecutingSolution {
     }
 
     draw(drawer: Drawer, view_offset: Vec2, global_t: number, mouse: Mouse) {
+        const rect = drawer.ctx.canvas.getBoundingClientRect();
+        const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
+
         const view = this.getMainView(drawer.getScreenSize(), view_offset);
-        this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, mouse);
+        const overlapped = this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, raw_mouse_pos);
+        if (overlapped !== null) {
+            drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.address));
+            drawer.ctx.fillStyle = 'black';
+            const screen_size = drawer.getScreenSize();
+            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+            drawer.ctx.textAlign = 'center';
+            drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+        }
     }
 
     private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {
@@ -746,15 +759,16 @@ function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number 
     return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
 }
 
-function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView) {
+function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView): OverlappedThing | null {
+    const overlaps: (OverlappedThing | null)[] = [];
     const collapse_amount = collapseAmount(cur_time, collapsed.main);
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
     view.halfside *= lerp(1, 0.5, collapse_amount);
     view = offsetView(view, new Vec2(0, collapse_amount * 4));
-    drawer.drawPattern(v.pattern, view);
+    overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, view));
     if (collapse_amount < 0.2) {
-        drawer.drawTemplate(v.template, v_original.template, offsetView(view, new Vec2(32, 0)));
-        drawer.drawTemplate(v.fn_name_template, v_original.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
+        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0))));
+        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.fn_name_template, v_original.fn_name_template, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2)));
         drawer.drawCable(view, names.main, [
             new Vec2(14, 0),
             new Vec2(30, 0),
@@ -763,7 +777,7 @@ function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed, n
         if (v.next !== 'return') {
             if (v_original.next === 'return') throw new Error('unreachable');
             for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-                drawCase(drawer, cur_time, x, offsetView(view, new Vec2(12, 12 + 18 * k)));
+                overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12, 12 + 18 * k))));
 
                 const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
                 drawer.drawCable(aaa, names.main, [
@@ -774,6 +788,7 @@ function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed, n
             }
         }
     }
+    return firstNonNull(overlaps);
 }
 
 function getNamesAt(vars: KnownVariables, address: MatchCaseAddress): KnownVariables {

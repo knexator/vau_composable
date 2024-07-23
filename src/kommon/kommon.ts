@@ -313,6 +313,13 @@ export function subdivideT<T>(t: number, ranges: [number, number, (t: number) =>
     throw new Error('no matching range');
 }
 
+export function firstNonNull<T>(stuff: (T | null)[]): T | null {
+    for (const thing of stuff) {
+        if (thing !== null) return thing;
+    }
+    return null;
+}
+
 /** Only for Vite, and only for reference! you must paste it into your script :( */
 // function absoluteUrl(url: string): string {
 //     return new URL(url, import.meta.url).href;
