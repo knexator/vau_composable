@@ -160,13 +160,14 @@ export class ExecutionState {
                             .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
                             .withInput(skipped_fn_result)
                             .withFakeFnk(fn_name);
-                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
-                            if (!(res instanceof ExecutionState)) throw new Error('unreachable');
-                            return res.next(all_fnks, main_view, global_t);
-                        }
-                        else {
-                            return res;
-                        }
+                        return res;
+                        // if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
+                        //     if (!(res instanceof ExecutionState)) throw new Error('unreachable');
+                        //     return res.next(all_fnks, main_view, global_t);
+                        // }
+                        // else {
+                        //     return res;
+                        // }
                     }
                     else {
                         const res = this
@@ -174,13 +175,14 @@ export class ExecutionState {
                             .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
                             .withInput(skipped_fn_result)
                             .withFakeFnk(fn_name);
-                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
-                            if (!(res instanceof ExecutionState)) throw new Error('unreachable');
-                            return res.next(all_fnks, main_view, global_t);
-                        }
-                        else {
-                            return res;
-                        }
+                        return res;
+                        // if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
+                        //     if (!(res instanceof ExecutionState)) throw new Error('unreachable');
+                        //     return res.next(all_fnks, main_view, global_t);
+                        // }
+                        // else {
+                        //     return res;
+                        // }
                     }
                 }
                 else {
@@ -430,10 +432,9 @@ export class ExecutionState {
                 drawCase(drawer, global_t, [v, v_original, v_collapse, v_names], main_view);
 
                 this.animation.bindings.forEach((x) => {
-                    // TODO: draw all bindings // later: huh?
+                    // TODO: draw all bindings, not only those that pass the eqArrays condition
                     // TODO: bindings for rotated targets
                     if (eqArrays(x.target_address.major, x.source_address.major)) {
-                        // if (x.target_address.major.length <= 1) {
                         const cur_view = lerpSexprView(
                             getSexprGrandChildView(main_view, x.source_address.minor),
                             // getView(main_view, x.source_address, this.collapsed),
@@ -695,7 +696,7 @@ export class ExecutingSolution {
 
     private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {
         const view = {
-            pos: screen_size.mul(new Vec2(0.1, 0.175)).add(view_offset),
+            pos: screen_size.mul(new Vec2(0.1, 0.25)).add(view_offset),
             halfside: screen_size.y / 17,
             turns: 0,
             // turns: CONFIG._0_1,
@@ -740,11 +741,16 @@ export class AfterExecutingSolution {
     }
 }
 
+function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number {
+    const collapsed_t = clamp01((cur_time - collapsed.changedAt) / COLLAPSE_DURATION);
+    return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
+}
+
 function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView) {
-    const collapsed_t = clamp01((cur_time - collapsed.main.changedAt) / COLLAPSE_DURATION);
-    const collapse_amount = collapsed.main.collapsed ? collapsed_t : 1 - collapsed_t;
+    const collapse_amount = collapseAmount(cur_time, collapsed.main);
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
     view.halfside *= lerp(1, 0.5, collapse_amount);
+    view = offsetView(view, new Vec2(0, collapse_amount * 4));
     drawer.drawPattern(v.pattern, view);
     if (collapse_amount < 0.2) {
         drawer.drawTemplate(v.template, v_original.template, offsetView(view, new Vec2(32, 0)));
@@ -763,7 +769,7 @@ function drawCase(drawer: Drawer, cur_time: number, [v, v_original, collapsed, n
                 drawer.drawCable(aaa, names.main, [
                     new Vec2(3, k === 0 ? -12 : -14),
                     new Vec2(3, 4),
-                    new Vec2(12, 4),
+                    new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
                 ]);
             }
         }
