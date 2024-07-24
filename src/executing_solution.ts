@@ -495,7 +495,8 @@ export class ExecutionState {
                     rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
                     anim_t)));
                 for (const [k, stuff] of enumerate(zip4(this.fnk.cases, this.original_fnk.cases, this.collapsed.inside, knownVariables(this.original_fnk).inside))) {
-                    const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
+                    // const aaa = offsetView(main_view, new Vec2(lerp(38, 4, anim_t), 12 + 18 * k));
+                    const aaa = offsetView(main_view, new Vec2(lerp(24, 4, anim_t), 12 + 18 * k + lerp(40, 0, anim_t)));
                     overlaps.push(drawCase(mouse, drawer, global_t, stuff, aaa));
 
                     drawer.drawCable(aaa, [], [
