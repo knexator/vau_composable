@@ -2,7 +2,7 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, OverlappedThing } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
+import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
 import { clamp01, in01, lerp, remap } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress } from './model';
 
@@ -360,18 +360,20 @@ export class ExecutionState {
                             ? new Vec2(4, 12 * (1 - anim_t))
                             : new Vec2(4, 12 + 18 * (k - anim_t)))));
 
+                    const collapse_amount = collapseAmount(global_t, stuff[2].main);
                     if (k === 0) {
+                        // assert(collapse_amount === 0);
                         drawer.drawCable(main_view, names, [
                             new Vec2(-5, 0),
                             new Vec2(-5, 16 - 12 * anim_t),
-                            new Vec2(16, 16 - 12 * anim_t),
+                            new Vec2(lerp(16, 10, collapse_amount), 16 - 12 * anim_t),
                         ]);
                     }
                     else {
                         drawer.drawCable(main_view, names, [
                             new Vec2(-5, Math.max(-2 + (k - anim_t), 0) * 18),
                             new Vec2(-5, -2 + (k - anim_t + 1) * 18),
-                            new Vec2(16, -2 + (k - anim_t + 1) * 18),
+                            new Vec2(lerp(16, 10, collapse_amount), -2 + (k - anim_t + 1) * 18),
                         ]);
                     }
                 };
@@ -404,25 +406,26 @@ export class ExecutionState {
                         overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1)))));
                     }
 
+                    const collapse_amount = collapseAmount(global_t, stuff[2].main);
                     if (k === 0) {
                         drawer.drawCable(main_view, names, [
                             new Vec2(-5, 0),
                             new Vec2(-5, 16 - 12),
-                            new Vec2(16 - anim_t * 8, 16 - 12),
+                            new Vec2(lerp(16, 10, collapse_amount) - anim_t * 8, 16 - 12),
                         ]);
                     }
                     else if (k === 1) {
                         drawer.drawCable(main_view, names, [
                             new Vec2(-5, -2 + 6),
                             new Vec2(-5, -2 + 18),
-                            new Vec2(16, -2 + 18),
+                            new Vec2(lerp(16, 10, collapse_amount), -2 + 18),
                         ]);
                     }
                     else {
                         drawer.drawCable(main_view, names, [
                             new Vec2(-5, -2 + (k - 1) * 18),
                             new Vec2(-5, -2 + (k - 1 + 1) * 18),
-                            new Vec2(16, -2 + (k - 1 + 1) * 18),
+                            new Vec2(lerp(16, 10, collapse_amount), -2 + (k - 1 + 1) * 18),
                         ]);
                     }
                 };
@@ -617,7 +620,7 @@ export class ExecutionState {
                     drawer.drawCable(aaa, names, [
                         new Vec2(-9, k === 0 ? -12 : -14),
                         new Vec2(-9, 4),
-                        new Vec2(lerp(0, 12, anim_t), 4),
+                        new Vec2(lerp(0, 12, anim_t) - lerp(0, 6, collapseAmount(global_t, stuff[2].main)), 4),
                     ]);
                 };
                 break;
