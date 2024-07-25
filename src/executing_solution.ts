@@ -187,8 +187,7 @@ export class ExecutionState {
                         // }
                     }
                     else {
-                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
-                            // TODO: what if parent === null
+                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
                             return this
                                 .withAnimation({ type: 'identity_specialcase_1', return_address: input_address })
                                 .withInput(skipped_fn_result);
@@ -574,8 +573,8 @@ export class ExecutionState {
                 break;
             }
             case 'identity_specialcase_1': {
-                if (this.parent === null) throw new Error('unreachable');
-                overlaps.push(this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse));
+                // if (this.parent === null) throw new Error('unreachable');
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
                 overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0))));
                 overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
 
