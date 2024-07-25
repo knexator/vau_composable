@@ -22,6 +22,7 @@ type ExecutionAnimationState =
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
     | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
     | { type: 'waiting_for_child', return_address: MatchCaseAddress }
+    | { type: 'final_result' }
     | { type: 'breaking_to_tail_optimization' };
 
 export class ExecutionState {
@@ -65,6 +66,9 @@ export class ExecutionState {
         // console.log(this.collapsed.main);
         // console.log(this.collapsed.inside.map(x => x.main.collapsed).join(','));
         switch (this.animation.type) {
+            case 'final_result': {
+                return { type: 'success', result: this.input };
+            }
             case 'input_moving_to_next_option': {
                 const asdf = generateBindings(this.input, getAt(this.fnk.cases, { type: 'pattern', minor: [], major: this.animation.target })!);
                 return this.withAnimation({ type: asdf === null ? 'failing_to_match' : 'matching', which: this.animation.target });
@@ -117,7 +121,7 @@ export class ExecutionState {
 
                 if (this.parent.animation.type === 'breaking_to_tail_optimization') {
                     if (this.parent.parent === null) {
-                        return { type: 'success', result: this.input };
+                        return this.withAnimation({ type: 'final_result' });
                     }
                     if (this.parent.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
                     return this
@@ -172,7 +176,7 @@ export class ExecutionState {
                                     .withInput(skipped_fn_result);
                             }
                             else {
-                                return { type: 'success', result: skipped_fn_result };
+                                return this.withAnimation({ type: 'final_result' }).withInput(skipped_fn_result);
                             }
                         }
                         else {
@@ -253,7 +257,7 @@ export class ExecutionState {
                 if (match_case.next === 'return') {
                     if (this.parent === null) {
                         // OJO: unchecked
-                        return { type: 'success', result: this.input };
+                        return this.withAnimation({ type: 'final_result' });
                     }
                     else {
                         if (this.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
@@ -324,6 +328,19 @@ export class ExecutionState {
         const overlaps: (OverlappedThing | null)[] = [];
         // drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         switch (this.animation.type) {
+            case 'final_result': {
+                if (this.parent !== null) throw new Error('unreachable');
+                main_view = lerpSexprView(
+                    offsetView(main_view, new Vec2(32, 0)),
+                    AfterExecutingSolution.getMainView(drawer.getScreenSize()),
+                    anim_t);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+                drawer.line(main_view, [
+                    new Vec2(-2, 0),
+                    new Vec2(-50, 0),
+                ]);
+                break;
+            }
             case 'input_moving_to_next_option': {
                 overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
                 overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
@@ -819,7 +836,7 @@ export class AfterExecutingSolution {
         drawer.ctx.textAlign = 'center';
         if (this.result.type === 'success') {
             drawer.ctx.fillText('Got this result:', screen_size.x * 0.5, screen_size.y * 0.3);
-            drawer.drawMoleculePlease(this.result.result, this.getMainView(drawer.getScreenSize()));
+            drawer.drawMoleculePlease(this.result.result, AfterExecutingSolution.getMainView(drawer.getScreenSize()));
         }
         else {
             drawer.ctx.fillText('Error during execution!', screen_size.x * 0.5, screen_size.y * 0.4);
@@ -827,7 +844,7 @@ export class AfterExecutingSolution {
         }
     }
 
-    private getMainView(screen_size: Vec2): SexprView {
+    static getMainView(screen_size: Vec2): SexprView {
         const view = {
             pos: screen_size.mul(new Vec2(0.4, 0.6)),
             halfside: screen_size.y / 5,
