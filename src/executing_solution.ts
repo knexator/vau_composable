@@ -164,12 +164,16 @@ export class ExecutionState {
                         : null;
                 if (skipped_fn_result !== null) {
                     if (match_case.next === 'return') {
-                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
-                            // TODO: what if parent === null
-                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('oops');
-                            return this.parent
-                                .withAnimation({ type: 'identity_specialcase_2', return_address: this.parent.animation.return_address })
-                                .withInput(skipped_fn_result);
+                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' })) {
+                            if (this.parent !== null) {
+                                if (this.parent.animation.type !== 'waiting_for_child') throw new Error('oops');
+                                return this.parent
+                                    .withAnimation({ type: 'identity_specialcase_2', return_address: this.parent.animation.return_address })
+                                    .withInput(skipped_fn_result);
+                            }
+                            else {
+                                return { type: 'success', result: skipped_fn_result };
+                            }
                         }
                         else {
                             return this
