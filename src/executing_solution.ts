@@ -501,9 +501,6 @@ export class ExecutionState {
                 // drawCase(mouse, drawer, next[0], offsetView(main_view, new Vec2(0, 0)));
                 break;
             }
-            case 'dissolve_bindings': {
-                throw new Error('no');
-            }
             case 'fading_out_to_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * anim_t, 0));
                 overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
@@ -743,6 +740,9 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
                 break;
+            }
+            default: {
+                throw new Error('unreachable');
             }
         }
         return firstNonNull(overlaps);
