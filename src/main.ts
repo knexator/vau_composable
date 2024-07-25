@@ -53,6 +53,9 @@ const increment: FunktionDefinition = {
     ],
 };
 
+import * as x from './sample_save.txt?raw';
+localStorage.setItem('vau_composable', x.default);
+
 // FUTURE: proper validation
 const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [incrementTwice, increment]);
 // all_fnks.map(x => console.log(fnkToString(x)));
@@ -140,6 +143,15 @@ function every_frame(cur_timestamp_millis: number) {
         // localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
         localStorage.setItem('vau_composable', all_fnks.map(x => fnkToString(x)).join('\n'));
         localStorage.setItem('vau_composable_cells', JSON.stringify(cells));
+    }
+    if (input.keyboard.wasPressed(KeyCode.KeyC)) {
+        const savedata = all_fnks.map(x => fnkToString(x)).join('\n');
+        void navigator.clipboard.writeText(savedata);
+    }
+    if (input.keyboard.wasPressed(KeyCode.KeyV)) {
+        void navigator.clipboard.readText().then((text) => {
+            localStorage.setItem('vau_composable', text);
+        });
     }
 
     animation_id = requestAnimationFrame(every_frame);
