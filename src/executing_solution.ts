@@ -18,6 +18,7 @@ type ExecutionAnimationState =
     | { type: 'fading_in_from_parent', source_address: MatchCaseAddress }
     | { type: 'skipping_computation', source_address: MatchCaseAddress, old_input: SexprLiteral } // fading in and also skipping computation
     | { type: 'identity_specialcase_1', return_address: MatchCaseAddress }
+    | { type: 'identity_specialcase_2', return_address: MatchCaseAddress }
     | { type: 'fading_out_to_parent', parent_address: MatchCaseAddress, child_address: MatchCaseAddress }
     | { type: 'fading_in_from_child', return_address: MatchCaseAddress }
     | { type: 'waiting_for_child', return_address: MatchCaseAddress }
@@ -147,6 +148,11 @@ export class ExecutionState {
                     .withAnimation({ type: 'fading_in_from_child', return_address: this.animation.return_address })
                     .next(all_fnks, main_view, global_t);
             }
+            case 'identity_specialcase_2': {
+                return this
+                    .withAnimation({ type: 'fading_in_from_child', return_address: this.animation.return_address })
+                    .next(all_fnks, main_view, global_t);
+            }
             case 'dissolve_bindings': {
                 const input_address = this.animation.input_address;
                 const match_case = getCaseAt(this.fnk, input_address);
@@ -158,15 +164,20 @@ export class ExecutionState {
                         : null;
                 if (skipped_fn_result !== null) {
                     if (match_case.next === 'return') {
-                        if (this.parent === null) {
-                            // TODO: handle final better
+                        if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
+                            // TODO: what if parent === null
+                            if (this.parent.animation.type !== 'waiting_for_child') throw new Error('oops');
+                            return this.parent
+                                .withAnimation({ type: 'identity_specialcase_2', return_address: this.parent.animation.return_address })
+                                .withInput(skipped_fn_result);
                         }
-                        const res = this
-                            .withParent(this.withAnimation({ type: 'breaking_to_tail_optimization' }))
-                            .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
-                            .withInput(skipped_fn_result)
-                            .withFakeFnk(fn_name);
-                        return res;
+                        else {
+                            return this
+                                .withParent(this.withAnimation({ type: 'breaking_to_tail_optimization' }))
+                                .withAnimation({ type: 'skipping_computation', source_address: input_address, old_input: this.input })
+                                .withInput(skipped_fn_result)
+                                .withFakeFnk(fn_name);
+                        }
                         // if (equalSexprs(fn_name, { type: 'atom', value: 'identity' }) && this.parent !== null) {
                         //     if (!(res instanceof ExecutionState)) throw new Error('unreachable');
                         //     return res.next(all_fnks, main_view, global_t);
@@ -573,7 +584,6 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
 
-                // for (const [k, stuff] of enumerate(zip4(this.fnk.cases, this.original_fnk.cases, this.collapsed.inside, knownVariables(this.original_fnk).inside))) {
                 const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
                 const addr = firstChild(this.animation.return_address);
                 const next = getCasesAfter(this.fnk, addr);
@@ -583,6 +593,31 @@ export class ExecutionState {
                 for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
                     const aaa = offsetView(main_view, new Vec2(lerp(24, 4, anim_t), 12 + 18 * k));
                     overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(aaa, new Vec2(lerp(-12, 0, anim_t), 0))));
+
+                    drawer.drawCable(aaa, names, [
+                        new Vec2(-9, k === 0 ? -12 : -14),
+                        new Vec2(-9, 4),
+                        new Vec2(lerp(0, 12, anim_t), 4),
+                    ]);
+                };
+                break;
+            }
+            case 'identity_specialcase_2': {
+                main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(46 * (1 - anim_t), 0))));
+                overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1)));
+
+                drawer.line(main_view, [
+                    new Vec2(44 - 46 * anim_t, 0),
+                    new Vec2(-50, 0),
+                ]);
+
+                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
+                const addr = firstChild(this.animation.return_address);
+                for (const [k, asdf] of enumerate(getCasesAfter(this.fnk, addr))) {
+                    const aaa = offsetView(main_view, new Vec2(4, 12 + 18 * k));
+                    overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, offsetView(aaa, new Vec2(lerp(-12, 0, anim_t), 0))));
 
                     drawer.drawCable(aaa, names, [
                         new Vec2(-9, k === 0 ? -12 : -14),
