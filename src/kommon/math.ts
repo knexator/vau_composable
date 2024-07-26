@@ -95,6 +95,11 @@ export function remap(value: number, old_a: number, old_b: number, new_a: number
     return t * (new_b - new_a) + new_a;
 }
 
+export function remapClamped(value: number, old_a: number, old_b: number, new_a: number, new_b: number) {
+    const t = (value - old_a) / (old_b - old_a);
+    return clamp01(t) * (new_b - new_a) + new_a;
+}
+
 export function smoothstep(toZero: number, toOne: number, value: number) {
     const x = Math.max(0, Math.min(1, (value - toZero) / (toOne - toZero)));
     return x * x * (3 - 2 * x);

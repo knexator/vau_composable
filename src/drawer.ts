@@ -1,5 +1,5 @@
 import { Color, Transform, Vec2 } from 'kanvas2d';
-import { DefaultMap, DefaultMapExtra, assertNotNull, at, fromCount, or, replace, reversedForEach, single, zip2 } from './kommon/kommon';
+import { DefaultMap, DefaultMapExtra, assert, assertNotNull, at, fromCount, or, replace, reversedForEach, single, zip2 } from './kommon/kommon';
 import { in01, inRange, isPointInPolygon, lerp, mod, randomFloat, randomInt, remap } from './kommon/math';
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress, allVariableNames } from './model';
 import Rand from 'rand-seed';
@@ -1023,8 +1023,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -1342,6 +1342,11 @@ export function offsetView(view: SexprView, units: Vec2): SexprView {
 
 export function rotateAndScaleView(view: SexprView, turns: number, scale: number): SexprView {
     return { halfside: view.halfside * scale, turns: view.turns + turns, pos: view.pos };
+}
+
+export function scaleViewCentered(view: SexprView, scale: number): SexprView {
+    const offset = view.halfside * remap(scale, 0, 1, 3 / 2, 0);
+    return { halfside: view.halfside * scale, turns: view.turns, pos: view.pos.add(new Vec2(offset, 0).rotateTurns(view.turns)) };
 }
 
 function patternForCable(variable_names: string[]): CanvasPattern {
