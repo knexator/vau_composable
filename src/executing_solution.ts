@@ -331,6 +331,8 @@ export class ExecutionState {
         switch (this.animation.type) {
             case 'final_result': {
                 if (this.parent !== null) throw new Error('unreachable');
+                // TODO: split this in 2 animations: input goes to base position, and then it goes big.
+                // main_view = offsetView(main_view, new Vec2(lerp(32, 0, anim_t), 0)),
                 main_view = lerpSexprView(
                     offsetView(main_view, new Vec2(32, 0)),
                     AfterExecutingSolution.getMainView(drawer.getScreenSize()),
@@ -338,7 +340,7 @@ export class ExecutionState {
                 overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
-                    new Vec2(-50, 0),
+                    new Vec2(-80, 0),
                 ]);
                 break;
             }
