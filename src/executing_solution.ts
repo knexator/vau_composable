@@ -399,7 +399,7 @@ export class ExecutionState {
                         overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
                             subdivideT(anim_t, [
                                 [0, 0.5, t => new Vec2(4 - t * 4, 0)],
-                                [0.5, 1, t => new Vec2(0, -t * 12)],
+                                [0.5, 1, t => new Vec2(t * 4, -t * 12)],
                             ]),
                         )));
                     }
