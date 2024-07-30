@@ -4,6 +4,7 @@ import { in01, inRange, isPointInPolygon, lerp, mod, randomFloat, randomInt, rem
 import { SexprAddress, FunktionDefinition, MatchCaseDefinition, MatchCaseAddress, SexprLiteral, SexprNullable, SexprTemplate, addressesOfVariableInTemplates, generateBindings, FullAddress, changeVariablesToNull, getCaseAt, allCases, countExtraPolesNeeded, getAtLocalAddress, allVariableNames } from './model';
 import Rand from 'rand-seed';
 import { Random } from './kommon/random';
+import { Mouse } from './kommon/input';
 
 export const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
@@ -16,6 +17,48 @@ const COLORS = {
     pole: Color.fromInt(0x404040),
     return: Color.fromInt(0xc06060),
 };
+
+export class Camera {
+    // an object at [camera.topleft] will be drawn on the top left of the screen
+    // an object at [camera.topleft.addX(scale)] will be drawn one screen height to the right of that
+    constructor(
+        public topleft: Vec2 = Vec2.zero,
+        public scale: number = 1,
+    ) { }
+
+    worldToScreen([world_pos, world_size]: [Vec2, number], screen_side: number): [Vec2, number] {
+        const screen_pos = world_pos.sub(this.topleft).scale(screen_side / this.scale);
+        const screen_size = world_size * (screen_side / this.scale);
+        return [screen_pos, screen_size];
+    }
+
+    screenToWorld([screen_pos, screen_size]: [Vec2, number], screen_side: number): [Vec2, number] {
+        const world_pos = screen_pos.scale(this.scale / screen_side).add(this.topleft);
+        const world_size = screen_size * (this.scale / screen_side);
+        return [world_pos, world_size];
+    }
+
+    viewAt(world_pos: Vec2, world_size: number, screen_side: number): SexprView {
+        const [pos, halfside] = this.worldToScreen([world_pos, world_size], screen_side);
+        return { pos, halfside, turns: 0 };
+    }
+
+    move(dir: Vec2, dt: number) {
+        this.topleft = this.topleft.add(dir.scale(this.scale * dt));
+    }
+
+    zoomInner(mouse_screen_pos: Vec2, screen_side: number, factor: number) {
+        const [mouse_world_pos, _] = this.screenToWorld([mouse_screen_pos, 0], screen_side);
+        const delta = this.topleft.sub(mouse_world_pos);
+        this.scale /= factor;
+        this.topleft = mouse_world_pos.add(delta.scale(1 / factor));
+    }
+
+    zoom(wheel: number, mouse_screen_pos: Vec2, screen_side: number, factor: number = 1.1) {
+        if (wheel === 0) return;
+        this.zoomInner(mouse_screen_pos, screen_side, wheel < 0 ? factor : 1 / factor);
+    }
+}
 
 export class Drawer {
     constructor(
@@ -1023,8 +1066,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);

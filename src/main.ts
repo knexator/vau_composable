@@ -5,7 +5,7 @@ import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, 
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
 import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
-import { Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
+import { Camera, Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 
@@ -62,7 +62,7 @@ const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => p
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
 let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
-let view_offset = Vec2.zero;
+const camera = new Camera();
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
 //     parseSexprLiteral('(v1 v2 X v3 v1)'));
@@ -82,6 +82,10 @@ function every_frame(cur_timestamp_millis: number) {
     const global_t = cur_timestamp_millis / 1000;
     drawer.clear();
 
+    const rect = drawer.ctx.canvas.getBoundingClientRect();
+    const raw_mouse_pos = new Vec2(input.mouse.clientX - rect.left, input.mouse.clientY - rect.top);
+    const screen_size = new Vec2(rect.width, rect.height);
+
     const keymap: [KeyCode[], Vec2][] = [
         // [[KeyCode.KeyW, KeyCode.ArrowUp], Vec2.yneg],
         // [[KeyCode.KeyA, KeyCode.ArrowLeft], Vec2.xneg],
@@ -94,21 +98,22 @@ function every_frame(cur_timestamp_millis: number) {
     ];
     for (const [keys, dir] of keymap) {
         if (keys.some(k => input.keyboard.isDown(k))) {
-            view_offset = view_offset.sub(dir.scale(1000 * delta_time));
+            camera.move(dir, delta_time * 1.5);
         }
     }
+    camera.zoom(input.mouse.wheel, raw_mouse_pos, screen_size.y);
 
     if (cur_thing instanceof EditingSolution) {
-        cur_thing.draw(drawer, global_t, view_offset);
+        cur_thing.draw(drawer, global_t, camera);
         if (input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution();
         }
         else {
-            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, global_t, view_offset) ?? cur_thing;
+            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, global_t, camera) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {
-        cur_thing.draw(drawer, view_offset, global_t, input.mouse);
+        cur_thing.draw(drawer, camera, global_t, input.mouse);
         [KeyCode.Digit1, KeyCode.Digit2, KeyCode.Digit3, KeyCode.Digit4, KeyCode.Digit5, KeyCode.Digit6, KeyCode.Digit7, KeyCode.Digit8].forEach((key, index) => {
             if (input.keyboard.wasPressed(key)) {
                 if (!(cur_thing instanceof ExecutingSolution)) throw new Error('unreachable');
@@ -116,10 +121,10 @@ function every_frame(cur_timestamp_millis: number) {
             }
         });
         if (input.keyboard.wasPressed(KeyCode.Escape)) {
-            cur_thing = cur_thing.skip(drawer, view_offset, global_t);
+            cur_thing = cur_thing.skip(drawer, camera, global_t);
         }
         else {
-            cur_thing = cur_thing.update(delta_time, drawer, view_offset, global_t) ?? cur_thing;
+            cur_thing = cur_thing.update(delta_time, drawer, camera, global_t) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof AfterExecutingSolution) {

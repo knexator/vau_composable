@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, OverlappedThing, scaleViewCentered } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, OverlappedThing, scaleViewCentered, Camera } from './drawer';
 import { EditingSolution } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
@@ -772,8 +772,8 @@ export class ExecutingSolution {
     }
 
     // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer, view_offset: Vec2, global_t: number): AfterExecutingSolution | null {
-        const view = this.getMainView(drawer.getScreenSize(), view_offset);
+    update(delta_time: number, drawer: Drawer, camera: Camera, global_t: number): AfterExecutingSolution | null {
+        const view = this.getMainView(drawer.getScreenSize(), camera);
 
         this.anim_t += delta_time * this.speed;
         while (this.anim_t >= 1) {
@@ -791,8 +791,8 @@ export class ExecutingSolution {
     }
 
     // TODO: drawer as a parameter is a code smell
-    skip(drawer: Drawer, view_offset: Vec2, global_t: number): AfterExecutingSolution {
-        const view = this.getMainView(drawer.getScreenSize(), view_offset);
+    skip(drawer: Drawer, camera: Camera, global_t: number): AfterExecutingSolution {
+        const view = this.getMainView(drawer.getScreenSize(), camera);
 
         let next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
         while (next_state instanceof ExecutionState) {
@@ -802,11 +802,11 @@ export class ExecutingSolution {
         return new AfterExecutingSolution(this.original_editing, next_state);
     }
 
-    draw(drawer: Drawer, view_offset: Vec2, global_t: number, mouse: Mouse) {
+    draw(drawer: Drawer, camera: Camera, global_t: number, mouse: Mouse) {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const view = this.getMainView(drawer.getScreenSize(), view_offset);
+        const view = this.getMainView(drawer.getScreenSize(), camera);
         const overlapped = this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, raw_mouse_pos);
         if (overlapped !== null) {
             drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.address));
@@ -818,14 +818,8 @@ export class ExecutingSolution {
         }
     }
 
-    private getMainView(screen_size: Vec2, view_offset: Vec2): SexprView {
-        const view = {
-            pos: screen_size.mul(new Vec2(0.1, 0.25)).add(view_offset),
-            halfside: screen_size.y / 17,
-            turns: 0,
-            // turns: CONFIG._0_1,
-        };
-        return view;
+    private getMainView(screen_size: Vec2, camera: Camera): SexprView {
+        return camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
     }
 }
 

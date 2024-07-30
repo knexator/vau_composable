@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera } from './drawer';
 import { ExecutingSolution, ExecutionState } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount } from './kommon/kommon';
@@ -94,9 +94,9 @@ export class EditingSolution {
         };
     }
 
-    draw(drawer: Drawer, global_t: number, view_offset: Vec2) {
+    draw(drawer: Drawer, global_t: number, camera: Camera) {
         drawer.ctx.globalAlpha = 1;
-        const main_view = this.getMainView(drawer.getScreenSize(), view_offset);
+        const main_view = EditingSolution.getMainView(drawer.getScreenSize(), camera);
         // const asdf = ExecutionState.init(this.fnk, this.input);
         // asdf.draw(drawer, 0, global_t, main_view, null);
         // drawer.ctx.globalAlpha = 0.1;
@@ -195,8 +195,8 @@ export class EditingSolution {
         }
     }
 
-    update(drawer: Drawer, mouse: Mouse, keyboard: Keyboard, global_t: number, offset: Vec2): EditingSolution | null {
-        const main_view = this.getMainView(drawer.getScreenSize(), offset);
+    update(drawer: Drawer, mouse: Mouse, keyboard: Keyboard, global_t: number, camera: Camera): EditingSolution | null {
+        const main_view = EditingSolution.getMainView(drawer.getScreenSize(), camera);
 
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
@@ -221,8 +221,8 @@ export class EditingSolution {
                         this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                     }
                 }
-                else if (mouse.wheel != 0 || keyboard.wasPressed(KeyCode.KeyW) || keyboard.wasPressed(KeyCode.KeyS)) {
-                    const move_up = mouse.wheel < 0 || keyboard.wasPressed(KeyCode.KeyW);
+                else if (keyboard.wasPressed(KeyCode.KeyW) || keyboard.wasPressed(KeyCode.KeyS)) {
+                    const move_up = keyboard.wasPressed(KeyCode.KeyW);
                     const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, pole.address, move_up);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
@@ -408,14 +408,8 @@ export class EditingSolution {
         return new ExecutingSolution(this.all_fnks, this.fnk, this.input, this);
     }
 
-    private getMainView(screen_size: Vec2, offset: Vec2): SexprView {
-        const view = {
-            pos: screen_size.mul(new Vec2(0.1, 0.175)).add(offset),
-            halfside: screen_size.y / 17,
-            turns: 0,
-            // turns: CONFIG._0_1,
-        };
-        return view;
+    static getMainView(screen_size: Vec2, camera: Camera): SexprView {
+        return camera.viewAt(new Vec2(0.2, 0.175), 1 / 17, screen_size.y);
     }
 
     private getExtraView(screen_size: Vec2): SexprView {

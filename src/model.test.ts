@@ -2,6 +2,8 @@ import { expect, test } from 'vitest';
 import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { Camera } from './drawer';
+import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 
 test('funktion add', () => {
     const add: FunktionDefinition = {
@@ -189,3 +191,59 @@ test('repr of sexpr', () => {
 //     const back = fnks.map(f => fnkToString(f)).join('\n');
 //     expect(back).toBe(fileContent);
 // });
+
+test('camera stuff', () => {
+    const screen_side = 123;
+
+    let camera = new Camera(Vec2.zero, 1);
+    expect(camera.worldToScreen([camera.topleft, camera.scale], screen_side))
+        .toStrictEqual([Vec2.zero, screen_side]);
+
+    expect(camera.worldToScreen([new Vec2(1, 0), 1 / 2], screen_side))
+        .toStrictEqual([new Vec2(screen_side, 0), screen_side / 2]);
+
+    camera = new Camera(new Vec2(1, 1), 2);
+    expect(camera.worldToScreen([new Vec2(1, 1), 2], screen_side))
+        .toStrictEqual([Vec2.zero, screen_side]);
+});
+
+test('camera stuff 2', () => {
+    const screen_side = 123;
+    const topleft = new Vec2(23, 45);
+    const scale = 67;
+    const camera = new Camera(topleft, scale);
+
+    expect(camera.worldToScreen([camera.topleft, 0], screen_side))
+        .toStrictEqual([Vec2.zero, 0]);
+
+    expect(camera.worldToScreen([camera.topleft.addX(scale), 0], screen_side))
+        .toStrictEqual([new Vec2(screen_side, 0), 0]);
+});
+
+test('camera zoom 0', () => {
+    const screen_side = 123;
+    const camera = new Camera(Vec2.zero, 1);
+    camera.zoomInner(new Vec2(0, 0), screen_side, 2);
+    expect(camera.topleft).toStrictEqual(new Vec2(0, 0));
+    expect(camera.worldToScreen([new Vec2(0, 1 / 2), 1 / 2], screen_side))
+        .toStrictEqual([new Vec2(0, screen_side), screen_side]);
+});
+
+test('camera zoom 1', () => {
+    const screen_side = 123;
+    const camera = new Camera(Vec2.zero, 1);
+    camera.zoomInner(new Vec2(0, screen_side), screen_side, 2);
+
+    expect(camera.topleft).toStrictEqual(new Vec2(0, 1 / 2));
+    expect(camera.worldToScreen([new Vec2(0, 1 / 2), 1 / 2], screen_side))
+        .toStrictEqual([Vec2.zero, screen_side]);
+});
+
+test('camera zoom 2', () => {
+    const screen_side = 123;
+    const camera = new Camera(Vec2.zero, 1);
+    camera.zoomInner(new Vec2(0, screen_side / 2), screen_side, 2);
+    expect(camera.topleft).toStrictEqual(new Vec2(0, 1 / 4));
+    expect(camera.worldToScreen([new Vec2(0, 1 / 2), 1 / 2], screen_side))
+        .toStrictEqual([new Vec2(0, screen_side / 2), screen_side]);
+});
