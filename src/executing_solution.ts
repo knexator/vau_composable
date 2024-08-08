@@ -482,9 +482,10 @@ export class ExecutionState {
                 const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
                 const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
                 const v_names = getNamesAt(knownVariables(this.original_fnk), this.animation.next_input_address);
-                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view));
+                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view, this.animation.bindings, this.animation.next_input_address));
 
                 this.animation.bindings.forEach((x) => {
+                    return;
                     // TODO: draw all bindings, not only those that pass the eqArrays condition
                     // TODO: bindings for rotated targets
                     if (eqArrays(x.target_address.major, x.source_address.major)) {
@@ -864,7 +865,7 @@ function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number 
     return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
 }
 
-function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView): OverlappedThing | null {
+function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView, bindings: FloatingBinding[], cur_address: MatchCaseAddress): OverlappedThing | null {
     const overlaps: (OverlappedThing | null)[] = [];
     const collapse_amount = collapseAmount(cur_time, collapsed.main);
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
@@ -884,6 +885,11 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
             new Vec2(lerp(14, 30, anim_t), 0),
             new Vec2(30, 0),
         ]);
+        bindings.forEach((b) => {
+            if (eqArrays(b.target_address.major, cur_address)) {
+                drawer.drawEmergingValue(b.value, getSexprGrandChildView(offsetView(view, new Vec2(32, 0)), b.target_address.minor), remapClamped(anim_t, 0, 0.6, 0, 1));
+            }
+        });
         overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0))));
         overlaps.push(drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view));
 

@@ -217,6 +217,32 @@ export class Drawer {
         // this.drawMoleculeNonRecursive(data, view);
     }
 
+    drawEmergingValue(data: SexprLiteral, view: SexprView, emerged: number): void {
+        this.ctx.fillStyle = 'red';
+        this.ctx.save();
+        this.ctx.beginPath();
+        const points = [
+            new Vec2(view.halfside * -SPIKE_PERC, 0),
+            new Vec2(view.halfside * 0, -view.halfside),
+            new Vec2(view.halfside * 3, -view.halfside),
+            new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+            new Vec2(view.halfside * 3, view.halfside),
+            new Vec2(view.halfside * 0, view.halfside),
+        ].map(v => v.rotateTurns(view.turns))
+            .map(v => view.pos.add(v));
+        this.ctx.beginPath();
+        this.moveTo(points[0]);
+        for (let k = 1; k < points.length; k++) {
+            this.lineTo(points[k]);
+        }
+        this.ctx.closePath();
+        this.ctx.clip();
+
+        this.drawMoleculePlease(data, offsetView(view, new Vec2(lerp(-5, 0, emerged), 0)));
+
+        this.ctx.restore();
+    }
+
     // drawMolecule(data: SexprNullable, view: SexprView) {
     //     this.drawMoleculeNonRecursive(data, view);
     //     if (data.type === 'pair') {
@@ -1066,8 +1092,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);
