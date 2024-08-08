@@ -483,27 +483,6 @@ export class ExecutionState {
                 const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
                 const v_names = getNamesAt(knownVariables(this.original_fnk), this.animation.next_input_address);
                 overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view, this.animation.bindings, this.animation.next_input_address, true));
-
-                this.animation.bindings.forEach((x) => {
-                    return;
-                    // TODO: draw all bindings, not only those that pass the eqArrays condition
-                    // TODO: bindings for rotated targets
-                    if (eqArrays(x.target_address.major, x.source_address.major)) {
-                        const cur_view = lerpSexprView(
-                            getSexprGrandChildView(main_view, x.source_address.minor),
-                            // getView(main_view, x.source_address, this.collapsed),
-                            // getView(main_view, x.target_address, this.collapsed),
-                            getSexprGrandChildView(
-                                offsetView(main_view, new Vec2(32, 0)),
-                                x.target_address.minor),
-                            anim_t);
-                        // drawer.drawMoleculePlease(x.value, cur_view);
-                        overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, x.value, { type: 'variable', value: x.variable_name }, cur_view));
-                    }
-                }, this);
-                // this.animation.bindings
-                // const next = getCasesAfter(this.fnk, this.animation.next_input_address.slice(0, -1));
-                // drawCase(mouse, drawer, next[0], offsetView(main_view, new Vec2(0, 0)));
                 break;
             }
             case 'fading_out_to_child': {
@@ -525,7 +504,7 @@ export class ExecutionState {
                 const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
                 if (thing.next !== 'return') {
                     thing.next.forEach((asdf, j) => {
-                        const aaa = offsetView(main_view, new Vec2(lerp(12, -8, anim_t), 12 + 18 * j));
+                        const aaa = offsetView(main_view, new Vec2(lerp(12 - SMOOTH, -8, anim_t), 12 + 18 * j));
                         overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, aaa));
                         drawer.drawCable(aaa, names, [
                             new Vec2(3, j === 0 ? -12 : -14),
@@ -616,7 +595,7 @@ export class ExecutionState {
                 const next_collaped = getCollapsedAfter(this.collapsed, addr);
                 const next_names = getNamesAfter(knownVariables(this.original_fnk), addr);
                 for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    const aaa = offsetView(main_view, new Vec2(lerp(24, 4, anim_t), 12 + 18 * k));
+                    const aaa = offsetView(main_view, new Vec2(lerp(24 - SMOOTH, 4, anim_t), 12 + 18 * k));
                     overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(aaa, new Vec2(lerp(-12, 0, anim_t), 0))));
 
                     drawer.drawCable(aaa, names, [
@@ -904,9 +883,11 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
         if (v.next !== 'return') {
             if (v_original.next === 'return') throw new Error('unreachable');
             for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x, offsetView(view, new Vec2(12, 12 + 18 * k)), bindings, [...cur_address, k], false));
+                const x_off = main_case ? lerp(0, SMOOTH, anim_t) : 0;
+                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
+                    offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], false));
 
-                const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
+                const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
                 drawer.drawCable(aaa, names.main, [
                     new Vec2(3, k === 0 ? -12 : -14),
                     new Vec2(3, 4),
@@ -972,3 +953,6 @@ function getNamesAfter(names_main: KnownVariables, address: MatchCaseAddress): K
 function firstChild(return_address: MatchCaseAddress): MatchCaseAddress {
     return [...return_address, 0];
 }
+
+// must be 0 or 12
+const SMOOTH = 0;
