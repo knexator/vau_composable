@@ -501,18 +501,9 @@ export class ExecutionState {
                     new Vec2(4, 0),
                 ]);
 
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                if (thing.next !== 'return') {
-                    thing.next.forEach((asdf, j) => {
-                        const aaa = offsetView(main_view, new Vec2(lerp(12 - SMOOTH, -8, anim_t), 12 + 18 * j));
-                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, aaa));
-                        drawer.drawCable(aaa, names, [
-                            new Vec2(3, j === 0 ? -12 : -14),
-                            new Vec2(3, 4),
-                            new Vec2(12, 4),
-                        ]);
-                    });
-                }
+                const main_stuff = this.getStuff(this.animation.return_address);
+                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH, -8 - 12, anim_t), 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, 0, 1 - anim_t));
                 break;
             }
             case 'fading_in_from_parent': {
@@ -588,22 +579,9 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
 
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                const addr = firstChild(this.animation.return_address);
-                const next = getCasesAfter(this.fnk, addr);
-                const next_original = getCasesAfter(this.original_fnk, addr);
-                const next_collaped = getCollapsedAfter(this.collapsed, addr);
-                const next_names = getNamesAfter(knownVariables(this.original_fnk), addr);
-                for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    const aaa = offsetView(main_view, new Vec2(lerp(24 - SMOOTH, 4, anim_t), 12 + 18 * k));
-                    overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(aaa, new Vec2(lerp(-12, 0, anim_t), 0))));
-
-                    drawer.drawCable(aaa, names, [
-                        new Vec2(-9, k === 0 ? -12 : -14),
-                        new Vec2(-9, 4),
-                        new Vec2(lerp(0, 12, anim_t) - lerp(0, 6, collapseAmount(global_t, stuff[2].main)), 4),
-                    ]);
-                };
+                const main_stuff = this.getStuff(this.animation.return_address);
+                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH, -20, anim_t), 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 1));
                 break;
             }
             case 'identity_specialcase_2': {
@@ -617,18 +595,9 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
 
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                const addr = firstChild(this.animation.return_address);
-                for (const [k, asdf] of enumerate(getCasesAfter(this.fnk, addr))) {
-                    const aaa = offsetView(main_view, new Vec2(4, 12 + 18 * k));
-                    overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, offsetView(aaa, new Vec2(lerp(-12, 0, anim_t), 0))));
-
-                    drawer.drawCable(aaa, names, [
-                        new Vec2(-9, k === 0 ? -12 : -14),
-                        new Vec2(-9, 4),
-                        new Vec2(lerp(0, 12, anim_t), 4),
-                    ]);
-                };
+                const main_stuff = this.getStuff(this.animation.return_address);
+                const aaa2 = offsetView(main_view, new Vec2(-8 - 12, 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 0));
                 break;
             }
             case 'fading_out_to_parent': {
@@ -647,19 +616,24 @@ export class ExecutionState {
                 overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
-                const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                if (thing.next !== 'return') {
-                    thing.next.forEach((asdf, j) => {
-                        const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
-                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, offsetView(aaa, new Vec2(anim_t * 12, 0))));
-                        drawer.drawCable(aaa, names, [
-                            new Vec2(3, j === 0 ? -12 : -14),
-                            new Vec2(3, 4),
-                            new Vec2(12 + anim_t * 12, 4),
-                        ]);
-                    });
-                }
+                const main_stuff = this.getStuff(this.animation.return_address);
+                const aaa2 = offsetView(main_view, new Vec2(-8 - 12, 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 0));
+                //  - 12 + anim_t * 12
+                // const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
+                // const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
+                // if (thing.next !== 'return') {
+                //     thing.next.forEach((asdf, j) => {
+                //         const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
+                //         // overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern,
+                //                    offsetView(aaa, new Vec2(anim_t * 12, 0))));
+                //         drawer.drawCable(aaa, names, [
+                //             new Vec2(3, j === 0 ? -12 : -14),
+                //             new Vec2(3, 4),
+                //             new Vec2(12 + anim_t * 12, 4),
+                //         ]);
+                //     });
+                // }
                 break;
             }
             // case 'skipping_child_computation': {
@@ -701,20 +675,9 @@ export class ExecutionState {
                     new Vec2(4, 0),
                 ]);
 
-                const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                if (thing.next !== 'return') {
-                    thing.next.forEach((asdf, j) => {
-                        const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
-                        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern, aaa));
-
-                        drawer.drawCable(aaa, names, [
-                            new Vec2(3, j === 0 ? -12 : -14),
-                            new Vec2(3, 4),
-                            new Vec2(12, 4),
-                        ]);
-                    });
-                }
+                const main_stuff = this.getStuff(this.animation.return_address);
+                const aaa2 = offsetView(main_view, new Vec2(-20, 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, 0, 0));
                 break;
             }
             case 'breaking_to_tail_optimization': {
@@ -730,6 +693,14 @@ export class ExecutionState {
             }
         }
         return firstNonNull(overlaps);
+    }
+
+    private getStuff(address: MatchCaseAddress): [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[], KnownVariables[]] {
+        const next = getCasesAfter(this.fnk, address);
+        const next_original = getCasesAfter(this.original_fnk, address);
+        const next_collaped = getCollapsedAfter(this.collapsed, address);
+        const next_names = getNamesAfter(knownVariables(this.original_fnk), address);
+        return [next, next_original, next_collaped, next_names];
     }
 
     private drawMainFnkName(drawer: Drawer, mouse: Vec2, view: SexprView): OverlappedThing | null {
@@ -899,14 +870,14 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
     return firstNonNull(overlaps);
 }
 
-function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView): OverlappedThing | null {
+function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView, show_children: boolean = true): OverlappedThing | null {
     const overlaps: (OverlappedThing | null)[] = [];
     const collapse_amount = collapseAmount(cur_time, collapsed.main);
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
     view.halfside *= lerp(1, 0.5, collapse_amount);
     view = offsetView(view, new Vec2(0, collapse_amount * 4));
     overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, view));
-    if (collapse_amount < 0.2) {
+    if (collapse_amount < 0.2 && show_children) {
         overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0))));
         overlaps.push(drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view));
         drawer.drawCable(view, names.main, [
@@ -914,18 +885,26 @@ function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_or
             new Vec2(30, 0),
         ]);
 
-        if (v.next !== 'return') {
-            if (v_original.next === 'return') throw new Error('unreachable');
-            for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-                overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12, 12 + 18 * k))));
+        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], view, 0, 1);
+    }
+    return firstNonNull(overlaps);
+}
 
-                const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
-                drawer.drawCable(aaa, names.main, [
-                    new Vec2(3, k === 0 ? -12 : -14),
-                    new Vec2(3, 4),
-                    new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
-                ]);
-            }
+function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
+    [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables],
+    view: SexprView, extended: number, showing_children: number): OverlappedThing | null {
+    const overlaps: (OverlappedThing | null)[] = [];
+    if (v.next !== 'return') {
+        if (v_original.next === 'return') throw new Error('unreachable');
+        for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
+            overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), showing_children > 0.5));
+
+            const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
+            drawer.drawCable(aaa, names.main, [
+                new Vec2(3, k === 0 ? -12 : -14),
+                new Vec2(3, 4),
+                new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)) + 12 * extended, 4),
+            ]);
         }
     }
     return firstNonNull(overlaps);
@@ -954,5 +933,9 @@ function firstChild(return_address: MatchCaseAddress): MatchCaseAddress {
     return [...return_address, 0];
 }
 
-// must be 0 or 12
-const SMOOTH = 0;
+function getFirstStuff([a, b, c, d]: [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[], KnownVariables[]]): [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables] {
+    return [a[0], b[0], c[0], d[0]];
+}
+
+// must be between 0 and 12
+const SMOOTH = 12;
