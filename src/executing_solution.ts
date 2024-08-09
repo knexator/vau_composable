@@ -471,14 +471,21 @@ export class ExecutionState {
                 overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
                 overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input,
                     scaleViewCentered(main_view, 1 - anim_t)));
-                overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
+
+                const v = getCaseAt(this.fnk, this.animation.next_input_address);
+                if (v.next === 'return') {
+                    overlaps.push(this.drawMainFnkName(drawer, mouse,
+                        scaleViewCentered(main_view, 1 - anim_t)));
+                }
+                else {
+                    overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
+                }
 
                 drawer.line(main_view, [
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
                 ]);
 
-                const v = getCaseAt(this.fnk, this.animation.next_input_address);
                 const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
                 const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
                 const v_names = getNamesAt(knownVariables(this.original_fnk), this.animation.next_input_address);
