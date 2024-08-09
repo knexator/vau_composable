@@ -447,7 +447,7 @@ export class ExecutionState {
                 drawer.drawCable(main_view, names, [
                     new Vec2(-5, 0),
                     new Vec2(-5, 4),
-                    new Vec2(12, 4),
+                    new Vec2(lerp(16, 12, anim_t), 4),
                 ]);
                 const next = getCasesAfter(this.fnk, this.animation.which);
                 const next_original = getCasesAfter(this.original_fnk, this.animation.which);
