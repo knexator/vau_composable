@@ -122,7 +122,7 @@ export class ExecutionState {
 
                 if (this.parent.animation.type === 'breaking_to_tail_optimization') {
                     if (this.parent.parent === null) {
-                        return this.withAnimation({ type: 'final_result' });
+                        return this.withAnimation({ type: 'final_result' }).withParent(null);
                     }
                     if (this.parent.parent.animation.type !== 'waiting_for_child') throw new Error('unreachable');
                     return this
