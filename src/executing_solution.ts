@@ -604,7 +604,7 @@ export class ExecutionState {
 
                 const main_stuff = this.getStuff(this.animation.return_address);
                 const aaa2 = offsetView(main_view, new Vec2(-8 - 12, 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, anim_t));
                 break;
             }
             case 'fading_out_to_parent': {
@@ -625,7 +625,7 @@ export class ExecutionState {
 
                 const main_stuff = this.getStuff(this.animation.return_address);
                 const aaa2 = offsetView(main_view, new Vec2(-8 - 12, 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, anim_t));
                 //  - 12 + anim_t * 12
                 // const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
                 // const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
