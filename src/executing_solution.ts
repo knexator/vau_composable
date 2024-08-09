@@ -482,7 +482,7 @@ export class ExecutionState {
                 const v_original = getCaseAt(this.original_fnk, this.animation.next_input_address);
                 const v_collapse = getCollapseAt(this.collapsed, this.animation.next_input_address);
                 const v_names = getNamesAt(knownVariables(this.original_fnk), this.animation.next_input_address);
-                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view, this.animation.bindings, this.animation.next_input_address, true));
+                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, global_t, [v, v_original, v_collapse, v_names], main_view, this.animation.bindings, this.animation.next_input_address));
                 break;
             }
             case 'fading_out_to_child': {
@@ -581,7 +581,7 @@ export class ExecutionState {
 
                 const main_stuff = this.getStuff(this.animation.return_address);
                 const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH_PERC * 12, -20, anim_t), 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 1));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, lerp(lerp(1, 0.5, SMOOTH_PERC), 1, anim_t)));
                 break;
             }
             case 'identity_specialcase_2': {
@@ -815,13 +815,22 @@ function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number 
     return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
 }
 
-function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView, bindings: FloatingBinding[], cur_address: MatchCaseAddress, main_case: boolean): OverlappedThing | null {
+function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables], view: SexprView, bindings: FloatingBinding[], cur_address: MatchCaseAddress, depth: number = 0): OverlappedThing | null {
+    const main_case = depth === 0;
     const overlaps: (OverlappedThing | null)[] = [];
     const collapse_amount = collapseAmount(cur_time, collapsed.main);
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
     view.halfside *= lerp(1, 0.5, collapse_amount);
     view = offsetView(view, new Vec2(0, collapse_amount * 4));
-    overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, !main_case ? view : scaleViewCentered(view, 1 - anim_t)));
+    if (depth === 1) {
+        const old_alpha = drawer.ctx.globalAlpha;
+        drawer.ctx.globalAlpha = 1;
+        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, view));
+        drawer.ctx.globalAlpha = old_alpha;
+    }
+    else {
+        overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, !main_case ? view : scaleViewCentered(view, 1 - anim_t)));
+    }
     if (collapse_amount < 0.2) {
         if (main_case) {
             drawer.line(view, [
@@ -852,23 +861,25 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
         overlaps.push(drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view));
 
         const x_off = main_case ? lerp(0, SMOOTH_PERC * 12, anim_t) : 0;
-        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], offsetView(view, new Vec2(-x_off, 0)), 0, lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t));
+        // cant use drawHangingCases since it doesnt draw the bindings!
+        const draw_children = lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t);
+        // drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], offsetView(view, new Vec2(-x_off, 0)), 0, lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t));
 
-        // if (v.next !== 'return') {
-        //     if (v_original.next === 'return') throw new Error('unreachable');
-        //     for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-        //         const x_off = main_case ? lerp(0, SMOOTH_PERC * 12, anim_t) : 0;
-        //         overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
-        //             offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], false));
-
-        //         const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
-        //         drawer.drawCable(aaa, names.main, [
-        //             new Vec2(3, k === 0 ? -12 : -14),
-        //             new Vec2(3, 4),
-        //             new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
-        //         ]);
-        //     }
-        // }
+        if (v.next !== 'return') {
+            if (v_original.next === 'return') throw new Error('unreachable');
+            for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
+                drawer.ctx.globalAlpha = draw_children;
+                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
+                    offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], depth + 1));
+                if (main_case) drawer.ctx.globalAlpha = 1;
+                const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
+                drawer.drawCable(aaa, names.main, [
+                    new Vec2(3, k === 0 ? -12 : -14),
+                    new Vec2(3, 4),
+                    new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
+                ]);
+            }
+        }
     }
     return firstNonNull(overlaps);
 }
@@ -888,14 +899,14 @@ function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_or
             new Vec2(30, 0),
         ]);
 
-        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], view, 0, 1);
+        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], view, 0, 1, false);
     }
     return firstNonNull(overlaps);
 }
 
 function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
     [v, v_original, collapsed, names]: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables],
-    view: SexprView, extended: number, showing_children: number): OverlappedThing | null {
+    view: SexprView, extended: number, showing_children: number, main_case: boolean = true): OverlappedThing | null {
     const overlaps: (OverlappedThing | null)[] = [];
     if (v.next !== 'return') {
         if (v_original.next === 'return') throw new Error('unreachable');
@@ -910,7 +921,9 @@ function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
                     overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), true));
                 }
             }
-            overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), false));
+            if (main_case) {
+                overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), false));
+            }
 
             const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
             drawer.drawCable(aaa, names.main, [
