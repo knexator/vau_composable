@@ -502,8 +502,8 @@ export class ExecutionState {
                 ]);
 
                 const main_stuff = this.getStuff(this.animation.return_address);
-                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH, -8 - 12, anim_t), 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, 0, 1 - anim_t));
+                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH_PERC * 12, -8 - 12, anim_t), 0));
+                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, 0, lerp(lerp(1, 0.5, SMOOTH_PERC), 0, anim_t)));
                 break;
             }
             case 'fading_in_from_parent': {
@@ -580,7 +580,7 @@ export class ExecutionState {
                 ]);
 
                 const main_stuff = this.getStuff(this.animation.return_address);
-                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH, -20, anim_t), 0));
+                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH_PERC * 12, -20, anim_t), 0));
                 overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, 1));
                 break;
             }
@@ -851,21 +851,24 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
         overlaps.push(drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0))));
         overlaps.push(drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view));
 
-        if (v.next !== 'return') {
-            if (v_original.next === 'return') throw new Error('unreachable');
-            for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-                const x_off = main_case ? lerp(0, SMOOTH, anim_t) : 0;
-                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
-                    offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], false));
+        const x_off = main_case ? lerp(0, SMOOTH_PERC * 12, anim_t) : 0;
+        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], offsetView(view, new Vec2(-x_off, 0)), 0, lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t));
 
-                const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
-                drawer.drawCable(aaa, names.main, [
-                    new Vec2(3, k === 0 ? -12 : -14),
-                    new Vec2(3, 4),
-                    new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
-                ]);
-            }
-        }
+        // if (v.next !== 'return') {
+        //     if (v_original.next === 'return') throw new Error('unreachable');
+        //     for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
+        //         const x_off = main_case ? lerp(0, SMOOTH_PERC * 12, anim_t) : 0;
+        //         overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
+        //             offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], false));
+
+        //         const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
+        //         drawer.drawCable(aaa, names.main, [
+        //             new Vec2(3, k === 0 ? -12 : -14),
+        //             new Vec2(3, 4),
+        //             new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
+        //         ]);
+        //     }
+        // }
     }
     return firstNonNull(overlaps);
 }
@@ -897,7 +900,17 @@ function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
     if (v.next !== 'return') {
         if (v_original.next === 'return') throw new Error('unreachable');
         for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-            overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), showing_children > 0.5));
+            if (showing_children > 0) {
+                if (showing_children < 1) {
+                    drawer.ctx.globalAlpha = showing_children;
+                    overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), true));
+                    drawer.ctx.globalAlpha = 1;
+                }
+                else {
+                    overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), true));
+                }
+            }
+            overlaps.push(drawCase(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), false));
 
             const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
             drawer.drawCable(aaa, names.main, [
@@ -937,5 +950,4 @@ function getFirstStuff([a, b, c, d]: [MatchCaseDefinition[], MatchCaseDefinition
     return [a[0], b[0], c[0], d[0]];
 }
 
-// must be between 0 and 12
-const SMOOTH = 12;
+const SMOOTH_PERC = 1;
