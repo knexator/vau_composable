@@ -79,13 +79,16 @@ export class Drawer {
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
         if (points.length < 2) return;
         this.ctx.beginPath();
-        this.ctx.strokeStyle = cable_patterns.get(variable_names);
-        this.ctx.lineWidth = 5;
+        this.ctx.strokeStyle = cable_patterns.get([view.halfside, variable_names]);
+        this.ctx.lineWidth = 5 * view.halfside / 22;
         this.moveTo(offsetView(view, points[0]).pos);
         for (let k = 1; k < points.length; k++) {
             this.lineTo(offsetView(view, points[k]).pos);
         }
+        this.ctx.save();
+        this.translate(offsetView(view, at(points, -1)).pos.addY(10));
         this.ctx.stroke();
+        this.ctx.restore();
         this.ctx.lineWidth = 1;
     }
 
@@ -875,6 +878,10 @@ export class Drawer {
         this.ctx.moveTo(pos.x, pos.y);
     }
 
+    translate(pos: Vec2) {
+        this.ctx.translate(pos.x, pos.y);
+    }
+
     lineTo(pos: Vec2) {
         this.ctx.lineTo(pos.x, pos.y);
     }
@@ -1092,8 +1099,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -1418,7 +1425,7 @@ export function scaleViewCentered(view: SexprView, scale: number): SexprView {
     return { halfside: view.halfside * scale, turns: view.turns, pos: view.pos.add(new Vec2(offset, 0).rotateTurns(view.turns)) };
 }
 
-function patternForCable(variable_names: string[]): CanvasPattern {
+function patternForCable([halfside, variable_names]: [number, string[]]): CanvasPattern {
     const canvas = document.createElement('canvas');
     const ctx = assertNotNull(canvas.getContext('2d'));
     if (variable_names.length === 0) {
@@ -1435,10 +1442,10 @@ function patternForCable(variable_names: string[]): CanvasPattern {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         return assertNotNull(ctx.createPattern(canvas, 'repeat'));
     }
-    const w = 15;
+    const w = Math.floor(15 * halfside / 22);
     canvas.width = variable_names.length * w;
     canvas.height = w * 4 * variable_names.length;
-    ctx.transform(1, 0, -0.5, 1, 1, 1);
+    ctx.transform(1, 0, -0.50, 1, 0, 0);
     for (let k = 0; k <= variable_names.length * 4; k++) {
         ctx.fillStyle = colorFromAtom(variable_names[mod(k, variable_names.length)]).toHex();
         ctx.fillRect(k * w, 0, w, canvas.height);
@@ -1446,5 +1453,5 @@ function patternForCable(variable_names: string[]): CanvasPattern {
     return assertNotNull(ctx.createPattern(canvas, 'repeat'));
 }
 
-const cable_patterns = new DefaultMapExtra<string[], string, CanvasPattern>(
-    variable_names => variable_names.join(' '), patternForCable);
+const cable_patterns = new DefaultMapExtra<[number, string[]], string, CanvasPattern>(
+    ([halfside, variable_names]) => `${Math.round(halfside)}:${variable_names.join(' ')}`, patternForCable);
