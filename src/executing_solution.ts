@@ -870,7 +870,7 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
         const x_off = main_case ? lerp(0, SMOOTH_PERC * 12, anim_t) : 0;
         // cant use drawHangingCases since it doesnt draw the bindings!
         const draw_children = lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t);
-        // drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], offsetView(view, new Vec2(-x_off, 0)), 0, lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t));
+        // overlaps.push(drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], offsetView(view, new Vec2(-x_off, 0)), 0, lerp(1, lerp(1, 0.5, SMOOTH_PERC), anim_t)));
 
         if (v.next !== 'return') {
             if (v_original.next === 'return') throw new Error('unreachable');
@@ -906,7 +906,7 @@ function drawCase(mouse: Vec2 | null, drawer: Drawer, cur_time: number, [v, v_or
             new Vec2(30, 0),
         ]);
 
-        drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], view, 0, 1, false);
+        overlaps.push(drawHangingCases(mouse, drawer, cur_time, [v, v_original, collapsed, names], view, 0, 1, false));
     }
     return firstNonNull(overlaps);
 }
