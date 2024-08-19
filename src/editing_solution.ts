@@ -1,9 +1,9 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera } from './drawer';
-import { ExecutingSolution, ExecutionState } from './executing_solution';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing } from './drawer';
+import { drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, assert, fromCount } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk } from './model';
+import { assertNotNull, at, assert, fromCount, firstNonNull } from './kommon/kommon';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
 import { inRange } from './kommon/math';
 
 type MouseLocation = FullAddress
@@ -92,6 +92,62 @@ export class EditingSolution {
             center: offsetView(main_view, new Vec2(0, 13.5)).pos,
             radius: main_view.halfside / 2,
         };
+    }
+
+    drawAndUpdate(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | null {
+        return this.drawAndUpdateNew(drawer, global_t, camera, mouse, keyboard);
+        // return this.drawAndUpdateOld(drawer, global_t, camera, mouse, keyboard);
+    }
+
+    drawAndUpdateOld(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | null {
+        this.draw(drawer, global_t, camera);
+        return this.update(drawer, mouse, keyboard, global_t, camera);
+    }
+
+    drawAndUpdateNew(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | null {
+        const rect = drawer.ctx.canvas.getBoundingClientRect();
+        const mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
+
+        const overlaps: (OverlappedThing | null)[] = [];
+        // overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
+
+        const main_view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
+        overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, this.input, main_view));
+        overlaps.push(ExecutionState.drawMainFnkName(drawer, mouse_pos, main_view, this.fnk.name));
+        drawer.line(main_view, [
+            new Vec2(-2, 0),
+            new Vec2(-50, 0),
+        ]);
+        overlaps.push(drawHangingCasesModern(mouse_pos, drawer, global_t,
+            [this.fnk.cases, this.fnk.cases, this.collapsed.inside],
+            knownVariables(this.fnk),
+            main_view, 1, 1));
+        // overlaps.push(drawHangingCases(mouse_pos, drawer, global_t,
+        //     [this.fnk.cases[0], this.fnk.cases[0], this.collapsed, knownVariables(this.fnk)],
+        //     main_view, 1, 1));
+        // const asdf = ExecutionState.init(this.fnk, this.input);
+        // overlaps.push(asdf.draw(drawer, 0, global_t, main_view, mouse_pos));
+
+        const overlapped = firstNonNull(overlaps);
+        if (overlapped !== null) {
+            drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.address));
+            drawer.ctx.fillStyle = 'black';
+            const screen_size = drawer.getScreenSize();
+            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+            drawer.ctx.textAlign = 'center';
+            drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+
+            // if (mouse.wasPressed(MouseButton.Right)) {
+            //     this.collapsed.inside = toggleCollapsed(this.collapsed.inside, [0], global_t);
+            // }
+        }
+        if (mouse.wasPressed(MouseButton.Right)) {
+            this.collapsed.inside = toggleCollapsed(this.collapsed.inside, [0], global_t);
+        }
+
+        // this.draw(drawer, global_t, camera);
+
+        return null;
     }
 
     draw(drawer: Drawer, global_t: number, camera: Camera) {

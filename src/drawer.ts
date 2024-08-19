@@ -9,7 +9,7 @@ import { Mouse } from './kommon/input';
 export const COLLAPSE_DURATION = 0.2;
 const SPIKE_PERC = 1 / 2;
 export type SexprView = { pos: Vec2, halfside: number, turns: number };
-export type OverlappedThing = { parent_view: SexprView, address: SexprAddress, value: SexprTemplate };
+export type OverlappedThing = { parent_view: SexprView, address: SexprAddress, value: SexprTemplate, major_address: MatchCaseAddress | null };
 
 const COLORS = {
     chair: Color.fromInt(0x4e6ebe),
@@ -151,20 +151,20 @@ export class Drawer {
     //     if (address === null) return null;
     //     return { address, value: assertNotNull(getAtLocalAddress(data, address)) };
     // }
-    drawPatternAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, view: SexprView): OverlappedThing | null {
+    drawPatternAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, view: SexprView, major_address: MatchCaseAddress | null = null): OverlappedThing | null {
         this.drawPattern(cur_data, view);
         if (mouse_screen_pos === null) return null;
         const address = patternAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
-        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
+        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view, major_address };
     }
 
-    drawTemplateAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView): OverlappedThing | null {
+    drawTemplateAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView, major_address: MatchCaseAddress | null = null): OverlappedThing | null {
         this.drawTemplate(cur_data, original_data, view);
         if (mouse_screen_pos === null) return null;
         const address = sexprAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
-        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
+        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view, major_address };
     }
 
     drawMoleculePleaseAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, data: SexprTemplate, view: SexprView): OverlappedThing | null {

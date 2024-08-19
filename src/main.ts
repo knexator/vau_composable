@@ -104,12 +104,9 @@ function every_frame(cur_timestamp_millis: number) {
     camera.zoom(input.mouse.wheel, raw_mouse_pos, screen_size.y);
 
     if (cur_thing instanceof EditingSolution) {
-        cur_thing.draw(drawer, global_t, camera);
-        if (input.keyboard.wasPressed(KeyCode.Space)) {
+        cur_thing = cur_thing.drawAndUpdate(drawer, global_t, camera, input.mouse, input.keyboard) ?? cur_thing;
+        if (cur_thing instanceof EditingSolution && input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution();
-        }
-        else {
-            cur_thing = cur_thing.update(drawer, input.mouse, input.keyboard, global_t, camera) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {
