@@ -175,6 +175,15 @@ export class Drawer {
         this.drawTemplate(data, data, view);
     }
 
+    drawPlease(type: FullAddress['type'], data: SexprTemplate, view: SexprView) {
+        if (type === 'pattern') {
+            this.drawPattern(data, view);
+        }
+        else {
+            this.drawTemplate(data, data, view);
+        }
+    }
+
     drawTemplate(cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView) {
         switch (original_data.type) {
             case 'atom':

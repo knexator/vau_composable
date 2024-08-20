@@ -143,11 +143,13 @@ export class EditingSolution {
             else if (mouse.wasPressed(MouseButton.Left)) {
                 this.mouse_holding = overlapped.value;
             }
-            else if (mouse.wasReleased(MouseButton.Left)) {
-                if (this.mouse_holding !== null) {
+
+            if (this.mouse_holding !== null) {
+                drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+                if (mouse.wasReleased(MouseButton.Left)) {
                     this.fnk.cases = setAt(this.fnk.cases, overlapped.full_address, this.mouse_holding);
+                    this.mouse_holding = null;
                 }
-                this.mouse_holding = null;
             }
         }
 
