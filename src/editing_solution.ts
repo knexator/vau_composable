@@ -140,6 +140,15 @@ export class EditingSolution {
             if (mouse.wasPressed(MouseButton.Right) && overlapped.full_address.major.length > 0) {
                 this.collapsed.inside = toggleCollapsed(this.collapsed.inside, overlapped.full_address.major, global_t);
             }
+            else if (mouse.wasPressed(MouseButton.Left)) {
+                this.mouse_holding = overlapped.value;
+            }
+            else if (mouse.wasReleased(MouseButton.Left)) {
+                if (this.mouse_holding !== null) {
+                    this.fnk.cases = setAt(this.fnk.cases, overlapped.full_address, this.mouse_holding);
+                }
+                this.mouse_holding = null;
+            }
         }
 
         // this.draw(drawer, global_t, camera);
