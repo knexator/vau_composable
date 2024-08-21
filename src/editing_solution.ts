@@ -145,26 +145,51 @@ export class EditingSolution {
                 if (major.length === addr.length && commonPrefixLen(major, addr) === major.length - 1) return !eqArrays(addr, overlapped.full_address.major);
                 return cur_value;
             });
+        }
 
-            if (mouse.wasPressed(MouseButton.Right) && overlapped.full_address.major.length > 0) {
-                this.collapsed.inside = toggleCollapsed(this.collapsed.inside, overlapped.full_address.major, global_t);
-            }
-            else if (mouse.wasPressed(MouseButton.Left)) {
+        if (this.mouse_holding === null) {
+            if (overlapped !== null && mouse.wasPressed(MouseButton.Left)) {
                 this.mouse_holding = overlapped.value;
             }
-
-            if (this.mouse_holding !== null) {
-                drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
-                if (mouse.wasReleased(MouseButton.Left)) {
-                    this.fnk.cases = setAt(this.fnk.cases, overlapped.full_address, this.mouse_holding);
-                    this.mouse_holding = null;
+        }
+        else {
+            drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
+            if (overlapped !== null) {
+                if (overlapped.full_address.major.length > 0 || isLiteral(this.mouse_holding)) {
+                    console.log(overlapped.value);
+                    drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
                 }
+            }
+            if (mouse.wasReleased(MouseButton.Left)) {
+                if (overlapped !== null) {
+                    this.setAt(overlapped.full_address, this.mouse_holding);
+                }
+                this.mouse_holding = null;
             }
         }
 
         // this.draw(drawer, global_t, camera);
 
         return null;
+    }
+
+    setAt(full_address: FullAddress, value: SexprTemplate) {
+        if (full_address.major.length > 0) {
+            this.fnk.cases = setAt(this.fnk.cases, full_address, value);
+        }
+        else if (full_address.type === 'fn_name') {
+            if (isLiteral(value)) {
+                this.fnk.name = assertLiteral(setAtLocalAddress(this.fnk.name, full_address.minor, value));
+            }
+        }
+        else if (full_address.type === 'template') {
+            if (isLiteral(value)) {
+                this.input = assertLiteral(setAtLocalAddress(this.input, full_address.minor, value));
+            }
+        }
+        else {
+            assert(false);
+        }
     }
 
     draw(drawer: Drawer, global_t: number, camera: Camera) {
