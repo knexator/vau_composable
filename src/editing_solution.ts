@@ -1,8 +1,8 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing, ensureCollapsed, everythingCollapsedExceptFirsts } from './drawer';
 import { asMainInput, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, assert, fromCount, firstNonNull } from './kommon/kommon';
+import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
 import { inRange } from './kommon/math';
 
@@ -25,7 +25,7 @@ export class EditingSolution {
         private cells: SexprTemplate[],
         private previously_editing: EditingSolution | null = null,
     ) {
-        this.collapsed = fakeCollapsed(nothingCollapsed(fnk.cases));
+        this.collapsed = fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases));
         // this.matched = nothingMatched(fnk.cases);
         this.mouse_location = null;
         this.mouse_holding = null;
@@ -136,6 +136,15 @@ export class EditingSolution {
             drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
             drawer.ctx.textAlign = 'center';
             drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+
+            const major = overlapped.full_address.major;
+            this.collapsed.inside = ensureCollapsed(this.collapsed.inside, global_t, (addr, cur_value) => {
+                if (eqArrays(addr, major)) return false;
+                if (startsWith(addr, major)) return cur_value;
+                if (startsWith(major, addr)) return false;
+                if (major.length === addr.length && commonPrefixLen(major, addr) === major.length - 1) return !eqArrays(addr, overlapped.full_address.major);
+                return cur_value;
+            });
 
             if (mouse.wasPressed(MouseButton.Right) && overlapped.full_address.major.length > 0) {
                 this.collapsed.inside = toggleCollapsed(this.collapsed.inside, overlapped.full_address.major, global_t);

@@ -44,6 +44,14 @@ export function commonPrefixLen<T>(arr1: T[], arr2: T[]): number {
     return result;
 }
 
+export function startsWith<T>(haystack: T[], prefix: T[]): boolean {
+    if (haystack.length < prefix.length) return false;
+    for (let k = 0; k < prefix.length; k++) {
+        if (haystack[k] != prefix[k]) return false;
+    }
+    return true;
+}
+
 export function reversedForEach<T>(arr: T[], callback: (value: T, index?: number, obj?: T[]) => void): void {
     for (let k = arr.length - 1; k >= 0; k--) {
         callback(arr[k], k, arr);

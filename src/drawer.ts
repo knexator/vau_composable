@@ -6,7 +6,7 @@ import Rand from 'rand-seed';
 import { Random } from './kommon/random';
 import { Mouse } from './kommon/input';
 
-export const COLLAPSE_DURATION = 0.2;
+export const COLLAPSE_DURATION = 0.15;
 const SPIKE_PERC = 1 / 2;
 export type SexprView = { pos: Vec2, halfside: number, turns: number };
 export type OverlappedThing = { parent_view: SexprView, address: SexprAddress, value: SexprTemplate };
@@ -1021,6 +1021,22 @@ export function toggleCollapsed(collapsed: Collapsed[], which: MatchCaseAddress,
         result[which[0]].inside = toggleCollapsed(collapsed[which[0]].inside, which.slice(1), cur_time);
         return result;
     }
+}
+
+export function ensureCollapsed(collapsed: Collapsed[], cur_time: number, callback: (addr: MatchCaseAddress, cur_value: boolean) => boolean): Collapsed[] {
+    function helper(collapsed: Collapsed, cur_address: MatchCaseAddress): Collapsed {
+        const new_val = callback(cur_address, collapsed.main.collapsed);
+        return {
+            main: (new_val === collapsed.main.collapsed)
+                ? collapsed.main
+                : { collapsed: new_val, changedAt: cur_time, extra_poles: 0 },
+            inside: collapsed.inside.map((v, k) => helper(v, [...cur_address, k])),
+        };
+    }
+
+    return collapsed.map((v, k) => {
+        return helper(v, [k]);
+    });
 }
 
 function getSexprChildView(parent: SexprView, is_left: boolean): SexprView {
