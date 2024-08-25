@@ -12,7 +12,8 @@ type MouseLocation = FullAddress
     | { type: 'cell', cell: number, address: SexprAddress }
     | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
 
-export type OverlappedEditingThing = OverlappedExecutionThing | { value: 'pole_add', address: MatchCaseAddress, screen_pos: Vec2 };
+export type OverlappedEditingThing = OverlappedExecutionThing
+    | { value: 'pole', type: 'add' | 'return', address: MatchCaseAddress, screen_pos: Vec2 };
 export class EditingSolution {
     private collapsed: Collapsed;
 
@@ -132,7 +133,7 @@ export class EditingSolution {
 
         const overlapped = firstNonNull(overlaps);
         if (overlapped !== null) {
-            if (overlapped.value === 'pole_add') {
+            if (overlapped.value === 'pole') {
                 drawer.ctx.beginPath();
                 drawer.ctx.strokeStyle = 'cyan';
                 drawer.ctx.lineWidth = 2;
@@ -159,16 +160,29 @@ export class EditingSolution {
             }
         }
 
-        if (overlapped !== null && overlapped.value === 'pole_add') {
-            if (mouse.wasPressed(MouseButton.Left)) {
-                // TODO: add pole at the proper place
-                const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address.slice(0, -1), global_t, []);
-                this.fnk.cases = new_cases;
-                this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+        if (this.mouse_holding !== null) {
+            drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
+        }
+        if (overlapped !== null && overlapped.value === 'pole') {
+            if (mouse.wasReleased(MouseButton.Left)) this.mouse_holding = null;
+            if (overlapped.type === 'add') {
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    // TODO: add pole at the proper place
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address.slice(0, -1), global_t, []);
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                }
+                else if (mouse.wasPressed(MouseButton.Right)) {
+                    const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, overlapped.address);
+                    if (new_cases !== 'return') {
+                        this.fnk.cases = new_cases;
+                        this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                    }
+                }
             }
-            else if (mouse.wasPressed(MouseButton.Right)) {
-                const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, overlapped.address);
-                if (new_cases !== 'return') {
+            else if (overlapped.type === 'return') {
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address, global_t, []);
                     this.fnk.cases = new_cases;
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
@@ -181,7 +195,6 @@ export class EditingSolution {
                 }
             }
             else {
-                drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
                 if (overlapped !== null) {
                     if (overlapped.full_address.major.length > 0 || isLiteral(this.mouse_holding)) {
                         console.log(overlapped.value);

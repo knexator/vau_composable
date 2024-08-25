@@ -76,7 +76,7 @@ export class Drawer {
         this.ctx.stroke();
     }
 
-    drawPlus(view: SexprView): void {
+    drawPlus(mouse_pos: Vec2 | null, view: SexprView): boolean {
         const r = 1;
         this.line(view, [
             new Vec2(-r, 0),
@@ -86,6 +86,8 @@ export class Drawer {
             new Vec2(0, -r),
             new Vec2(0, r),
         ]);
+        if (mouse_pos === null) return false;
+        return computeOffset(view, mouse_pos).mag() < 5;
     }
 
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
@@ -173,6 +175,10 @@ export class Drawer {
 
     drawTemplateAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView): OverlappedThing | null {
         this.drawTemplate(cur_data, original_data, view);
+        return this.returnTemplateUnderMouse(mouse_screen_pos, cur_data, view);
+    }
+
+    returnTemplateUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, view: SexprView): OverlappedThing | null {
         if (mouse_screen_pos === null) return null;
         const address = sexprAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
@@ -1136,8 +1142,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-            generated.set(k.toString(), Color.fromHex(s));
-        });
+        generated.set(k.toString(), Color.fromHex(s));
+    });
 
     return (atom: string) => {
         let color = generated.get(atom);

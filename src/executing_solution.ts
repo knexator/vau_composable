@@ -971,6 +971,12 @@ function drawCaseModern(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
                 [v.next, v_original.next, collapsed.inside], names, cur_address,
                 offsetView(view, new Vec2(20, 0)), 0, 1, false));
         }
+        else {
+            const plus_view = offsetView(view, new Vec2(16, 2));
+            if (drawer.drawPlus(mouse, plus_view)) {
+                overlaps.push({ value: 'pole', type: 'return', address: cur_address, screen_pos: plus_view.pos });
+            }
+        }
     }
     return firstNonNull(overlaps);
 }
@@ -1035,17 +1041,19 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
             new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)) + 12 * extended, 4),
         ]);
         const plus_offset = new Vec2(5, -10);
-        drawer.drawPlus(offsetView(aaa, plus_offset));
-        if (mouse !== null && computeOffset(aaa, mouse).sub(plus_offset).mag() < 5) {
-            overlaps.push({ value: 'pole_add', address: [...cur_address, k], screen_pos: offsetView(aaa, plus_offset).pos });
+        if (drawer.drawPlus(mouse, offsetView(aaa, plus_offset))) {
+            overlaps.push({ value: 'pole', type: 'add', address: [...cur_address, k], screen_pos: offsetView(aaa, plus_offset).pos });
         }
     }
     return firstNonNull(overlaps);
 }
 
 function drawFnkName(drawer: Drawer, mouse: Vec2 | null, name: SexprTemplate, name_original: SexprTemplate, view: SexprView): OverlappedThing | null {
-    if (name_original.type === 'atom' && name_original.value === 'identity') return null;
-    return drawer.drawTemplateAndReturnThingUnderMouse(mouse, name, name_original, rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2));
+    const fnk_view = rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2);
+    if (name_original.type === 'atom' && name_original.value === 'identity') {
+        return drawer.returnTemplateUnderMouse(mouse, name, fnk_view);
+    }
+    return drawer.drawTemplateAndReturnThingUnderMouse(mouse, name, name_original, fnk_view);
 }
 
 function getNamesAt(vars: KnownVariables, address: MatchCaseAddress): KnownVariables {
