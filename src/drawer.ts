@@ -9,7 +9,7 @@ import { Mouse } from './kommon/input';
 export const COLLAPSE_DURATION = 0.15;
 const SPIKE_PERC = 1 / 2;
 export type SexprView = { pos: Vec2, halfside: number, turns: number };
-export type OverlappedThing = { parent_view: SexprView, address: SexprAddress, value: SexprTemplate };
+export type OverlappedThing = { kind: 'template' | 'pattern', parent_view: SexprView, address: SexprAddress, value: SexprTemplate };
 
 const COLORS = {
     chair: Color.fromInt(0x4e6ebe),
@@ -64,6 +64,19 @@ export class Drawer {
     constructor(
         public ctx: CanvasRenderingContext2D,
     ) { }
+
+    highlightThing(
+        kind: 'template' | 'pattern' | 'fn_name',
+        type: 'pair' | 'variable' | 'atom',
+        view: SexprView,
+    ) {
+        if (kind === 'pattern') {
+            this.highlightPattern(type, view);
+        }
+        else {
+            this.highlightMolecule(type, view);
+        }
+    }
 
     line(view: SexprView, points: Vec2[]): void {
         if (points.length < 2) return;
@@ -170,7 +183,7 @@ export class Drawer {
         if (mouse_screen_pos === null) return null;
         const address = patternAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
-        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
+        return { kind: 'pattern', address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
     }
 
     drawTemplateAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, cur_data: SexprTemplate, original_data: SexprTemplate, view: SexprView): OverlappedThing | null {
@@ -182,7 +195,7 @@ export class Drawer {
         if (mouse_screen_pos === null) return null;
         const address = sexprAdressFromScreenPosition(mouse_screen_pos, cur_data, view);
         if (address === null) return null;
-        return { address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
+        return { kind: 'template', address, value: assertNotNull(getAtLocalAddress(cur_data, address)), parent_view: view };
     }
 
     drawMoleculePleaseAndReturnThingUnderMouse(mouse_screen_pos: Vec2 | null, data: SexprTemplate, view: SexprView): OverlappedThing | null {
@@ -686,18 +699,19 @@ export class Drawer {
 
     highlightPattern(type: SexprTemplate['type'], view: SexprView) {
         let points: Vec2[];
-        if (type === 'variable') {
-            points = [
-                new Vec2(-view.halfside * SPIKE_PERC, 0),
-                new Vec2(0, -view.halfside),
-                new Vec2(view.halfside * 3, -view.halfside),
-                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
-                new Vec2(view.halfside * 3, view.halfside),
-                new Vec2(0, view.halfside),
-            ].map(v => v.rotateTurns(view.turns))
-                .map(v => view.pos.add(v));
-        }
-        else if (type === 'atom') {
+        // if (type === 'variable') {
+        //     points = [
+        //         new Vec2(-view.halfside * SPIKE_PERC, 0),
+        //         new Vec2(0, -view.halfside),
+        //         new Vec2(view.halfside * 3, -view.halfside),
+        //         new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+        //         new Vec2(view.halfside * 3, view.halfside),
+        //         new Vec2(0, view.halfside),
+        //     ].map(v => v.rotateTurns(view.turns))
+        //         .map(v => view.pos.add(v));
+        // }
+        // else if (type === 'atom') {
+        if (type !== 'pair') {
             points = [
                 new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
                 new Vec2(view.halfside * 3, -view.halfside),
@@ -1142,8 +1156,8 @@ const colorFromAtom: (atom: string) => Color = (() => {
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {
-        generated.set(k.toString(), Color.fromHex(s));
-    });
+            generated.set(k.toString(), Color.fromHex(s));
+        });
 
     return (atom: string) => {
         let color = generated.get(atom);
@@ -1385,7 +1399,8 @@ export function getAtPosition(fnk: FunktionDefinition, view: SexprView, collapse
 export function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
     const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
     if (!inRange(delta_pos.y, -1, 1)) return null;
-    if (data.type === 'atom') {
+    // if (data.type === 'atom') {
+    if (data.type !== 'pair') {
         const max_x = 2;
         if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
             return [];
@@ -1394,15 +1409,15 @@ export function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTempl
             return null;
         }
     }
-    else if (data.type === 'variable') {
-        const max_x = 3 + (1 - Math.abs(delta_pos.y)) * SPIKE_PERC;
-        if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
-            return [];
-        }
-        else {
-            return null;
-        }
-    }
+    // else if (data.type === 'variable') {
+    //     const max_x = 3 + (1 - Math.abs(delta_pos.y)) * SPIKE_PERC;
+    //     if (inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, max_x)) {
+    //         return [];
+    //     }
+    //     else {
+    //         return null;
+    //     }
+    // }
     else {
         // are we selecting a subchild?
         if (data.type === 'pair' && delta_pos.x >= 0.5 - SPIKE_PERC / 2) {
@@ -1426,12 +1441,13 @@ export function sexprAdressFromScreenPosition(screen_pos: Vec2, data: SexprTempl
 function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, view: SexprView): SexprAddress | null {
     const delta_pos = screen_pos.sub(view.pos).scale(1 / view.halfside).rotateTurns(-view.turns);
     if (!inRange(delta_pos.y, -1, 1)) return null;
-    if (data.type === 'atom') {
+    // if (data.type === 'atom') {
+    if (data.type !== 'pair') {
         return inRange(delta_pos.x, 2, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
     }
-    else if (data.type === 'variable') {
-        return inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
-    }
+    // else if (data.type === 'variable') {
+    //     return inRange(delta_pos.x, (Math.abs(delta_pos.y) - 1) * SPIKE_PERC, 3 - (Math.abs(delta_pos.y) - 1) * SPIKE_PERC) ? [] : null;
+    // }
     else {
         // are we selecting a subchild?
         if (3 - delta_pos.x >= 0.5 - SPIKE_PERC / 2) {

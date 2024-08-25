@@ -142,7 +142,7 @@ export class EditingSolution {
                 drawer.ctx.lineWidth = 1;
             }
             else {
-                drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+                drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
                 drawer.ctx.fillStyle = 'black';
                 const screen_size = drawer.getScreenSize();
                 drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
