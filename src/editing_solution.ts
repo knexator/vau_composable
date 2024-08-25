@@ -11,6 +11,8 @@ type MouseLocation = FullAddress
     | { type: 'toolbar', value: SexprTemplate, view: SexprView }
     | { type: 'cell', cell: number, address: SexprAddress }
     | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
+
+export type OverlappedEditingThing = OverlappedExecutionThing | { value: 'pole_add', address: MatchCaseAddress, screen_pos: Vec2 };
 export class EditingSolution {
     private collapsed: Collapsed;
 
@@ -108,7 +110,7 @@ export class EditingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const overlaps: (OverlappedExecutionThing | null)[] = [];
+        const overlaps: (OverlappedEditingThing | null)[] = [];
         // overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
 
         const main_view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
@@ -130,41 +132,68 @@ export class EditingSolution {
 
         const overlapped = firstNonNull(overlaps);
         if (overlapped !== null) {
-            drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
-            drawer.ctx.fillStyle = 'black';
-            const screen_size = drawer.getScreenSize();
-            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-            drawer.ctx.textAlign = 'center';
-            drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+            if (overlapped.value === 'pole_add') {
+                drawer.ctx.beginPath();
+                drawer.ctx.strokeStyle = 'cyan';
+                drawer.ctx.lineWidth = 2;
+                drawer.drawCircle(overlapped.screen_pos, main_view.halfside * 0.5);
+                drawer.ctx.stroke();
+                drawer.ctx.lineWidth = 1;
+            }
+            else {
+                drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+                drawer.ctx.fillStyle = 'black';
+                const screen_size = drawer.getScreenSize();
+                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+                drawer.ctx.textAlign = 'center';
+                drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
 
-            const major = overlapped.full_address.major;
-            this.collapsed.inside = ensureCollapsed(this.collapsed.inside, global_t, (addr, cur_value) => {
-                if (eqArrays(addr, major)) return false;
-                if (startsWith(addr, major)) return cur_value;
-                if (startsWith(major, addr)) return false;
-                if (major.length === addr.length && commonPrefixLen(major, addr) === major.length - 1) return !eqArrays(addr, overlapped.full_address.major);
-                return cur_value;
-            });
+                const major = overlapped.full_address.major;
+                this.collapsed.inside = ensureCollapsed(this.collapsed.inside, global_t, (addr, cur_value) => {
+                    if (eqArrays(addr, major)) return false;
+                    if (startsWith(addr, major)) return cur_value;
+                    if (startsWith(major, addr)) return false;
+                    if (major.length === addr.length && commonPrefixLen(major, addr) === major.length - 1) return !eqArrays(addr, overlapped.full_address.major);
+                    return cur_value;
+                });
+            }
         }
 
-        if (this.mouse_holding === null) {
-            if (overlapped !== null && mouse.wasPressed(MouseButton.Left)) {
-                this.mouse_holding = overlapped.value;
+        if (overlapped !== null && overlapped.value === 'pole_add') {
+            if (mouse.wasPressed(MouseButton.Left)) {
+                // TODO: add pole at the proper place
+                const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address.slice(0, -1), global_t, []);
+                this.fnk.cases = new_cases;
+                this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+            }
+            else if (mouse.wasPressed(MouseButton.Right)) {
+                const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, overlapped.address);
+                if (new_cases !== 'return') {
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                }
             }
         }
         else {
-            drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
-            if (overlapped !== null) {
-                if (overlapped.full_address.major.length > 0 || isLiteral(this.mouse_holding)) {
-                    console.log(overlapped.value);
-                    drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+            if (this.mouse_holding === null) {
+                if (overlapped !== null && mouse.wasPressed(MouseButton.Left)) {
+                    this.mouse_holding = overlapped.value;
                 }
             }
-            if (mouse.wasReleased(MouseButton.Left)) {
+            else {
+                drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
                 if (overlapped !== null) {
-                    this.setAt(overlapped.full_address, this.mouse_holding);
+                    if (overlapped.full_address.major.length > 0 || isLiteral(this.mouse_holding)) {
+                        console.log(overlapped.value);
+                        drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+                    }
                 }
-                this.mouse_holding = null;
+                if (mouse.wasReleased(MouseButton.Left)) {
+                    if (overlapped !== null) {
+                        this.setAt(overlapped.full_address, this.mouse_holding);
+                    }
+                    this.mouse_holding = null;
+                }
             }
         }
 

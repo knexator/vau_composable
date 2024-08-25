@@ -46,7 +46,7 @@ export function isLiteral(x: SexprTemplate): boolean {
     throw new Error('unreachable');
 }
 
-import { Collapsed } from './drawer';
+import { COLLAPSE_DURATION, Collapsed } from './drawer';
 import { addAt, at, deleteAt, or, replace, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';

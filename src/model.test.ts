@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { Camera } from './drawer';
+import { Camera, computeOffset, offsetView, SexprView } from './drawer';
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 
 test('funktion add', () => {
@@ -246,4 +246,13 @@ test('camera zoom 2', () => {
     expect(camera.topleft).toStrictEqual(new Vec2(0, 1 / 4));
     expect(camera.worldToScreen([new Vec2(0, 1 / 2), 1 / 2], screen_side))
         .toStrictEqual([new Vec2(0, screen_side / 2), screen_side]);
+});
+
+test('compute offset view', () => {
+    const view: SexprView = { pos: new Vec2(123, 456), halfside: 24, turns: 1.23 };
+    const true_offset = new Vec2(84, 68);
+    const pos = offsetView(view, true_offset).pos;
+    const computed_offset = computeOffset(view, pos);
+    expect(computed_offset.x).toBeCloseTo(true_offset.x);
+    expect(computed_offset.y).toBeCloseTo(true_offset.y);
 });

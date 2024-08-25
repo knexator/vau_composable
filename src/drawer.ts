@@ -76,6 +76,18 @@ export class Drawer {
         this.ctx.stroke();
     }
 
+    drawPlus(view: SexprView): void {
+        const r = 1;
+        this.line(view, [
+            new Vec2(-r, 0),
+            new Vec2(r, 0),
+        ]);
+        this.line(view, [
+            new Vec2(0, -r),
+            new Vec2(0, r),
+        ]);
+    }
+
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
         if (points.length < 2) return;
         this.ctx.beginPath();
@@ -1439,6 +1451,10 @@ export function offsetView(view: SexprView, units: Vec2): SexprView {
         halfside: view.halfside, turns: view.turns,
         pos: view.pos.add(units.scale(view.halfside / 4).rotateTurns(view.turns)),
     };
+}
+
+export function computeOffset(view: SexprView, point: Vec2): Vec2 {
+    return point.sub(view.pos).scale(4 / view.halfside).rotateTurns(-view.turns);
 }
 
 export function rotateAndScaleView(view: SexprView, turns: number, scale: number): SexprView {

@@ -1,6 +1,6 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing } from './drawer';
-import { EditingSolution } from './editing_solution';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing, computeOffset } from './drawer';
+import { EditingSolution, OverlappedEditingThing } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
 import { clamp01, in01, lerp, remap, remapClamped } from './kommon/math';
@@ -983,8 +983,8 @@ export function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: n
 export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
     [v, v_original, collapsed]: [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[]],
     parent_names: KnownVariables, cur_address: MatchCaseAddress,
-    view: SexprView, extended: number, showing_children: number, main_case: boolean = true): OverlappedExecutionThing | null {
-    const overlaps: (OverlappedExecutionThing | null)[] = [];
+    view: SexprView, extended: number, showing_children: number, main_case: boolean = true): OverlappedEditingThing | null {
+    const overlaps: (OverlappedEditingThing | null)[] = [];
     view = offsetView(view, new Vec2(-20, 0));
     for (const [k, x] of enumerate(zip4(v, v_original, collapsed, parent_names.inside))) {
         if (showing_children > 0) {
@@ -1007,6 +1007,11 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
             new Vec2(3, 4),
             new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)) + 12 * extended, 4),
         ]);
+        const plus_offset = new Vec2(5, -10);
+        drawer.drawPlus(offsetView(aaa, plus_offset));
+        if (mouse !== null && computeOffset(aaa, mouse).sub(plus_offset).mag() < 5) {
+            overlaps.push({ value: 'pole_add', address: [...cur_address, k], screen_pos: offsetView(aaa, plus_offset).pos });
+        }
     }
     return firstNonNull(overlaps);
 }
