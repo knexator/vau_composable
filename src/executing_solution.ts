@@ -1019,14 +1019,17 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
     view: SexprView, extended: number, showing_children: number, main_case: boolean = true): OverlappedEditingThing | null {
     const overlaps: (OverlappedEditingThing | null)[] = [];
     view = offsetView(view, new Vec2(-20, 0));
+    let v_offset = 0;
     for (const [k, x] of enumerate(zip4(v, v_original, collapsed, parent_names.inside))) {
-        const aaa = offsetView(view, new Vec2(12, 12 + 18 * k));
+        const collapsed = collapseAmount(cur_time, x[2].main);
+        const v_offset_delta = lerp(10, 6, collapsed);
+        v_offset += v_offset_delta;
+        const aaa = offsetView(view, new Vec2(12, v_offset));
         drawer.drawCable(aaa, parent_names.main, [
-            new Vec2(3, k === 0 ? -12 : -14),
+            new Vec2(3, -v_offset_delta),
             new Vec2(3, 4),
-            new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)) + 12 * extended, 4),
+            new Vec2(lerp(12, 6, collapsed) + 12 * extended, 4),
         ]);
-
         if (showing_children > 0) {
             if (showing_children < 1) {
                 drawer.ctx.globalAlpha = showing_children;
@@ -1041,7 +1044,7 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
             overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(12 * extended, 0)), [...cur_address, k], false));
         }
 
-        const plus_offset = new Vec2(5, -10);
+        const plus_offset = new Vec2(5, -v_offset_delta + 7);
         if (drawer.drawPlus(mouse, offsetView(aaa, plus_offset))) {
             overlaps.push({ value: 'pole', type: 'add', address: [...cur_address, k], screen_pos: offsetView(aaa, plus_offset).pos });
         }
