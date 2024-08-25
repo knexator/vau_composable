@@ -1030,15 +1030,15 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
         if (showing_children > 0) {
             if (showing_children < 1) {
                 drawer.ctx.globalAlpha = showing_children;
-                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), [...cur_address, k], true));
+                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(12 * extended, 0)), [...cur_address, k], true));
                 drawer.ctx.globalAlpha = 1;
             }
             else {
-                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), [...cur_address, k], true));
+                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(12 * extended, 0)), [...cur_address, k], true));
             }
         }
         if (main_case) {
-            overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(view, new Vec2(12 + 12 * extended, 12 + 18 * k)), [...cur_address, k], false));
+            overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(12 * extended, 0)), [...cur_address, k], false));
         }
 
         const plus_offset = new Vec2(5, -10);
