@@ -163,6 +163,26 @@ export class EditingSolution {
         if (this.mouse_holding !== null) {
             drawer.drawMoleculePlease(this.mouse_holding, this.getExtraView(drawer.getScreenSize()));
         }
+
+        // change atom names
+        if (overlapped !== null && overlapped.value !== 'pole' && this.mouse_holding === null) {
+            const hovered_value = overlapped.value;
+            if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
+                if (keyboard.wasPressed(KeyCode.Backspace)) {
+                    hovered_value.value = hovered_value.value.slice(0, -1);
+                }
+                else {
+                    if (!(['(', ')', ' ', '{', '}', ':', ';'].includes(keyboard.text))) {
+                        hovered_value.value += keyboard.text;
+                    }
+                }
+            }
+        }
+
+        if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
+            return this.previously_editing;
+        }
+
         if (overlapped !== null && overlapped.value === 'pole') {
             if (mouse.wasReleased(MouseButton.Left)) this.mouse_holding = null;
             if (overlapped.type === 'add') {
@@ -179,6 +199,12 @@ export class EditingSolution {
                         this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                     }
                 }
+                else if (keyboard.wasPressed(KeyCode.KeyW) || keyboard.wasPressed(KeyCode.KeyS)) {
+                    const move_up = keyboard.wasPressed(KeyCode.KeyW);
+                    const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, overlapped.address, move_up);
+                    this.fnk.cases = new_cases;
+                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                }
             }
             else if (overlapped.type === 'return') {
                 if (mouse.wasPressed(MouseButton.Left)) {
@@ -190,8 +216,27 @@ export class EditingSolution {
         }
         else {
             if (this.mouse_holding === null) {
-                if (overlapped !== null && mouse.wasPressed(MouseButton.Left)) {
-                    this.mouse_holding = overlapped.value;
+                if (overlapped !== null) {
+                    const cur_value = overlapped.value;
+                    if (mouse.wasPressed(MouseButton.Left)) {
+                        // pick up
+                        this.mouse_holding = cloneSexpr(cur_value);
+                    }
+                    else if (keyboard.wasPressed(KeyCode.Enter)) {
+                        // go to function
+                        if (isLiteral(cur_value)) {
+                            const lit_name = assertLiteral(cur_value);
+                            const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
+                            if (other_fnk !== undefined && other_fnk !== this.fnk) {
+                                return new EditingSolution(this.all_fnks, other_fnk, this.input, this.cells, this.withoutInteractions());
+                            }
+                        }
+                    }
+                    else if (mouse.wasPressed(MouseButton.Right)) {
+                        // split
+                        const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
+                        this.setAt(overlapped.full_address, new_value);
+                    }
                 }
             }
             else {
