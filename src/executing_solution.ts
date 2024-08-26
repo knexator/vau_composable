@@ -380,11 +380,11 @@ export class ExecutionState {
                 const next_original = getCasesAfter(this.original_fnk, this.animation.target);
                 const next_collaped = getCollapsedAfter(this.collapsed, this.animation.target);
 
-                drawHangingCasesModern(mouse, drawer, global_t,
+                overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
                     [next, next_original, next_collaped], this.namesAt(parentAddress(this.animation.target)),
                     this.animation.target, main_view, 1, 1, true,
                     { type: 'input_moving_to_next_option', anim_t: anim_t },
-                );
+                )));
                 break;
             }
             case 'failing_to_match': {
@@ -395,48 +395,31 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                     new Vec2(-2, 0),
                 ]);
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.which.slice(0, -1)).main;
+                const which = this.animation.which;
 
-                const next = getCasesAfter(this.fnk, this.animation.which);
-                const next_original = getCasesAfter(this.original_fnk, this.animation.which);
-                const next_collaped = getCollapsedAfter(this.collapsed, this.animation.which);
-                const next_names = getNamesAfter(knownVariables(this.original_fnk), this.animation.which);
-                for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    const collapse_amount = collapseAmount(global_t, stuff[2].main);
-                    if (k === 0) {
-                        drawer.drawCable(main_view, names, [
-                            new Vec2(-5, 0),
-                            new Vec2(-5, 16 - 12),
-                            new Vec2(lerp(16, 10, collapse_amount) - anim_t * 8, 16 - 12),
-                        ]);
-                    }
-                    else if (k === 1) {
-                        drawer.drawCable(main_view, names, [
-                            new Vec2(-5, -2 + 6),
-                            new Vec2(-5, -2 + 18),
-                            new Vec2(lerp(16, 10, collapse_amount), -2 + 18),
-                        ]);
-                    }
-                    else {
-                        drawer.drawCable(main_view, names, [
-                            new Vec2(-5, -2 + (k - 1) * 18),
-                            new Vec2(-5, -2 + (k - 1 + 1) * 18),
-                            new Vec2(lerp(16, 10, collapse_amount), -2 + (k - 1 + 1) * 18),
-                        ]);
-                    }
+                const [cur, ...next] = getCasesAfter(this.fnk, which);
+                const [cur_original, ...next_original] = getCasesAfter(this.original_fnk, which);
+                const [cur_collapse, ...next_collaped] = getCollapsedAfter(this.collapsed, which);
+                const [cur_names, ...next_names] = getNamesAfter(knownVariables(this.original_fnk), which);
+                const names = this.namesAt(parentAddress(which));
 
-                    if (k === 0) {
-                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
-                            subdivideT(anim_t, [
-                                [0, 0.5, t => new Vec2(4 - t * 4, 0)],
-                                [0.5, 1, t => new Vec2(t * 4, -t * 12)],
-                            ]),
-                        ), [...this.animation.which, k]));
-                    }
-                    else {
-                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view, new Vec2(4, 12 + 18 * (k - 1))), [...this.animation.which, k]));
-                    }
-                };
+                overlaps.push(onlyExecuting(
+                    subdivideT(anim_t, [
+                        [0, 0.5, t => drawCaseWrapperModern(main_view,
+                            true, 0, drawer,
+                            names, 0, 1, mouse, global_t, 1 - t,
+                            [cur, cur_original, cur_collapse, cur_names], which)],
+                        [0.5, 1, t => drawCaseWrapperModern(
+                            offsetView(main_view, new Vec2(t, -t).scale(20)),
+                            true, 0, drawer,
+                            names, 0, 1, mouse, global_t, 0,
+                            [cur, cur_original, cur_collapse, cur_names], which)],
+                    ]),
+                ));
+
+                overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
+                    [next, next_original, next_collaped], names,
+                    which, main_view, 1, 1, true)));
                 break;
             }
             case 'matching': {
@@ -786,7 +769,7 @@ export class ExecutingSolution {
         const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
         const overlapped = this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, raw_mouse_pos);
         if (overlapped !== null) {
-            drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+            drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
             drawer.ctx.fillStyle = 'black';
             const screen_size = drawer.getScreenSize();
             drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
@@ -1008,7 +991,6 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
     special: null | { type: 'input_moving_to_next_option', anim_t: number } = null,
 ): OverlappedEditingThing | null {
     const overlaps: (OverlappedEditingThing | null)[] = [];
-    view = offsetView(view, new Vec2(-20, 0));
     let v_offset = 0;
     for (const [k, x] of enumerate(zip4(v, v_original, collapsed, parent_names.inside))) {
         const collapsed = collapseAmount(cur_time, x[2].main);
@@ -1019,29 +1001,49 @@ export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_t
             }
         }
         v_offset += v_offset_delta;
-        const aaa = offsetView(view, new Vec2(12, v_offset));
-        const extended_amount = (main_case ? 12 : 4) - 2 * (1 - collapsed);
-        drawer.drawCable(aaa, parent_names.main, [
-            new Vec2(3, -v_offset_delta),
-            new Vec2(3, 4),
-            new Vec2(lerp(12, 6, collapsed) + extended_amount, 4),
-        ]);
-        if (showing_children > 0) {
-            if (showing_children < 1) {
-                drawer.ctx.globalAlpha = showing_children;
-                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), [...cur_address, k], true));
-                drawer.ctx.globalAlpha = 1;
-            }
-            else {
-                overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), [...cur_address, k], true));
-            }
-        }
 
-        const plus_offset = new Vec2(1.2, 2);
-        if (drawer.drawPlus(mouse, offsetView(aaa, plus_offset))) {
-            overlaps.push({ value: 'pole', type: 'add', address: [...cur_address, k], screen_pos: offsetView(aaa, plus_offset).pos });
+        overlaps.push(drawCaseWrapperModern(offsetView(view, new Vec2(0, v_offset)),
+            main_case, collapsed, drawer, parent_names, v_offset_delta, showing_children, mouse,
+            cur_time, extended, x, [...cur_address, k]));
+    }
+    return firstNonNull(overlaps);
+}
+
+function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: number,
+    drawer: Drawer, parent_names: KnownVariables, v_offset_delta: number, showing_children: number,
+    mouse: Vec2 | null, cur_time: number, extended: number,
+    x: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables],
+    cur_address: MatchCaseAddress,
+): OverlappedEditingThing | null {
+    const overlaps: (OverlappedEditingThing | null)[] = [];
+    const aaa = offsetView(view, new Vec2(-8, 0));
+    const extended_amount = lerp(
+        (main_case ? 12 : 4) - 4 * (1 - collapsed),
+        (main_case ? 12 : 4) - 2 * (1 - collapsed),
+        extended,
+    );
+    // const extended_amount = (main_case ? 12 : 4) - 2 * (1 - collapsed);
+    drawer.drawCable(aaa, parent_names.main, [
+        new Vec2(3, -v_offset_delta),
+        new Vec2(3, 4),
+        new Vec2(lerp(12, 6, collapsed) + extended_amount, 4),
+    ]);
+    if (showing_children > 0) {
+        if (showing_children < 1) {
+            drawer.ctx.globalAlpha = showing_children;
+            overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), cur_address, true));
+            drawer.ctx.globalAlpha = 1;
+        }
+        else {
+            overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), cur_address, true));
         }
     }
+
+    const plus_offset = new Vec2(1.2, 2);
+    if (drawer.drawPlus(mouse, offsetView(aaa, plus_offset))) {
+        overlaps.push({ value: 'pole', type: 'add', address: cur_address, screen_pos: offsetView(aaa, plus_offset).pos });
+    }
+
     return firstNonNull(overlaps);
 }
 
@@ -1082,4 +1084,10 @@ const SMOOTH_PERC = 1;
 function parentAddress(target: MatchCaseAddress): MatchCaseAddress {
     if (target.length === 0) throw new Error('can\'t get parent of empty address');
     return target.slice(0, -1);
+}
+
+function onlyExecuting(x: OverlappedEditingThing | null): OverlappedExecutionThing | null {
+    if (x === null) return null;
+    if (x.value === 'pole') return null;
+    return x;
 }
