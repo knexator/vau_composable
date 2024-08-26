@@ -489,8 +489,18 @@ export class ExecutionState {
                 ]);
 
                 const main_stuff = this.getStuff(this.animation.return_address);
-                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH_PERC * 12, -8 - 12, anim_t), 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, 0, lerp(lerp(1, 0.5, SMOOTH_PERC), 0, anim_t), this.animation.return_address));
+                const address = this.animation.return_address;
+
+                const [next, next_original, next_collaped, next_names] = getFirstStuff(main_stuff);
+                if (next.next !== 'return') {
+                    if (next_original.next === 'return') throw new Error('unreachable');
+                    overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
+                        [next.next, next_original.next, next_collaped.inside], next_names,
+                        address, offsetView(main_view, new Vec2(lerp(20 - SMOOTH_PERC * 12, 0, anim_t), 0)),
+                        0, lerp(lerp(1, 0.5, SMOOTH_PERC), 0, anim_t), false, null,
+                    )));
+                }
+
                 break;
             }
             case 'fading_in_from_parent': {
