@@ -874,18 +874,10 @@ function drawCaseAfterMatched(anim_t: number, mouse: Vec2 | null, drawer: Drawer
 
         if (v.next !== 'return') {
             if (v_original.next === 'return') throw new Error('unreachable');
-            for (const [k, x] of enumerate(zip4(v.next, v_original.next, collapsed.inside, names.inside))) {
-                drawer.ctx.globalAlpha = draw_children;
-                overlaps.push(drawCaseAfterMatched(anim_t, mouse, drawer, cur_time, x,
-                    offsetView(view, new Vec2(12 - x_off, 12 + 18 * k)), bindings, [...cur_address, k], depth + 1));
-                if (main_case) drawer.ctx.globalAlpha = 1;
-                const aaa = offsetView(view, new Vec2(12 - x_off, 12 + 18 * k));
-                drawer.drawCable(aaa, names.main, [
-                    new Vec2(3, k === 0 ? -12 : -14),
-                    new Vec2(3, 4),
-                    new Vec2(lerp(12, 6, collapseAmount(cur_time, x[2].main)), 4),
-                ]);
-            }
+            drawHangingCasesModern(mouse, drawer, cur_time,
+                [v.next, v_original.next, collapsed.inside], names, cur_address,
+                offsetView(view, new Vec2(20 - x_off, 0)),
+                0, draw_children, false, null);
         }
     }
     return firstNonNull(overlaps);
@@ -1007,7 +999,7 @@ function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: n
     drawer: Drawer, parent_names: KnownVariables, v_offset_delta: number, showing_children: number,
     mouse: Vec2 | null, cur_time: number, extended: number,
     x: [MatchCaseDefinition, MatchCaseDefinition, Collapsed, KnownVariables],
-    cur_address: MatchCaseAddress,
+    cur_address: MatchCaseAddress, special: null | { type: 'floating_bindings' } = null,
 ): OverlappedEditingThing | null {
     const overlaps: (OverlappedEditingThing | null)[] = [];
     const aaa = offsetView(view, new Vec2(-8, 0));
@@ -1022,7 +1014,10 @@ function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: n
         new Vec2(3, 4),
         new Vec2(lerp(12, 6, collapsed) + extended_amount, 4),
     ]);
-    if (showing_children > 0) {
+    if (special !== null) {
+        overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), cur_address, true));
+    }
+    else if (showing_children > 0) {
         if (showing_children < 1) {
             drawer.ctx.globalAlpha = showing_children;
             overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), cur_address, true));
