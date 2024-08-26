@@ -427,32 +427,26 @@ export class ExecutionState {
                 overlaps.push(this.drawMainInput(drawer, mouse, main_view));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
                 drawer.line(main_view, [
-                    new Vec2(-2, 0),
                     new Vec2(-50, 0),
+                    new Vec2(-2, 0),
                 ]);
 
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.which.slice(0, -1)).main;
-                drawer.drawCable(main_view, names, [
-                    new Vec2(-5, 0),
-                    new Vec2(-5, 4),
-                    new Vec2(lerp(16, 12, anim_t), 4),
-                ]);
-                const next = getCasesAfter(this.fnk, this.animation.which);
-                const next_original = getCasesAfter(this.original_fnk, this.animation.which);
-                const next_collaped = getCollapsedAfter(this.collapsed, this.animation.which);
-                const next_names = getNamesAfter(knownVariables(this.original_fnk), this.animation.which);
-                for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    if (k === 0) {
-                        // main case being matched
-                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
-                            new Vec2(4 - anim_t * 4, 0)), [...this.animation.which, k]));
-                    }
-                    else {
-                        // sibling cases to be discarded
-                        overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
-                            new Vec2(4 - anim_t * 24, 12 + 18 * (k - 1 + anim_t))), [...this.animation.which, k]));
-                    }
-                }
+                const which = this.animation.which;
+
+                const [cur, ...next] = getCasesAfter(this.fnk, which);
+                const [cur_original, ...next_original] = getCasesAfter(this.original_fnk, which);
+                const [cur_collapse, ...next_collaped] = getCollapsedAfter(this.collapsed, which);
+                const [cur_names, ...next_names] = getNamesAfter(knownVariables(this.original_fnk), which);
+                const names = this.namesAt(parentAddress(which));
+
+                overlaps.push(onlyExecuting(drawCaseWrapperModern(main_view,
+                    true, 0, drawer,
+                    names, 0, 1, mouse, global_t, 1 - anim_t,
+                    [cur, cur_original, cur_collapse, cur_names], which)));
+
+                overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
+                    [next, next_original, next_collaped], names,
+                    which, offsetView(main_view, new Vec2(-anim_t, anim_t).scale(4)), 1, 1, true)));
                 break;
             }
             case 'floating_bindings': {
