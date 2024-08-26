@@ -106,7 +106,7 @@ function every_frame(cur_timestamp_millis: number) {
     if (cur_thing instanceof EditingSolution) {
         cur_thing = cur_thing.drawAndUpdate(drawer, global_t, camera, input.mouse, input.keyboard) ?? cur_thing;
         if (cur_thing instanceof EditingSolution && input.keyboard.wasPressed(KeyCode.Space)) {
-            cur_thing = cur_thing.startExecution();
+            cur_thing = cur_thing.startExecution(global_t);
         }
     }
     else if (cur_thing instanceof ExecutingSolution) {
@@ -160,8 +160,9 @@ function every_frame(cur_timestamp_millis: number) {
 }
 
 if (import.meta.hot) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (import.meta.hot.data.cur_thing !== undefined) {
-        // cur_thing = import.meta.hot.data.cur_thing;
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-member-access
         const old_thing = import.meta.hot.data.cur_thing as ExecutingSolution;
         if (old_thing.constructor.name == 'ExecutingSolution') {
             console.log('stuff');
@@ -200,6 +201,7 @@ if (import.meta.hot) {
         input.keyboard.dispose();
         cancelAnimationFrame(animation_id);
         // gui.destroy();
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         data.cur_thing = cur_thing;
     });
 }

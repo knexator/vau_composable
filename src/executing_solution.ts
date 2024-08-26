@@ -1,5 +1,5 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing, computeOffset } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing, computeOffset, ensureCollapsed } from './drawer';
 import { EditingSolution, OverlappedEditingThing } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
@@ -60,11 +60,11 @@ export class ExecutionState {
         public original_fnk: FunktionDefinition,
     ) { }
 
-    static init(fnk: FunktionDefinition, input: SexprLiteral): ExecutionState {
+    static init(fnk: FunktionDefinition, input: SexprLiteral, global_t: number, collapsed: Collapsed): ExecutionState {
         return new ExecutionState(
             null,
             fnk,
-            fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases)),
+            fakeCollapsed(ensureCollapsed(collapsed.inside, global_t, (addr, _) => last(addr) > 0)),
             nothingMatched(fnk.cases),
             input,
             { type: 'input_moving_to_next_option', target: [0] },
@@ -755,8 +755,10 @@ export class ExecutingSolution {
         original_fnk: FunktionDefinition,
         original_input: SexprLiteral,
         private original_editing: EditingSolution,
+        global_t: number,
+        collapsed: Collapsed,
     ) {
-        this.cur_execution_state = ExecutionState.init(structuredClone(original_fnk), original_input);
+        this.cur_execution_state = ExecutionState.init(structuredClone(original_fnk), original_input, global_t, collapsed);
         this.anim_t = 0;
     }
 

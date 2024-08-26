@@ -589,8 +589,8 @@ export class EditingSolution {
         }
     }
 
-    startExecution() {
-        return new ExecutingSolution(this.all_fnks, this.fnk, this.input, this);
+    startExecution(global_t: number) {
+        return new ExecutingSolution(this.all_fnks, this.fnk, this.input, this, global_t, this.collapsed);
     }
 
     static getMainView(screen_size: Vec2, camera: Camera): SexprView {
