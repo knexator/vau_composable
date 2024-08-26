@@ -375,34 +375,16 @@ export class ExecutionState {
                     new Vec2(-2, 0),
                     new Vec2(-50, 0),
                 ]);
-                const names = getNamesAt(knownVariables(this.fnk), this.animation.target.slice(0, -1)).main;
+
                 const next = getCasesAfter(this.fnk, this.animation.target);
                 const next_original = getCasesAfter(this.original_fnk, this.animation.target);
                 const next_collaped = getCollapsedAfter(this.collapsed, this.animation.target);
-                const next_names = getNamesAfter(knownVariables(this.original_fnk), this.animation.target);
-                for (const [k, stuff] of enumerate(zip4(next, next_original, next_collaped, next_names))) {
-                    const collapse_amount = collapseAmount(global_t, stuff[2].main);
-                    if (k === 0) {
-                        // assert(collapse_amount === 0);
-                        drawer.drawCable(main_view, names, [
-                            new Vec2(-5, 0),
-                            new Vec2(-5, 16 - 12 * anim_t),
-                            new Vec2(lerp(16, 10, collapse_amount), 16 - 12 * anim_t),
-                        ]);
-                    }
-                    else {
-                        drawer.drawCable(main_view, names, [
-                            new Vec2(-5, Math.max(-2 + (k - anim_t), 0) * 18),
-                            new Vec2(-5, -2 + (k - anim_t + 1) * 18),
-                            new Vec2(lerp(16, 10, collapse_amount), -2 + (k - anim_t + 1) * 18),
-                        ]);
-                    }
 
-                    overlaps.push(drawCase(mouse, drawer, global_t, stuff, offsetView(main_view,
-                        k === 0
-                            ? new Vec2(4, 12 * (1 - anim_t))
-                            : new Vec2(4, 12 + 18 * (k - anim_t))), [...this.animation.target, k]));
-                };
+                drawHangingCasesModern(mouse, drawer, global_t,
+                    [next, next_original, next_collaped], this.namesAt(parentAddress(this.animation.target)),
+                    this.animation.target, main_view, 1, 1, true,
+                    { type: 'input_moving_to_next_option', anim_t: anim_t },
+                );
                 break;
             }
             case 'failing_to_match': {
@@ -724,6 +706,10 @@ export class ExecutionState {
         return firstNonNull(overlaps);
     }
 
+    namesAt(address: MatchCaseAddress): KnownVariables {
+        return getNamesAt(knownVariables(this.original_fnk), address);
+    }
+
     private getStuff(address: MatchCaseAddress): [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[], KnownVariables[]] {
         const next = getCasesAfter(this.fnk, address);
         const next_original = getCasesAfter(this.original_fnk, address);
@@ -1018,13 +1004,20 @@ export function drawHangingCases(mouse: Vec2 | null, drawer: Drawer, cur_time: n
 export function drawHangingCasesModern(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
     [v, v_original, collapsed]: [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[]],
     parent_names: KnownVariables, cur_address: MatchCaseAddress,
-    view: SexprView, extended: number, showing_children: number, main_case: boolean = true): OverlappedEditingThing | null {
+    view: SexprView, extended: number, showing_children: number, main_case: boolean = true,
+    special: null | { type: 'input_moving_to_next_option', anim_t: number } = null,
+): OverlappedEditingThing | null {
     const overlaps: (OverlappedEditingThing | null)[] = [];
     view = offsetView(view, new Vec2(-20, 0));
     let v_offset = 0;
     for (const [k, x] of enumerate(zip4(v, v_original, collapsed, parent_names.inside))) {
         const collapsed = collapseAmount(cur_time, x[2].main);
-        const v_offset_delta = lerp(10, 6, collapsed);
+        let v_offset_delta = lerp(10, 6, collapsed);
+        if (special !== null && special.type === 'input_moving_to_next_option') {
+            if (main_case && k === 0) {
+                v_offset_delta *= (1 - special.anim_t);
+            }
+        }
         v_offset += v_offset_delta;
         const aaa = offsetView(view, new Vec2(12, v_offset));
         const extended_amount = (main_case ? 12 : 4) - 2 * (1 - collapsed);
@@ -1060,6 +1053,8 @@ function drawFnkName(drawer: Drawer, mouse: Vec2 | null, name: SexprTemplate, na
     return drawer.drawTemplateAndReturnThingUnderMouse(mouse, name, name_original, fnk_view);
 }
 
+// function fnkNamesAt()
+
 function getNamesAt(vars: KnownVariables, address: MatchCaseAddress): KnownVariables {
     if (address.length === 0) {
         return vars;
@@ -1083,3 +1078,8 @@ function getFirstStuff([a, b, c, d]: [MatchCaseDefinition[], MatchCaseDefinition
 }
 
 const SMOOTH_PERC = 1;
+
+function parentAddress(target: MatchCaseAddress): MatchCaseAddress {
+    if (target.length === 0) throw new Error('can\'t get parent of empty address');
+    return target.slice(0, -1);
+}
