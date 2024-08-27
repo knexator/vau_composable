@@ -576,6 +576,7 @@ function newVariableName(taken: string[]): string {
 }
 
 export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition[] {
+    // TODO: maybe bug, should be === 0 probably
     const siblings = address.length === 1 ? fnk.cases : getCaseAt(fnk, address.slice(0, -1)).next;
     if (siblings === 'return') throw new Error('unreachable');
     return siblings.slice(at(address, -1));
