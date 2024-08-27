@@ -601,9 +601,20 @@ export class ExecutionState {
                     new Vec2(-50, 0),
                 ]);
 
+                // TODO: this appears several times, extract
                 const main_stuff = this.getStuff(this.animation.return_address);
-                const aaa2 = offsetView(main_view, new Vec2(lerp(0 - SMOOTH_PERC * 12, -20, anim_t), 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, lerp(lerp(1, 0.5, SMOOTH_PERC), 1, anim_t), this.animation.return_address));
+                const address = this.animation.return_address;
+
+                const [next, next_original, next_collaped, next_names] = getFirstStuff(main_stuff);
+                if (next.next !== 'return') {
+                    if (next_original.next === 'return') throw new Error('unreachable');
+                    overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
+                        [next.next, next_original.next, next_collaped.inside], next_names,
+                        address, offsetView(main_view, new Vec2(
+                            lerp(20 - SMOOTH_PERC * 12, 0, anim_t), 0)),
+                        anim_t, 1, lerp(lerp(1, 0.5, SMOOTH_PERC), 1, anim_t), false, null,
+                    )));
+                }
                 break;
             }
             case 'identity_specialcase_2': {
