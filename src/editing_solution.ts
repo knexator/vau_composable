@@ -187,14 +187,11 @@ export class EditingSolution {
             }
             else if (overlapped.type === 'other_fnk') {
                 drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
+                this.printName(overlapped.value, drawer);
             }
             else {
                 drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
-                drawer.ctx.fillStyle = 'black';
-                const screen_size = drawer.getScreenSize();
-                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-                drawer.ctx.textAlign = 'center';
-                drawer.ctx.fillText(sexprToString(overlapped.value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
+                this.printName(overlapped.value, drawer);
 
                 const major = overlapped.full_address.major;
                 this.collapsed.inside = ensureCollapsed(this.collapsed.inside, global_t, (addr, cur_value) => {
@@ -302,6 +299,14 @@ export class EditingSolution {
         // this.draw(drawer, global_t, camera);
 
         return null;
+    }
+
+    printName(value: SexprTemplate, drawer: Drawer) {
+        drawer.ctx.fillStyle = 'black';
+        const screen_size = drawer.getScreenSize();
+        drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+        drawer.ctx.textAlign = 'center';
+        return drawer.ctx.fillText(sexprToString(value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
     }
 
     drawMouseHoldingAt(drawer: Drawer, overlapped: ({ type: 'main' } & OverlappedExecutionThing) | { type: 'other_fnk', value: SexprLiteral, view: SexprView }, mouse_holding: SexprTemplate) {
