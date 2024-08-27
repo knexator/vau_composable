@@ -649,23 +649,18 @@ export class ExecutionState {
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
                 const main_stuff = this.getStuff(this.animation.return_address);
-                const aaa2 = offsetView(main_view, new Vec2(-8 - 12, 0));
-                overlaps.push(drawHangingCases(mouse, drawer, global_t, getFirstStuff(main_stuff), aaa2, anim_t, anim_t, this.animation.return_address));
-                //  - 12 + anim_t * 12
-                // const thing = getCasesAfter(this.fnk, this.animation.return_address)[0];
-                // const names = getNamesAt(knownVariables(this.fnk), this.animation.return_address).main;
-                // if (thing.next !== 'return') {
-                //     thing.next.forEach((asdf, j) => {
-                //         const aaa = offsetView(main_view, new Vec2(-8, 12 + 18 * j));
-                //         // overlaps.push(drawer.drawPatternAndReturnThingUnderMouse(mouse, asdf.pattern,
-                //                    offsetView(aaa, new Vec2(anim_t * 12, 0))));
-                //         drawer.drawCable(aaa, names, [
-                //             new Vec2(3, j === 0 ? -12 : -14),
-                //             new Vec2(3, 4),
-                //             new Vec2(12 + anim_t * 12, 4),
-                //         ]);
-                //     });
-                // }
+                const address = this.animation.return_address;
+
+                const [next, next_original, next_collaped, next_names] = getFirstStuff(main_stuff);
+                if (next.next !== 'return') {
+                    if (next_original.next === 'return') throw new Error('unreachable');
+                    overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
+                        [next.next, next_original.next, next_collaped.inside], next_names,
+                        address, main_view,
+                        anim_t, 1, anim_t, false, null,
+                    )));
+                }
+
                 break;
             }
             // case 'skipping_child_computation': {
