@@ -21,12 +21,34 @@ export function completeAddress(major: MatchCaseAddress, asdf: FullAddress['type
     };
 }
 
+export function completeAddress2(major: MatchCaseAddress, asdf: FullAddress['type'], cosa: OverlappedThing | null): OverlappedEditingThing | null {
+    if (cosa === null) return null;
+    return {
+        type: 'main',
+        parent_view: cosa.parent_view,
+        value: cosa.value,
+        full_address: {
+            type: asdf,
+            major: major,
+            minor: cosa.address,
+        },
+    };
+}
+
 export function asMainInput(cosa: OverlappedThing | null): OverlappedExecutionThing | null {
     return completeAddress([], 'template', cosa);
 }
 
 export function asMainFnk(cosa: OverlappedThing | null): OverlappedExecutionThing | null {
     return completeAddress([], 'fn_name', cosa);
+}
+
+export function asMainInput2(cosa: OverlappedThing | null): OverlappedEditingThing | null {
+    return completeAddress2([], 'template', cosa);
+}
+
+export function asMainFnk2(cosa: OverlappedThing | null): OverlappedEditingThing | null {
+    return completeAddress2([], 'fn_name', cosa);
 }
 
 type ExecutionResult = { type: 'success', result: SexprTemplate } | { type: 'failure', reason: string };
@@ -948,13 +970,13 @@ function drawCaseModern(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
     view = { halfside: view.halfside, pos: view.pos, turns: view.turns };
     view.halfside *= lerp(1, 0.5, collapse_amount);
     view = offsetView(view, new Vec2(0, collapse_amount * 4));
-    overlaps.push(completeAddress(cur_address, 'pattern', drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, view)));
+    overlaps.push(completeAddress2(cur_address, 'pattern', drawer.drawPatternAndReturnThingUnderMouse(mouse, v.pattern, view)));
     if (collapse_amount < 0.2 && (show_children > 0)) {
         if (show_children !== 1) {
             drawer.ctx.globalAlpha = show_children;
         }
-        overlaps.push(completeAddress(cur_address, 'template', drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0)))));
-        overlaps.push(completeAddress(cur_address, 'fn_name', drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view)));
+        overlaps.push(completeAddress2(cur_address, 'template', drawer.drawTemplateAndReturnThingUnderMouse(mouse, v.template, v_original.template, offsetView(view, new Vec2(32, 0)))));
+        overlaps.push(completeAddress2(cur_address, 'fn_name', drawFnkName(drawer, mouse, v.fn_name_template, v_original.fn_name_template, view)));
         drawer.drawCable(view, names.main, [
             new Vec2(14, 0),
             new Vec2(30, 0),
@@ -969,7 +991,7 @@ function drawCaseModern(mouse: Vec2 | null, drawer: Drawer, cur_time: number,
         else {
             const plus_view = offsetView(view, new Vec2(16, 2));
             if (drawer.drawPlus(mouse, plus_view)) {
-                overlaps.push({ value: 'pole', type: 'return', address: cur_address, screen_pos: plus_view.pos });
+                overlaps.push({ type: 'pole', kind: 'return', address: cur_address, view: plus_view });
             }
         }
         if (show_children !== 1) {
@@ -1062,9 +1084,9 @@ function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: n
         overlaps.push(drawCaseModern(mouse, drawer, cur_time, x, offsetView(aaa, new Vec2(extended_amount, 0)), cur_address, showing_children));
     }
 
-    const plus_offset = new Vec2(1.2, 2);
-    if (drawer.drawPlus(mouse, offsetView(aaa, plus_offset))) {
-        overlaps.push({ value: 'pole', type: 'add', address: cur_address, screen_pos: offsetView(aaa, plus_offset).pos });
+    const plus_view = offsetView(aaa, new Vec2(1.2, 2));
+    if (drawer.drawPlus(mouse, plus_view)) {
+        overlaps.push({ type: 'pole', kind: 'add', address: cur_address, view: plus_view });
     }
 
     return firstNonNull(overlaps);
@@ -1111,6 +1133,6 @@ function parentAddress(target: MatchCaseAddress): MatchCaseAddress {
 
 function onlyExecuting(x: OverlappedEditingThing | null): OverlappedExecutionThing | null {
     if (x === null) return null;
-    if (x.value === 'pole') return null;
+    if (x.type !== 'main') return null;
     return x;
 }

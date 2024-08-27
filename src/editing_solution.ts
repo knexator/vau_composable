@@ -1,6 +1,6 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing, ensureCollapsed, everythingCollapsedExceptFirsts } from './drawer';
-import { asMainInput, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
+import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing, ensureCollapsed, everythingCollapsedExceptFirsts, rotateAndScaleView, scaleAndOffsetView } from './drawer';
+import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
@@ -12,8 +12,10 @@ type MouseLocation = FullAddress
     | { type: 'cell', cell: number, address: SexprAddress }
     | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
 
-export type OverlappedEditingThing = OverlappedExecutionThing
-    | { value: 'pole', type: 'add' | 'return', address: MatchCaseAddress, screen_pos: Vec2 };
+export type OverlappedEditingThing =
+    | ({ type: 'main' } & OverlappedExecutionThing)
+    | { type: 'pole', kind: 'add' | 'return', address: MatchCaseAddress, view: SexprView }
+    | { type: 'other_fnk', value: SexprLiteral, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
 
@@ -90,6 +92,33 @@ export class EditingSolution {
         }
     }
 
+    private *otherFnksNew(main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
+        main_view = offsetView(main_view, new Vec2(-20, -7));
+        for (let k = 0; k < this.all_fnks.length; k++) {
+            yield {
+                value: this.all_fnks[k].name,
+                view: {
+                    pos: offsetView(main_view, new Vec2(-6 - Math.floor(k / 6) * 6, 15 + (k % 6) * 8)).pos,
+                    halfside: main_view.halfside / 2,
+                    turns: main_view.turns - 0.25,
+                },
+            };
+        }
+
+        // built in
+        const built_in = ['#identity', '#eqAtoms?'].map(parseSexprLiteral);
+        for (let k = 0; k < built_in.length; k++) {
+            yield {
+                value: built_in[k],
+                view: {
+                    pos: offsetView(main_view, new Vec2(2, 23 + k * 8)).pos,
+                    halfside: main_view.halfside / 2,
+                    turns: main_view.turns - 0.25,
+                },
+            };
+        }
+    }
+
     private newFnkButton(main_view: SexprView): { center: Vec2, radius: number } {
         return {
             center: offsetView(main_view, new Vec2(0, 13.5)).pos,
@@ -115,8 +144,21 @@ export class EditingSolution {
         // overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
 
         const main_view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
-        overlaps.push(asMainInput(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, this.input, main_view)));
-        overlaps.push(ExecutionState.drawMainFnkName(drawer, mouse_pos, main_view, this.fnk.name));
+
+        let already_overlapped = false;
+        {
+            const create_fnk_button_view = scaleAndOffsetView(main_view, new Vec2(-18, 6), 2);
+            if (drawer.drawPlus(mouse_pos, create_fnk_button_view)) {
+                already_overlapped = true;
+                drawer.highlightPlus(create_fnk_button_view);
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    this.all_fnks.push(newFnk(this.all_fnks));
+                }
+            }
+        }
+
+        overlaps.push(asMainInput2(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, this.input, main_view)));
+        overlaps.push(toMain(ExecutionState.drawMainFnkName(drawer, mouse_pos, main_view, this.fnk.name)));
         drawer.line(main_view, [
             new Vec2(-2, 0),
             new Vec2(-50, 0),
@@ -131,15 +173,20 @@ export class EditingSolution {
         // const asdf = ExecutionState.init(this.fnk, this.input);
         // overlaps.push(asdf.draw(drawer, 0, global_t, main_view, mouse_pos));
 
-        const overlapped = firstNonNull(overlaps);
+        for (const { value, view } of this.otherFnksNew(main_view)) {
+            const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
+            if (asdf !== null) {
+                overlaps.push({ type: 'other_fnk', value, view });
+            }
+        }
+
+        const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {
-            if (overlapped.value === 'pole') {
-                drawer.ctx.beginPath();
-                drawer.ctx.strokeStyle = 'cyan';
-                drawer.ctx.lineWidth = 2;
-                drawer.drawCircle(overlapped.screen_pos, main_view.halfside * 0.5);
-                drawer.ctx.stroke();
-                drawer.ctx.lineWidth = 1;
+            if (overlapped.type === 'pole') {
+                drawer.highlightPlus(overlapped.view);
+            }
+            else if (overlapped.type === 'other_fnk') {
+                drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
             }
             else {
                 drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
@@ -165,7 +212,7 @@ export class EditingSolution {
         }
 
         // change atom names
-        if (overlapped !== null && overlapped.value !== 'pole' && this.mouse_holding === null) {
+        if (overlapped !== null && overlapped.type !== 'pole' && this.mouse_holding === null) {
             const hovered_value = overlapped.value;
             if (hovered_value.type === 'atom' || hovered_value.type === 'variable') {
                 if (keyboard.wasPressed(KeyCode.Backspace)) {
@@ -183,9 +230,9 @@ export class EditingSolution {
             return this.previously_editing;
         }
 
-        if (overlapped !== null && overlapped.value === 'pole') {
+        if (overlapped !== null && overlapped.type === 'pole') {
             if (mouse.wasReleased(MouseButton.Left)) this.mouse_holding = null;
-            if (overlapped.type === 'add') {
+            if (overlapped.kind === 'add') {
                 if (mouse.wasPressed(MouseButton.Left)) {
                     // TODO: add pole at the proper place
                     const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address.slice(0, -1), global_t, []);
@@ -206,7 +253,7 @@ export class EditingSolution {
                     this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
                 }
             }
-            else if (overlapped.type === 'return') {
+            else if (overlapped.kind === 'return') {
                 if (mouse.wasPressed(MouseButton.Left)) {
                     const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address, global_t, []);
                     this.fnk.cases = new_cases;
@@ -235,20 +282,17 @@ export class EditingSolution {
                     else if (mouse.wasPressed(MouseButton.Right)) {
                         // split
                         const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
-                        this.setAt(overlapped.full_address, new_value);
+                        this.setAtGeneralized(overlapped, new_value);
                     }
                 }
             }
             else {
                 if (overlapped !== null) {
-                    if (overlapped.full_address.major.length > 0 || isLiteral(this.mouse_holding)) {
-                        console.log(overlapped.value);
-                        drawer.drawPlease(overlapped.full_address.type, this.mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
-                    }
+                    this.drawMouseHoldingAt(drawer, overlapped, this.mouse_holding);
                 }
                 if (mouse.wasReleased(MouseButton.Left)) {
                     if (overlapped !== null) {
-                        this.setAt(overlapped.full_address, this.mouse_holding);
+                        this.setAtGeneralized(overlapped, this.mouse_holding);
                     }
                     this.mouse_holding = null;
                 }
@@ -258,6 +302,33 @@ export class EditingSolution {
         // this.draw(drawer, global_t, camera);
 
         return null;
+    }
+
+    drawMouseHoldingAt(drawer: Drawer, overlapped: ({ type: 'main' } & OverlappedExecutionThing) | { type: 'other_fnk', value: SexprLiteral, view: SexprView }, mouse_holding: SexprTemplate) {
+        if (overlapped.type === 'main') {
+            if (overlapped.type !== 'main' || overlapped.full_address.major.length > 0 || isLiteral(mouse_holding)) {
+                drawer.drawPlease(overlapped.full_address.type, mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
+            }
+        }
+        else if (overlapped.type === 'other_fnk') {
+            // pass
+        }
+        else {
+            throw new Error('unreachable');
+        }
+    }
+
+    setAtGeneralized(overlapped: ({ type: 'main' } & OverlappedExecutionThing) | { type: 'other_fnk', value: SexprLiteral, view: SexprView },
+        new_value: SexprTemplate) {
+        if (overlapped.type === 'main') {
+            this.setAt(overlapped.full_address, new_value);
+        }
+        else if (overlapped.type === 'other_fnk') {
+            // pass
+        }
+        else {
+            throw new Error('unreachable');
+        }
     }
 
     setAt(full_address: FullAddress, value: SexprTemplate) {
@@ -613,4 +684,8 @@ export class EditingSolution {
             turns: 0,
         };
     }
+}
+function toMain(x: OverlappedExecutionThing | null): OverlappedEditingThing | null {
+    if (x === null) return null;
+    return Object.assign({ type: 'main' as const }, x);
 }

@@ -65,6 +65,15 @@ export class Drawer {
         public ctx: CanvasRenderingContext2D,
     ) { }
 
+    highlightPlus(view: SexprView) {
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = 'cyan';
+        this.ctx.lineWidth = 2;
+        this.drawCircle(view.pos, view.halfside / 2);
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
+    }
+
     highlightThing(
         kind: 'template' | 'pattern' | 'fn_name',
         type: 'pair' | 'variable' | 'atom',
@@ -100,7 +109,7 @@ export class Drawer {
             new Vec2(0, r),
         ]);
         if (mouse_pos === null) return false;
-        return computeOffset(view, mouse_pos).mag() < 5;
+        return computeOffset(view, mouse_pos).mag() < 3;
     }
 
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
@@ -1471,6 +1480,13 @@ function patternAdressFromScreenPosition(screen_pos: Vec2, data: SexprTemplate, 
 export function offsetView(view: SexprView, units: Vec2): SexprView {
     return {
         halfside: view.halfside, turns: view.turns,
+        pos: view.pos.add(units.scale(view.halfside / 4).rotateTurns(view.turns)),
+    };
+}
+
+export function scaleAndOffsetView(view: SexprView, units: Vec2, scale: number): SexprView {
+    return {
+        halfside: view.halfside * scale, turns: view.turns,
         pos: view.pos.add(units.scale(view.halfside / 4).rotateTurns(view.turns)),
     };
 }
