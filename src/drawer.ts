@@ -1505,7 +1505,7 @@ function patternForCable([halfside, variable_names]: [number, string[]]): Canvas
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         return assertNotNull(ctx.createPattern(canvas, 'repeat'));
     }
-    const w = Math.floor(15 * halfside / 22);
+    const w = Math.max(1, Math.floor(15 * halfside / 22));
     canvas.width = variable_names.length * w;
     canvas.height = w * 4 * variable_names.length;
     ctx.transform(1, 0, -0.50, 1, 0, 0);
