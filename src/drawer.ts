@@ -663,18 +663,19 @@ export class Drawer {
 
     highlightMolecule(type: SexprTemplate['type'], view: SexprView) {
         let points: Vec2[];
-        if (type === 'variable') {
-            points = [
-                new Vec2(-view.halfside * SPIKE_PERC, 0),
-                new Vec2(0, -view.halfside),
-                new Vec2(view.halfside * 3, -view.halfside),
-                new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
-                new Vec2(view.halfside * 3, view.halfside),
-                new Vec2(0, view.halfside),
-            ].map(v => v.rotateTurns(view.turns))
-                .map(v => view.pos.add(v));
-        }
-        else if (type === 'atom') {
+        // if (type === 'variable') {
+        //     points = [
+        //         new Vec2(-view.halfside * SPIKE_PERC, 0),
+        //         new Vec2(0, -view.halfside),
+        //         new Vec2(view.halfside * 3, -view.halfside),
+        //         new Vec2(view.halfside * (3 + SPIKE_PERC), 0),
+        //         new Vec2(view.halfside * 3, view.halfside),
+        //         new Vec2(0, view.halfside),
+        //     ].map(v => v.rotateTurns(view.turns))
+        //         .map(v => view.pos.add(v));
+        // }
+        // else if (type === 'atom') {
+        if (type !== 'pair') {
             points = [
                 new Vec2(-view.halfside * SPIKE_PERC, 0),
                 new Vec2(0, -view.halfside),

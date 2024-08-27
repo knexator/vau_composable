@@ -18,6 +18,7 @@ export type OverlappedEditingThing =
     | ({ type: 'main' } & OverlappedExecutionThing)
     | { type: 'pole', kind: 'add' | 'return', address: MatchCaseAddress, view: SexprView }
     | { type: 'other_fnk', value: SexprLiteral, view: SexprView }
+    | { type: 'toolbar', value: SexprTemplate, view: SexprView }
     | { type: 'cell', cell: number, address: SexprAddress, value: SexprTemplate, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
@@ -62,6 +63,35 @@ export class EditingSolution {
                 value: { type: 'variable', value: k.toString() },
                 view: {
                     pos: offsetView(main_view, new Vec2(k * 6 + 12, -4)).pos,
+                    halfside: main_view.halfside / 3,
+                    turns: main_view.turns,
+                },
+            };
+        }
+    }
+
+    private *toolbarThingsNew(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
+        const atom_values: SexprLiteral[] = [
+            parseSexprLiteral('(#nil . #nil)'),
+            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(parseSexprLiteral),
+        ];
+
+        for (let k = 0; k < 12; k++) {
+            yield {
+                value: at(atom_values, k),
+                view: {
+                    pos: offsetView(main_view, new Vec2(k * 4 + 12, -8)).pos,
+                    halfside: main_view.halfside / 3,
+                    turns: main_view.turns,
+                },
+            };
+        }
+
+        for (let k = 0; k < 12; k++) {
+            yield {
+                value: { type: 'variable', value: k.toString() },
+                view: {
+                    pos: offsetView(main_view, new Vec2(k * 4 + 12, -4)).pos,
                     halfside: main_view.halfside / 3,
                     turns: main_view.turns,
                 },
@@ -183,6 +213,13 @@ export class EditingSolution {
             }
         }
 
+        for (const { value, view } of this.toolbarThingsNew(main_view)) {
+            const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
+            if (asdf !== null) {
+                overlaps.push({ type: 'toolbar', value, view });
+            }
+        }
+
         for (let k = 0; k < 3; k++) {
             const value = this.cells[k];
             const view = this.getCellView(drawer.getScreenSize(), k);
@@ -200,7 +237,7 @@ export class EditingSolution {
             if (overlapped.type === 'pole') {
                 drawer.highlightPlus(overlapped.view);
             }
-            else if (overlapped.type === 'other_fnk') {
+            else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar') {
                 drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
                 this.printName(overlapped.value, drawer);
             }
@@ -209,7 +246,7 @@ export class EditingSolution {
                 drawer.highlightThing('template', value.type, overlapped.view);
                 this.printName(value, drawer);
             }
-            else {
+            else if (overlapped.type === 'main') {
                 drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
                 this.printName(overlapped.value, drawer);
 
@@ -221,6 +258,9 @@ export class EditingSolution {
                     if (major.length === addr.length && commonPrefixLen(major, addr) === major.length - 1) return !eqArrays(addr, overlapped.full_address.major);
                     return cur_value;
                 });
+            }
+            else {
+                const _: never = overlapped;
             }
         }
 
@@ -335,11 +375,10 @@ export class EditingSolution {
                 drawer.drawPlease(overlapped.full_address.type, mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
             }
         }
-        else if (overlapped.type === 'other_fnk' || overlapped.type === 'pole') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'pole') {
             // pass
         }
         else if (overlapped.type === 'cell') {
-            // TODO
             drawer.drawPlease('template', mouse_holding, overlapped.view);
         }
         else {
@@ -352,7 +391,7 @@ export class EditingSolution {
         if (overlapped.type === 'main') {
             this.setAt(overlapped.full_address, new_value);
         }
-        else if (overlapped.type === 'other_fnk' || overlapped.type === 'pole') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'pole') {
             // pass
         }
         else if (overlapped.type === 'cell') {

@@ -6,6 +6,8 @@ import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, sub
 import { clamp01, in01, lerp, remap, remapClamped } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress, FullAddress } from './model';
 
+// TODO: bug: cable colors are offset by one. repro: main: {@a: @a; @b: @b; ...}
+
 export type OverlappedExecutionThing = { parent_view: SexprView, full_address: FullAddress, value: SexprTemplate };
 
 export function completeAddress(major: MatchCaseAddress, asdf: FullAddress['type'], cosa: OverlappedThing | null): OverlappedExecutionThing | null {
