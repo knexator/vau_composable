@@ -6,6 +6,8 @@ import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWit
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
 import { inRange } from './kommon/math';
 
+// TODO: toolbar
+
 type MouseLocation = FullAddress
     | { type: 'input', address: SexprAddress }
     | { type: 'toolbar', value: SexprTemplate, view: SexprView }
@@ -15,7 +17,8 @@ type MouseLocation = FullAddress
 export type OverlappedEditingThing =
     | ({ type: 'main' } & OverlappedExecutionThing)
     | { type: 'pole', kind: 'add' | 'return', address: MatchCaseAddress, view: SexprView }
-    | { type: 'other_fnk', value: SexprLiteral, view: SexprView };
+    | { type: 'other_fnk', value: SexprLiteral, view: SexprView }
+    | { type: 'cell', cell: number, address: SexprAddress, value: SexprTemplate, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
 
@@ -180,6 +183,18 @@ export class EditingSolution {
             }
         }
 
+        for (let k = 0; k < 3; k++) {
+            const value = this.cells[k];
+            const view = this.getCellView(drawer.getScreenSize(), k);
+            const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
+            if (asdf !== null) {
+                overlaps.unshift({
+                    type: 'cell', address: asdf.address, cell: k, value,
+                    view: getSexprGrandChildView(view, asdf.address),
+                });
+            }
+        }
+
         const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {
             if (overlapped.type === 'pole') {
@@ -188,6 +203,11 @@ export class EditingSolution {
             else if (overlapped.type === 'other_fnk') {
                 drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
                 this.printName(overlapped.value, drawer);
+            }
+            else if (overlapped.type === 'cell') {
+                const value = assertNotNull(getAtLocalAddress(this.cells[overlapped.cell], overlapped.address));
+                drawer.highlightThing('template', value.type, overlapped.view);
+                this.printName(value, drawer);
             }
             else {
                 drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
@@ -309,29 +329,39 @@ export class EditingSolution {
         return drawer.ctx.fillText(sexprToString(value, '@'), screen_size.x * 0.5, screen_size.y * 0.95);
     }
 
-    drawMouseHoldingAt(drawer: Drawer, overlapped: ({ type: 'main' } & OverlappedExecutionThing) | { type: 'other_fnk', value: SexprLiteral, view: SexprView }, mouse_holding: SexprTemplate) {
+    drawMouseHoldingAt(drawer: Drawer, overlapped: OverlappedEditingThing, mouse_holding: SexprTemplate) {
         if (overlapped.type === 'main') {
             if (overlapped.type !== 'main' || overlapped.full_address.major.length > 0 || isLiteral(mouse_holding)) {
                 drawer.drawPlease(overlapped.full_address.type, mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
             }
         }
-        else if (overlapped.type === 'other_fnk') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'pole') {
             // pass
         }
+        else if (overlapped.type === 'cell') {
+            // TODO
+            drawer.drawPlease('template', mouse_holding, overlapped.view);
+        }
         else {
+            const _: never = overlapped;
             throw new Error('unreachable');
         }
     }
 
-    setAtGeneralized(overlapped: ({ type: 'main' } & OverlappedExecutionThing) | { type: 'other_fnk', value: SexprLiteral, view: SexprView },
-        new_value: SexprTemplate) {
+    setAtGeneralized(overlapped: OverlappedEditingThing, new_value: SexprTemplate) {
         if (overlapped.type === 'main') {
             this.setAt(overlapped.full_address, new_value);
         }
-        else if (overlapped.type === 'other_fnk') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'pole') {
             // pass
         }
+        else if (overlapped.type === 'cell') {
+            this.cells[overlapped.cell] = setAtLocalAddress(
+                this.cells[overlapped.cell], overlapped.address, new_value,
+            );
+        }
         else {
+            const _: never = overlapped;
             throw new Error('unreachable');
         }
     }
