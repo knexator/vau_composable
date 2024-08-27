@@ -124,7 +124,7 @@ export class EditingSolution {
         overlaps.push(drawHangingCasesModern(mouse_pos, drawer, global_t,
             [this.fnk.cases, this.fnk.cases, this.collapsed.inside],
             knownVariables(this.fnk), [],
-            main_view, 1, 1));
+            main_view, 1, 1, 1, true, null));
         // overlaps.push(drawHangingCases(mouse_pos, drawer, global_t,
         //     [this.fnk.cases[0], this.fnk.cases[0], this.collapsed, knownVariables(this.fnk)],
         //     main_view, 1, 1));
