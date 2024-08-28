@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, doAtom, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer, FloatingBinding, MatchedInput, SexprView, generateFloatingBindings, getView, lerpSexprView, nothingCollapsed, nothingMatched, toggleCollapsed, updateMatchedForMissingTemplate, updateMatchedForNewPattern } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -22,42 +22,110 @@ const CONFIG = {
 // const gui = new GUI();
 // gui.add(CONFIG, '_0_1', 0, 1).listen();
 
-const incrementTwice: FunktionDefinition = {
-    name: { type: 'atom', value: 'incrementTwice' },
-    cases: [
-        {
-            pattern: parseSexprTemplate(`first`),
-            template: parseSexprTemplate(`first`),
-            fn_name_template: parseSexprTemplate(`#increment`),
-            next: [
-                {
-                    pattern: parseSexprTemplate(`second`),
-                    template: parseSexprTemplate(`second`),
-                    fn_name_template: parseSexprTemplate(`#increment`),
-                    next: 'return',
-                },
-            ],
-        },
-    ],
-};
+const default_fnks_2: FunktionDefinition[] = [
+    {
+        name: { type: 'atom', value: 'incrementTwice' },
+        cases: [
+            {
+                pattern: parseSexprTemplate(`first`),
+                template: parseSexprTemplate(`first`),
+                fn_name_template: parseSexprTemplate(`#increment`),
+                next: [
+                    {
+                        pattern: parseSexprTemplate(`second`),
+                        template: parseSexprTemplate(`second`),
+                        fn_name_template: parseSexprTemplate(`#increment`),
+                        next: 'return',
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: { type: 'atom', value: 'increment' },
+        cases: [
+            {
+                pattern: parseSexprTemplate(`number`),
+                template: parseSexprTemplate(`(#true . number)`),
+                fn_name_template: parseSexprTemplate(`#identity`),
+                next: 'return',
+            },
+        ],
+    },
+];
 
-const increment: FunktionDefinition = {
-    name: { type: 'atom', value: 'increment' },
-    cases: [
-        {
-            pattern: parseSexprTemplate(`number`),
-            template: parseSexprTemplate(`(#true . number)`),
-            fn_name_template: parseSexprTemplate(`#identity`),
-            next: 'return',
-        },
-    ],
-};
+function lit2lit(a: string, b: string): { pattern: SexprTemplate, template: SexprTemplate, fn_name_template: SexprTemplate, next: 'return' } {
+    return {
+        pattern: doAtom(a),
+        template: doAtom(b),
+        fn_name_template: doAtom('identity'),
+        next: 'return',
+    };
+}
+const default_fnks: FunktionDefinition[] = [
+    {
+        name: doAtom('darken'),
+        cases: [
+            lit2lit('red', 'darkRed'),
+            lit2lit('green', 'darkGreen'),
+            lit2lit('blue', 'darkBlue'),
+            lit2lit('yellow', 'darkYellow'),
+            lit2lit('purple', 'darkPurple'),
+        ],
+    },
+    {
+        name: doAtom('lighten'),
+        cases: [
+            lit2lit('red', 'lightRed'),
+            lit2lit('green', 'lightGreen'),
+            lit2lit('blue', 'lightBlue'),
+            lit2lit('yellow', 'lightYellow'),
+            lit2lit('purple', 'lightPurple'),
+        ],
+    },
+    {
+        name: doAtom('mix'),
+        cases: [
+            {
+                pattern: parseSexprTemplate('(#white . value)'),
+                template: parseSexprTemplate('value'),
+                fn_name_template: doAtom('lighten'),
+                next: 'return',
+            },
+            {
+                pattern: parseSexprTemplate('(#black . value)'),
+                template: parseSexprTemplate('value'),
+                fn_name_template: doAtom('darken'),
+                next: 'return',
+            },
+        ],
+    },
+    {
+        name: doAtom('hasRed'),
+        cases: [
+            {
+                pattern: parseSexprTemplate('(#red . rest)'),
+                template: parseSexprTemplate('#true'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+            {
+                pattern: parseSexprTemplate('(first . rest)'),
+                template: parseSexprTemplate('rest'),
+                fn_name_template: doAtom('hasRed'),
+                next: 'return',
+            },
+            lit2lit('nil', 'false'),
+        ],
+    },
+];
 
 // import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
 
 // FUTURE: proper validation
-const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), [incrementTwice, increment]);
+const all_fnks = default_fnks;
+// const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), default_fnks);
 // all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
