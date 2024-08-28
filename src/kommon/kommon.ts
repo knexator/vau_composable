@@ -58,6 +58,14 @@ export function reversedForEach<T>(arr: T[], callback: (value: T, index?: number
     }
 }
 
+export function filterIndices<T>(arr: T[], callback: (value: T, index?: number, arr?: T[]) => boolean): number[] {
+    const result: number[] = [];
+    for (let k = 0; k < arr.length; k++) {
+        if (callback(arr[k], k, arr)) result.push(k);
+    }
+    return result;
+}
+
 export function findIndex<T>(arr: T[], predicate: (value: T, index?: number, obj?: T[]) => boolean): number | null {
     const index = arr.findIndex(predicate);
     if (index < 0) return null;

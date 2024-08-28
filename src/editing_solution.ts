@@ -2,11 +2,9 @@ import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing, ensureCollapsed, everythingCollapsedExceptFirsts, rotateAndScaleView, scaleAndOffsetView } from './drawer';
 import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen } from './kommon/kommon';
+import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
 import { inRange } from './kommon/math';
-
-// TODO: toolbar
 
 type MouseLocation = FullAddress
     | { type: 'input', address: SexprAddress }
@@ -294,27 +292,27 @@ export class EditingSolution {
                     // TODO: add pole at the proper place
                     const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address.slice(0, -1), global_t, []);
                     this.fnk.cases = new_cases;
-                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                    this.collapsed = ensureValidCollapse(new_collapsed, global_t);
                 }
                 else if (mouse.wasPressed(MouseButton.Right)) {
                     const [new_cases, new_collapsed] = deletePole(this.fnk.cases, this.collapsed, overlapped.address);
                     if (new_cases !== 'return') {
                         this.fnk.cases = new_cases;
-                        this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                        this.collapsed = ensureValidCollapse(new_collapsed, global_t);
                     }
                 }
                 else if (keyboard.wasPressed(KeyCode.KeyW) || keyboard.wasPressed(KeyCode.KeyS)) {
                     const move_up = keyboard.wasPressed(KeyCode.KeyW);
                     const [new_cases, new_collapsed] = movePole(this.fnk.cases, this.collapsed.inside, overlapped.address, move_up);
                     this.fnk.cases = new_cases;
-                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                    this.collapsed = ensureValidCollapse(new_collapsed, global_t);
                 }
             }
             else if (overlapped.kind === 'return') {
                 if (mouse.wasPressed(MouseButton.Left)) {
                     const [new_cases, new_collapsed] = addPoleAsFirstChild(this.fnk.cases, this.collapsed.inside, overlapped.address, global_t, []);
                     this.fnk.cases = new_cases;
-                    this.collapsed = fixExtraPolesNeeded(fakeCollapsed(new_collapsed));
+                    this.collapsed = ensureValidCollapse(new_collapsed, global_t);
                 }
             }
         }
@@ -762,4 +760,25 @@ export class EditingSolution {
 function toMain(x: OverlappedExecutionThing | null): OverlappedEditingThing | null {
     if (x === null) return null;
     return Object.assign({ type: 'main' as const }, x);
+}
+
+function ensureValidCollapse(c: Collapsed[], global_t: number): Collapsed {
+    function ensureExactlyOneUncollapsed(asdf: Collapsed[]): Collapsed[] {
+        const uncollapsed = filterIndices(asdf, x => !x.main.collapsed);
+        if (uncollapsed.length === 1) {
+            const cur = asdf[single(uncollapsed)];
+            return replace(asdf, {
+                main: cur.main,
+                inside: ensureExactlyOneUncollapsed(cur.inside),
+            }, single(uncollapsed));
+        }
+        else if (uncollapsed.length === 0) {
+            return ensureCollapsed(asdf, global_t, (addr, val) => last(addr) !== 0);
+        }
+        else {
+            return ensureCollapsed(asdf, global_t, (addr, val) => last(addr) !== 0);
+        }
+    }
+
+    return fixExtraPolesNeeded(fakeCollapsed(ensureExactlyOneUncollapsed(c)));
 }
