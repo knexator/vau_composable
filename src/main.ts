@@ -101,6 +101,22 @@ const default_fnks: FunktionDefinition[] = [
         ],
     },
     {
+        name: doAtom('fullyLighten'),
+        cases: [
+            {
+                pattern: parseSexprTemplate('dark'),
+                template: parseSexprTemplate('dark'),
+                fn_name_template: doAtom('lighten'),
+                next: [{
+                    pattern: parseSexprTemplate('middle'),
+                    template: parseSexprTemplate('middle'),
+                    fn_name_template: doAtom('lighten'),
+                    next: 'return',
+                }],
+            },
+        ],
+    },
+    {
         name: doAtom('hasRed'),
         cases: [
             {
