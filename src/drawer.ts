@@ -109,7 +109,7 @@ export class Drawer {
             new Vec2(0, r),
         ]);
         if (mouse_pos === null) return false;
-        return computeOffset(view, mouse_pos).mag() < 3;
+        return computeOffset(view, mouse_pos).mag() < 2;
     }
 
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
