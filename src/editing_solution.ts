@@ -224,7 +224,8 @@ export class EditingSolution {
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
             if (asdf !== null) {
                 overlaps.unshift({
-                    type: 'cell', address: asdf.address, cell: k, value,
+                    type: 'cell', address: asdf.address, cell: k,
+                    value: assertNotNull(getAtLocalAddress(value, asdf.address)),
                     view: getSexprGrandChildView(view, asdf.address),
                 });
             }
