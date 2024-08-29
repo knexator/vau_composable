@@ -74,6 +74,17 @@ const default_fnks: FunktionDefinition[] = [
         ],
     },
     {
+        name: doAtom('extractCore'),
+        cases: [
+            {
+                pattern: parseSexprTemplate('((#red . idk) . (value . #blue))'),
+                template: parseSexprTemplate('value'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+        ],
+    },
+    {
         name: doAtom('lighten'),
         cases: [
             lit2lit('red', 'lightRed'),
@@ -135,6 +146,27 @@ const default_fnks: FunktionDefinition[] = [
         ],
     },
 ];
+
+// actual levels:
+// - move X to front
+// - areEqual
+// - reverseList
+// - remove all X from list
+// - zip 2 lists together
+// - [[e] * n for (e, n) in zip(elements, repeatCount)]
+// - sum all numbers in list
+// - dictLookup, maybe?
+// - peano math
+// - binary math
+// - brainfuck
+// - meta: parser
+// - meta: interpreter
+// - meta: compiler
+// - sorting algorithm
+// - something that is best solved with a tree
+// - run-length encoding?
+// - second most common element of list
+// - DNA repair: "here is a list of common fail patterns, and their correct versions; apply it" (preparation for meta)
 
 // import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
