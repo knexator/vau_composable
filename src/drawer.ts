@@ -1240,7 +1240,7 @@ function findTransformationWithFixedOrigin({ source, target }: { source: Vec2, t
     return (v: Vec2) => transform.globalFromLocal(v);
 }
 
-export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefinition, address: MatchCaseAddress, parent_view: SexprView, collapsed: Collapsed): FloatingBinding[] {
+export function generateFloatingBindings(input: SexprLiteral, fnk: FunktionDefinition, address: MatchCaseAddress): FloatingBinding[] {
     const match_case = getCaseAt(fnk, address);
     const bindings = generateBindings(input, match_case.pattern);
     if (bindings === null) throw new Error('no bindings');

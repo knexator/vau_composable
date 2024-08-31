@@ -109,7 +109,7 @@ export class ExecutionState {
     }
 
     // TODO: these parameters are a code smell
-    next(all_fnks: FunktionDefinition[], main_view: SexprView, global_t: number): ExecutionState | ExecutionResult {
+    next(all_fnks: FunktionDefinition[], global_t: number): ExecutionState | ExecutionResult {
         // console.log(this.collapsed.main);
         // console.log(this.collapsed.inside.map(x => x.main.collapsed).join(','));
         switch (this.animation.type) {
@@ -134,7 +134,7 @@ export class ExecutionState {
                 return next;
             }
             case 'matching': {
-                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which, this.getActualMainView(main_view), this.collapsed);
+                const bindings = generateFloatingBindings(this.input, this.fnk, this.animation.which);
                 const new_matched = updateMatchedForNewPattern(this.matched, this.animation.which, getCaseAt(this.fnk, this.animation.which).pattern);
                 const next_state = new ExecutionState(this.parent, this.fnk, this.collapsed, new_matched, this.input,
                     { type: 'floating_bindings', bindings: bindings, next_input_address: this.animation.which }, this.original_fnk);
@@ -158,7 +158,7 @@ export class ExecutionState {
                     const new_fnk = fillFnkBindings(this.fnk, this.animation.bindings);
                     return new ExecutionState(this.parent, new_fnk, this.collapsed, new_matched, new_input,
                         { type: 'dissolve_bindings', bindings: this.animation.bindings, input_address: this.animation.next_input_address }, this.original_fnk)
-                        .next(all_fnks, main_view, global_t);
+                        .next(all_fnks, global_t);
                 }
                 catch {
                     return { type: 'failure', reason: 'Used an unbound variable!' };
@@ -198,12 +198,12 @@ export class ExecutionState {
             case 'identity_specialcase_1': {
                 return this
                     .withAnimation({ type: 'fading_in_from_child', return_address: this.animation.return_address })
-                    .next(all_fnks, main_view, global_t);
+                    .next(all_fnks, global_t);
             }
             case 'identity_specialcase_2': {
                 return this
                     .withAnimation({ type: 'fading_in_from_child', return_address: this.animation.return_address })
-                    .next(all_fnks, main_view, global_t);
+                    .next(all_fnks, global_t);
             }
             case 'dissolve_bindings': {
                 const input_address = this.animation.input_address;
@@ -298,7 +298,7 @@ export class ExecutionState {
                 }
             case 'fading_out_to_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                return this.parent.withInput(this.input).next(all_fnks, main_view, global_t);
+                return this.parent.withInput(this.input).next(all_fnks, global_t);
             }
             case 'fading_in_from_child': {
                 const match_case = getCaseAt(this.fnk, this.animation.return_address);
@@ -405,7 +405,8 @@ export class ExecutionState {
                 const next_collaped = getCollapsedAfter(this.collapsed, this.animation.target);
 
                 overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
-                    [next, next_original, next_collaped], this.namesAt(parentAddress(this.animation.target)),
+                    [next, next_original, next_collaped],
+                    this.namesAt(parentAddress(this.animation.target)),
                     this.animation.target, main_view, 1, 1, 1, true,
                     { type: 'input_moving_to_next_option', anim_t: anim_t },
                 )));
@@ -794,7 +795,7 @@ export class ExecutingSolution {
         this.anim_t += delta_time * this.speed;
         while (this.anim_t >= 1) {
             this.anim_t -= 1;
-            const next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
+            const next_state = this.cur_execution_state.next(this.all_fnks, global_t);
             if (next_state instanceof ExecutionState) {
                 // next_state.original_fnk = this.original_fnk;
                 this.cur_execution_state = next_state;
@@ -810,9 +811,9 @@ export class ExecutingSolution {
     skip(drawer: Drawer, camera: Camera, global_t: number): AfterExecutingSolution {
         const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
 
-        let next_state = this.cur_execution_state.next(this.all_fnks, view, global_t);
+        let next_state = this.cur_execution_state.next(this.all_fnks, global_t);
         while (next_state instanceof ExecutionState) {
-            next_state = next_state.next(this.all_fnks, view, global_t);
+            next_state = next_state.next(this.all_fnks, global_t);
         }
 
         return new AfterExecutingSolution(this.original_editing, next_state);
@@ -880,6 +881,7 @@ export class AfterExecutingSolution {
 }
 
 function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number {
+    return 0;
     const collapsed_t = clamp01((cur_time - collapsed.changedAt) / COLLAPSE_DURATION);
     return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
 }

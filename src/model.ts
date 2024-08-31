@@ -586,6 +586,10 @@ export function doAtom(value: string): SexprLiteral {
     return { type: 'atom', value };
 }
 
+export function doVar(value: string): SexprTemplate {
+    return { type: 'variable', value };
+}
+
 export function builtIn_eqAtoms(input: SexprLiteral): SexprLiteral {
     const falseAtom: SexprLiteral = { type: 'atom', value: 'false' };
     const trueAtom: SexprLiteral = { type: 'atom', value: 'true' };
