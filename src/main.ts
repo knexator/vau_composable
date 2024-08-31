@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, SexprLiteral, SexprTemplate, assertLiteral, doAtom, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, MatchCaseAddress, MatchCaseDefinition, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -62,7 +62,31 @@ function lit2lit(a: string, b: string): { pattern: SexprTemplate, template: Sexp
         next: 'return',
     };
 }
+
+function var2var(a: string, next: MatchCaseDefinition[] | 'return'): MatchCaseDefinition {
+    return {
+        pattern: doVar(a),
+        template: doVar(a),
+        fn_name_template: doAtom('identity'),
+        next,
+    };
+}
 const default_fnks: FunktionDefinition[] = [
+    {
+        name: doAtom('debug'),
+        cases: [
+            lit2lit('red', 'darkRed'),
+            var2var('green', [
+                lit2lit('red', 'red'),
+                var2var('asdf', 'return'),
+                var2var('hola', 'return'),
+                var2var('buenas', 'return'),
+            ]),
+            var2var('asdf', 'return'),
+            var2var('hola', 'return'),
+            var2var('buenas', 'return'),
+        ],
+    },
     {
         name: doAtom('darken'),
         cases: [

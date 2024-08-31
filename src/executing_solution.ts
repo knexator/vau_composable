@@ -4,7 +4,7 @@ import { EditingSolution, OverlappedEditingThing } from './editing_solution';
 import { Mouse, MouseButton } from './kommon/input';
 import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
 import { clamp01, in01, lerp, remap, remapClamped } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress, FullAddress } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress, FullAddress, namesAtAndAfter } from './model';
 
 // TODO: bug: cable colors are offset by one. repro: main: {@a: @a; @b: @b; ...}
 
@@ -79,7 +79,7 @@ export class ExecutionState {
         private collapsed: Collapsed,
         private matched: MatchedInput[],
         private input: SexprLiteral,
-        private animation: ExecutionAnimationState,
+        public animation: ExecutionAnimationState,
         // public original_fnk: FunktionDefinition = structuredClone(fnk),
         public original_fnk: FunktionDefinition,
     ) { }
@@ -406,7 +406,7 @@ export class ExecutionState {
 
                 overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
                     [next, next_original, next_collaped],
-                    this.namesAt(parentAddress(this.animation.target)),
+                    this.namesAtAndAfter(this.animation.target),
                     this.animation.target, main_view, 1, 1, 1, true,
                     { type: 'input_moving_to_next_option', anim_t: anim_t },
                 )));
@@ -425,7 +425,7 @@ export class ExecutionState {
                 const [cur, ...next] = getCasesAfter(this.fnk, which);
                 const [cur_original, ...next_original] = getCasesAfter(this.original_fnk, which);
                 const [cur_collapse, ...next_collaped] = getCollapsedAfter(this.collapsed, which);
-                const [cur_names, ...next_names] = getNamesAfter(knownVariables(this.original_fnk), which);
+                const [cur_names, ...next_names] = this.namesAtAndAfter(which).inside;
                 const names = this.namesAt(parentAddress(which));
 
                 overlaps.push(onlyExecuting(
@@ -443,7 +443,7 @@ export class ExecutionState {
                 ));
 
                 overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
-                    [next, next_original, next_collaped], names,
+                    [next, next_original, next_collaped], { main: names.main, inside: next_names },
                     which, main_view, 1, 1, 1, true, null)));
                 break;
             }
@@ -461,7 +461,7 @@ export class ExecutionState {
                 const [cur, ...next] = getCasesAfter(this.fnk, which);
                 const [cur_original, ...next_original] = getCasesAfter(this.original_fnk, which);
                 const [cur_collapse, ...next_collaped] = getCollapsedAfter(this.collapsed, which);
-                const [cur_names, ...next_names] = getNamesAfter(knownVariables(this.original_fnk), which);
+                const [cur_names, ...next_names] = this.namesAtAndAfter(which).inside;
                 const names = this.namesAt(parentAddress(which));
 
                 overlaps.push(onlyExecuting(drawCaseWrapperModern(main_view,
@@ -470,7 +470,7 @@ export class ExecutionState {
                     [cur, cur_original, cur_collapse, cur_names], which, null)));
 
                 overlaps.push(onlyExecuting(drawHangingCasesModern(mouse, drawer, global_t,
-                    [next, next_original, next_collaped], names,
+                    [next, next_original, next_collaped], { main: names.main, inside: next_names },
                     which, offsetView(main_view, new Vec2(-anim_t, anim_t).scale(4)), 1, 1, 1, true, null)));
                 break;
             }
@@ -750,6 +750,10 @@ export class ExecutionState {
         return getNamesAt(knownVariables(this.original_fnk), address);
     }
 
+    namesAtAndAfter(address: MatchCaseAddress): KnownVariables {
+        return namesAtAndAfter(this.original_fnk, address);
+    }
+
     private getStuff(address: MatchCaseAddress): [MatchCaseDefinition[], MatchCaseDefinition[], Collapsed[], KnownVariables[]] {
         const next = getCasesAfter(this.fnk, address);
         const next_original = getCasesAfter(this.original_fnk, address);
@@ -881,7 +885,6 @@ export class AfterExecutingSolution {
 }
 
 function collapseAmount(cur_time: number, collapsed: Collapsed['main']): number {
-    return 0;
     const collapsed_t = clamp01((cur_time - collapsed.changedAt) / COLLAPSE_DURATION);
     return collapsed.collapsed ? collapsed_t : 1 - collapsed_t;
 }

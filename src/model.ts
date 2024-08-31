@@ -575,6 +575,34 @@ function newVariableName(taken: string[]): string {
     return name;
 }
 
+export function namesAtAndAfter(fnk: FunktionDefinition, address: MatchCaseAddress): KnownVariables {
+    const asdf = knownVariables(fnk);
+
+    function helper(x: KnownVariables, a: MatchCaseAddress): KnownVariables {
+        if (a.length === 0) throw new Error('unreachable');
+        if (a.length === 1) {
+            return { main: x.main, inside: x.inside.slice(single(a)) };
+        }
+        const [first, ...rest] = a;
+        return helper(x.inside[first], rest);
+    }
+
+    return helper(asdf, address);
+}
+
+export function getNamesAfter(fnk: FunktionDefinition, address: MatchCaseAddress): KnownVariables[] {
+    const asdf = knownVariables(fnk);
+
+    function helper(x: KnownVariables, a: MatchCaseAddress): KnownVariables[] {
+        if (address.length === 0) throw new Error('unreachable');
+        if (address.length === 1) return asdf.inside.slice(single(address));
+        const [first, ...rest] = a;
+        return helper(x.inside[first], rest);
+    }
+
+    return helper(asdf, address);
+}
+
 export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress): MatchCaseDefinition[] {
     // TODO: maybe bug, should be === 0 probably
     const siblings = address.length === 1 ? fnk.cases : getCaseAt(fnk, address.slice(0, -1)).next;

@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Camera, computeOffset, offsetView, SexprView } from './drawer';
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { ExecutingSolution } from './executing_solution';
+import { ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 
 test('funktion add', () => {
@@ -259,39 +259,59 @@ test('compute offset view', () => {
     expect(computed_offset.y).toBeCloseTo(true_offset.y);
 });
 
-// test('cable colors bug', () => {
-//     const fnk: FunktionDefinition = {
-//         name: doAtom('sut'),
-//         cases: [
-//             {
-//                 pattern: doAtom('nil'),
-//                 template: doAtom('nil'),
-//                 fn_name_template: doAtom('identity'),
-//                 next: 'return',
-//             },
-//             {
-//                 pattern: doVar('aaa'),
-//                 template: doVar('aaa'),
-//                 fn_name_template: doAtom('identity'),
-//                 next: 'return',
-//             },
-//             {
-//                 pattern: doVar('bbb'),
-//                 template: doVar('bbb'),
-//                 fn_name_template: doAtom('identity'),
-//                 next: 'return',
-//             },
-//             {
-//                 pattern: doVar('ccc'),
-//                 template: doVar('ccc'),
-//                 fn_name_template: doAtom('identity'),
-//                 next: 'return',
-//             },
-//         ],
-//     };
-//     const sut = new EditingSolution([fnk], fnk, doAtom('hola'), [])
-//         .startExecution(0)
-//         .update()
-//     // const sut = new ExecutingSolution([fnk], fnk, doAtom('hola'), null, 0, )
-//     // cur_thing = cur_thing.startExecution(global_t);
-// });
+test('cable colors bug', () => {
+    const fnk: FunktionDefinition = {
+        name: doAtom('sut'),
+        cases: [
+            {
+                pattern: doAtom('nil'),
+                template: doAtom('nil'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+            {
+                pattern: doVar('aaa'),
+                template: doVar('aaa'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+            {
+                pattern: doVar('bbb'),
+                template: doVar('bbb'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+            {
+                pattern: doVar('ccc'),
+                template: doVar('ccc'),
+                fn_name_template: doAtom('identity'),
+                next: 'return',
+            },
+        ],
+    };
+    let sut = new EditingSolution([fnk], fnk, doAtom('hola'), [])
+        .startExecution(0)
+        .cur_execution_state;
+
+    expect(knownVariables(sut.original_fnk).inside[1].main).toStrictEqual(['aaa']);
+
+    for (let k = 0; k < 2; k++) {
+        const tmp = sut.next([fnk], 0);
+        if (!(tmp instanceof ExecutionState)) throw new Error('unreachable');
+        sut = tmp;
+    }
+
+    expect(knownVariables(sut.original_fnk).inside[0].main).toStrictEqual([]);
+    expect(knownVariables(sut.original_fnk).inside[1].main).toStrictEqual(['aaa']);
+
+    expect(sut.animation.type).toBe('input_moving_to_next_option');
+    if (sut.animation.type !== 'input_moving_to_next_option') throw new Error('unreachable');
+
+    expect(sut.animation.target).toStrictEqual([1]);
+
+    const asdf_cases = getCasesAfter(fnk, sut.animation.target);
+    expect(asdf_cases[0].pattern).toStrictEqual(doVar('aaa'));
+
+    const asdf_names = getNamesAfter(fnk, sut.animation.target);
+    expect(asdf_names[0].main).toStrictEqual(['aaa']);
+});
