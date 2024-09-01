@@ -8,6 +8,7 @@ import { FunktionDefinition, MatchCaseAddress, MatchCaseDefinition, SexprLiteral
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
+import { ElectingSolution } from './electing_solution';
 
 // TODO: duplicate vaus
 
@@ -204,7 +205,8 @@ const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => p
 // all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-let cur_thing: EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
+let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(all_fnks);
+// let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
 const camera = new Camera();
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
@@ -246,7 +248,10 @@ function every_frame(cur_timestamp_millis: number) {
     }
     camera.zoom(input.mouse.wheel, raw_mouse_pos, screen_size.y);
 
-    if (cur_thing instanceof EditingSolution) {
+    if (cur_thing instanceof ElectingSolution) {
+        cur_thing = cur_thing.drawAndUpdate(drawer, global_t, camera, input.mouse, input.keyboard) ?? cur_thing;
+    }
+    else if (cur_thing instanceof EditingSolution) {
         cur_thing = cur_thing.drawAndUpdate(drawer, global_t, camera, input.mouse, input.keyboard) ?? cur_thing;
         if (cur_thing instanceof EditingSolution && input.keyboard.wasPressed(KeyCode.Space)) {
             cur_thing = cur_thing.startExecution(global_t);
@@ -282,6 +287,9 @@ function every_frame(cur_timestamp_millis: number) {
                 cur_thing = cur_thing.original_editing;
             }
         }
+    }
+    else {
+        const _: never = cur_thing;
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {

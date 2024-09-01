@@ -5,6 +5,7 @@ import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom } from './model';
 import { inRange } from './kommon/math';
+import { ElectingSolution } from './electing_solution';
 
 export type OverlappedEditingThing =
     | ({ type: 'main' } & OverlappedExecutionThing)
@@ -61,7 +62,7 @@ export class EditingSolution {
         }
     }
 
-    private static *otherFnksNew(all_fnks: FunktionDefinition[], main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
+    static *otherFnksNew(all_fnks: FunktionDefinition[], main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
         main_view = offsetView(main_view, new Vec2(-14, 8));
 
         // special functions
@@ -90,11 +91,11 @@ export class EditingSolution {
         }
     }
 
-    drawAndUpdate(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | null {
+    drawAndUpdate(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | ElectingSolution | null {
         return this.drawAndUpdateNew(drawer, global_t, camera, mouse, keyboard);
     }
 
-    private drawAndUpdateNew(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): EditingSolution | null {
+    private drawAndUpdateNew(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): ElectingSolution | EditingSolution | null {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
@@ -187,17 +188,17 @@ export class EditingSolution {
             else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'test_case') {
                 if (this.mouse_holding === null) {
                     drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
-                    this.printName(overlapped.value, drawer);
+                    EditingSolution.printName(overlapped.value, drawer);
                 }
             }
             else if (overlapped.type === 'cell') {
                 const value = assertNotNull(getAtLocalAddress(this.cells[overlapped.cell], overlapped.address));
                 drawer.highlightThing('template', value.type, overlapped.view);
-                this.printName(value, drawer);
+                EditingSolution.printName(value, drawer);
             }
             else if (overlapped.type === 'main') {
                 drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
-                this.printName(overlapped.value, drawer);
+                EditingSolution.printName(overlapped.value, drawer);
 
                 const major = overlapped.full_address.major;
                 this.collapsed.inside = ensureCollapsed(this.collapsed.inside, global_t, (addr, cur_value) => {
@@ -232,9 +233,12 @@ export class EditingSolution {
             }
         }
 
-        if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
-            return this.previously_editing;
+        if (keyboard.wasPressed(KeyCode.Escape)) {
+            return new ElectingSolution(this.all_fnks);
         }
+        // if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
+        //     return this.previously_editing;
+        // }
 
         if (overlapped !== null && overlapped.type === 'pole') {
             if (mouse.wasReleased(MouseButton.Left)) this.mouse_holding = null;
@@ -308,7 +312,7 @@ export class EditingSolution {
         return null;
     }
 
-    private printName(value: SexprTemplate, drawer: Drawer) {
+    static printName(value: SexprTemplate, drawer: Drawer) {
         drawer.ctx.fillStyle = 'black';
         const screen_size = drawer.getScreenSize();
         drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
