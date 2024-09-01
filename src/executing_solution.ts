@@ -793,7 +793,8 @@ export class ExecutingSolution {
 
     public static getMainView(screen_size: Vec2, camera: Camera): SexprView {
         const asdf = camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
-        return offsetView(asdf, new Vec2(28, -3));
+        // return offsetView(asdf, new Vec2(28, -3));
+        return offsetView(asdf, new Vec2(32, -5));
     }
 }
 
