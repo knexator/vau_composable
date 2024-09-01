@@ -240,7 +240,8 @@ export class EditingSolution {
         }
 
         if (keyboard.wasPressed(KeyCode.Escape)) {
-            return new ElectingSolution(this.all_fnks);
+            // TODO URGENT: don't forget the levels
+            return new ElectingSolution(this.all_fnks, []);
         }
         // if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
         //     return this.previously_editing;

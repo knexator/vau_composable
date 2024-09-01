@@ -1,14 +1,15 @@
 import * as twgl from 'twgl.js';
 import GUI from 'lil-gui';
 import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversedForEach, zip2 } from './kommon/kommon';
+import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, MatchCaseAddress, MatchCaseDefinition, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 import { ElectingSolution } from './electing_solution';
+import { Random } from './kommon/random';
 
 // TODO: duplicate vaus
 
@@ -205,7 +206,20 @@ const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => p
 // all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(all_fnks);
+
+const all_levels: LevelDescription[] = [
+    new LevelDescription(doAtom('reverse'), `Reverse the given list`, (n: number) => {
+        const rand = new Random(n.toString());
+        const misc_atoms = 'v1,v2,v3'.split(',').map(doAtom);
+        const asdf = fromCount(rand.int(0, 5), _ => rand.choice(misc_atoms));
+        return [
+            doList(asdf),
+            doList(reversed(asdf)),
+        ];
+    }),
+];
+
+let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(all_fnks, all_levels);
 // let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
 const camera = new Camera();
 

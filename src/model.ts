@@ -47,7 +47,7 @@ export function isLiteral(x: SexprTemplate): boolean {
 }
 
 import { COLLAPSE_DURATION, Collapsed } from './drawer';
-import { addAt, at, deleteAt, or, replace, single } from './kommon/kommon';
+import { addAt, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
 import grammar from './sexpr.pegjs?raw';
 import * as peggy from 'peggy';
 const parser = peggy.generate(grammar);
@@ -610,6 +610,18 @@ export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress
     return siblings.slice(at(address, -1));
 }
 
+export function doList(values: SexprLiteral[]): SexprLiteral {
+    let result = doAtom('nil');
+    reversedForEach(values, (v) => {
+        result = doPair(v, result);
+    });
+    return result;
+}
+
+export function doPair(left: SexprLiteral, right: SexprLiteral): { type: 'pair', left: SexprLiteral, right: SexprLiteral } {
+    return { type: 'pair', left, right };
+}
+
 export function doAtom(value: string): SexprLiteral {
     return { type: 'atom', value };
 }
@@ -638,4 +650,12 @@ export function knownVariables(fnk: FunktionDefinition): KnownVariables {
         }
     }
     return { main: [], inside: fnk.cases.map(c => helper(c, [])) };
+}
+
+export class LevelDescription {
+    constructor(
+        public name: SexprLiteral,
+        public description: string,
+        public generate_test: (n: number) => [SexprLiteral, SexprLiteral],
+    ) { }
 }
