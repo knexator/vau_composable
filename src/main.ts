@@ -199,8 +199,8 @@ const default_fnks: FunktionDefinition[] = [
 // localStorage.setItem('vau_composable', x.default);
 
 // FUTURE: proper validation
-const all_fnks = default_fnks;
-// const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), default_fnks);
+// const all_fnks = default_fnks;
+const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), default_fnks);
 // all_fnks.map(x => console.log(fnkToString(x)));
 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));

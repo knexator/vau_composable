@@ -62,7 +62,7 @@ export class EditingSolution {
     }
 
     private *otherFnksNew(main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
-        main_view = offsetView(main_view, new Vec2(-20, -7));
+        main_view = offsetView(main_view, new Vec2(-14, -7));
         for (let k = 0; k < this.all_fnks.length; k++) {
             yield {
                 value: this.all_fnks[k].name,
@@ -80,7 +80,7 @@ export class EditingSolution {
             yield {
                 value: built_in[k],
                 view: {
-                    pos: offsetView(main_view, new Vec2(2, 23 + k * 8)).pos,
+                    pos: offsetView(main_view, new Vec2(0, 23 + k * 8)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
@@ -103,8 +103,8 @@ export class EditingSolution {
 
         let already_overlapped = false;
         {
-            const create_fnk_button_view = scaleAndOffsetView(main_view, new Vec2(-18, 6), 2);
-            if (drawer.drawPlus(mouse_pos, create_fnk_button_view)) {
+            const create_fnk_button_view = scaleAndOffsetView(main_view, new Vec2(-14, 6), 2);
+            if (drawer.drawPlus(mouse_pos, create_fnk_button_view) && this.mouse_holding === null) {
                 already_overlapped = true;
                 drawer.highlightPlus(create_fnk_button_view);
                 if (mouse.wasPressed(MouseButton.Left)) {
@@ -178,7 +178,9 @@ export class EditingSolution {
         const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {
             if (overlapped.type === 'pole') {
-                drawer.highlightPlus(overlapped.view);
+                if (this.mouse_holding === null) {
+                    drawer.highlightPlus(overlapped.view);
+                }
             }
             else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'test_case') {
                 if (this.mouse_holding === null) {
