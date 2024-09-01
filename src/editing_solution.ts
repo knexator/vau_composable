@@ -287,6 +287,13 @@ export class EditingSolution {
 
         drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-20, -5.5)));
         drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-35, -5.5)));
+        drawer.line(offsetView(main_view, new Vec2(-22.75, -5.5)), [
+            new Vec2(-3, 0),
+            new Vec2(0, 0),
+            new Vec2(-1, 1),
+            new Vec2(0, 0),
+            new Vec2(-1, -1),
+        ]);
 
         return null;
     }
