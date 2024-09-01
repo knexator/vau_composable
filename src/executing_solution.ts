@@ -328,34 +328,9 @@ export class ExecutionState {
         return new ExecutionState(new_parent, this.fnk, this.collapsed, this.matched, this.input, this.animation, this.original_fnk);
     }
 
-    private getActualMainView(main_view: SexprView): SexprView {
-        if (this.parent !== null) {
-            main_view = this.parent.getActualMainView(main_view);
-            if (this.parent.animation.type === 'fading_out_to_child'
-                || this.parent.animation.type === 'waiting_for_child'
-                || this.parent.animation.type === 'fading_in_from_child') {
-                main_view = getView(main_view, {
-                    major: this.parent.animation.return_address,
-                    minor: [],
-                    type: 'template',
-                }, this.parent.collapsed);
-                return main_view;
-            }
-            else if (this.parent.animation.type === 'breaking_to_tail_optimization') {
-                return main_view;
-            }
-            else {
-                throw new Error('unreachable');
-            }
-        }
-        else {
-            return main_view;
-        }
-    }
-
     draw(drawer: Drawer, anim_t: number, global_t: number, main_view: SexprView, mouse: Vec2): OverlappedExecutionThing | null {
         // console.log(this.animation.type);
-        main_view = offsetView(main_view, new Vec2(24, 0));
+        // main_view = offsetView(main_view, new Vec2(24, 0));
         const overlaps: (OverlappedExecutionThing | null)[] = [];
         // drawer.drawFunktion(this.fnk, main_view, this.collapsed.inside, global_t, this.matched);
         switch (this.animation.type) {
@@ -375,7 +350,7 @@ export class ExecutionState {
                 break;
             }
             case 'input_moving_to_next_option': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainInput(drawer, mouse, main_view));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
                 drawer.line(main_view, [
@@ -396,7 +371,7 @@ export class ExecutionState {
                 break;
             }
             case 'failing_to_match': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainInput(drawer, mouse, main_view));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
                 drawer.line(main_view, [
@@ -431,7 +406,7 @@ export class ExecutionState {
                 break;
             }
             case 'matching': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainInput(drawer, mouse, main_view));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
                 drawer.line(main_view, [
@@ -458,7 +433,7 @@ export class ExecutionState {
                 break;
             }
             case 'floating_bindings': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainInput(drawer, mouse, scaleViewCentered(main_view, 1 - anim_t)));
 
                 const v = getCaseAt(this.fnk, this.animation.next_input_address);
@@ -483,7 +458,7 @@ export class ExecutionState {
             }
             case 'fading_out_to_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * anim_t, 0));
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
                 drawer.line(main_view, [
@@ -513,7 +488,7 @@ export class ExecutionState {
             }
             case 'fading_in_from_parent': {
                 if (this.parent === null) throw new Error('unreachable');
-                overlaps.push(this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse));
+                overlaps.push(this.parent.draw(drawer, anim_t, global_t, main_view, mouse));
                 overlaps.push(this.drawMainInput(drawer, mouse, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0))));
                 overlaps.push(completeAddress([], 'fn_name',
                     drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, lerpSexprView(
@@ -537,7 +512,7 @@ export class ExecutionState {
             }
             case 'skipping_computation': {
                 if (this.parent === null) throw new Error('unreachable');
-                overlaps.push(this.parent.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse));
+                overlaps.push(this.parent.draw(drawer, anim_t, global_t, main_view, mouse));
                 drawer.line(main_view, [
                     new Vec2(30, 0),
                     new Vec2(-50, 0),
@@ -578,7 +553,7 @@ export class ExecutionState {
             }
             case 'identity_specialcase_1': {
                 // if (this.parent === null) throw new Error('unreachable');
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(asMainInput(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)))));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
@@ -605,7 +580,7 @@ export class ExecutionState {
             }
             case 'identity_specialcase_2': {
                 main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(asMainInput(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(46 * (1 - anim_t), 0)))));
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
@@ -630,7 +605,7 @@ export class ExecutionState {
                 break;
             }
             case 'fading_out_to_parent': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(asMainInput(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0)))));
 
                 drawer.line(main_view, [
@@ -642,7 +617,7 @@ export class ExecutionState {
             }
             case 'fading_in_from_child': {
                 main_view = offsetView(main_view, new Vec2(-14 * (1 - anim_t), 0));
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
                 const main_stuff = this.getStuff(this.animation.return_address);
@@ -661,7 +636,7 @@ export class ExecutionState {
                 break;
             }
             // case 'skipping_child_computation': {
-            //     this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse);
+            //     this.parent?.draw(drawer, anim_t, global_t, main_view, mouse);
             //     drawer.drawMolecule(this.fnk.name, rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1));
             //     drawer.drawMolecule(this.input, offsetView(main_view, new Vec2(lerp(32, 0, anim_t), 0)));
 
@@ -686,7 +661,7 @@ export class ExecutionState {
             // }
             case 'waiting_for_child': {
                 main_view = offsetView(main_view, new Vec2(-14, 0));
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 overlaps.push(this.drawMainFnkName(drawer, mouse, main_view));
 
                 drawer.line(main_view, [
@@ -715,7 +690,7 @@ export class ExecutionState {
                 break;
             }
             case 'breaking_to_tail_optimization': {
-                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, offsetView(main_view, new Vec2(-24, 0)), mouse) ?? null);
+                overlaps.push(this.parent?.draw(drawer, anim_t, global_t, main_view, mouse) ?? null);
                 drawer.line(main_view, [
                     new Vec2(30 - 32 * anim_t, 0),
                     new Vec2(-50, 0),
@@ -804,7 +779,7 @@ export class ExecutingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
+        const view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
         const overlapped = this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, raw_mouse_pos);
         if (overlapped !== null) {
             drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
@@ -816,12 +791,9 @@ export class ExecutingSolution {
         }
     }
 
-    public static getMainView(screen_size: Vec2, camera: Camera): SexprView {
-        return camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
-    }
-
     public static getMainViewGood(screen_size: Vec2, camera: Camera): SexprView {
-        return offsetView(this.getMainView(screen_size, camera), new Vec2(28, 0));
+        const asdf = camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
+        return offsetView(asdf, new Vec2(28, 0));
     }
 }
 

@@ -171,6 +171,9 @@ const default_fnks: FunktionDefinition[] = [
     },
 ];
 
+// tutorial levels:
+// - hardcoded map
+// - (a . b) => (hardcoded_map(a) . hardcoded_map(b))
 // actual levels:
 // - move X to front
 // - areEqual
