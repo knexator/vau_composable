@@ -844,7 +844,7 @@ export class ExecutingSolution {
     }
 
     public static getMainViewGood(screen_size: Vec2, camera: Camera): SexprView {
-        return offsetView(this.getMainView(screen_size, camera), new Vec2(24, 0));
+        return offsetView(this.getMainView(screen_size, camera), new Vec2(28, 0));
     }
 }
 

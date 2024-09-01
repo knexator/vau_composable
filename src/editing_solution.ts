@@ -285,7 +285,8 @@ export class EditingSolution {
             }
         }
 
-        // this.draw(drawer, global_t, camera);
+        drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-20, -5.5)));
+        drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-35, -5.5)));
 
         return null;
     }
@@ -373,7 +374,7 @@ export class EditingSolution {
     private getCellView(screen_size: Vec2, k: number): SexprView {
         assert(inRange(k, 0, 3));
         return {
-            pos: screen_size.mul(new Vec2(0.7775, 0.5 + k * 0.1975)),
+            pos: screen_size.mul(new Vec2(0.875, 0.5 + k * 0.1975)),
             halfside: screen_size.y * 0.5 / 5.5,
             turns: 0,
         };
