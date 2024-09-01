@@ -61,7 +61,7 @@ export class EditingSolution {
         }
     }
 
-    private *otherFnksNew(main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
+    private static *otherFnksNew(all_fnks: FunktionDefinition[], main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
         main_view = offsetView(main_view, new Vec2(-14, 8));
 
         // special functions
@@ -78,9 +78,9 @@ export class EditingSolution {
         }
 
         // the rest
-        for (let k = 0; k < this.all_fnks.length; k++) {
+        for (let k = 0; k < all_fnks.length; k++) {
             yield {
-                value: this.all_fnks[k].name,
+                value: all_fnks[k].name,
                 view: {
                     pos: offsetView(main_view, new Vec2(-(k % 4) * 6, 8 + Math.floor(k / 4) * 8)).pos,
                     halfside: main_view.halfside / 2,
@@ -131,7 +131,7 @@ export class EditingSolution {
         // const asdf = ExecutionState.init(this.fnk, this.input);
         // overlaps.push(asdf.draw(drawer, 0, global_t, main_view, mouse_pos));
 
-        for (const { value, view } of this.otherFnksNew(main_view)) {
+        for (const { value, view } of EditingSolution.otherFnksNew(this.all_fnks, main_view)) {
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
             if (asdf !== null) {
                 overlaps.push({ type: 'other_fnk', value, view });
