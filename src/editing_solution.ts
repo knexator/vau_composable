@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom } from './model';
 import { inRange } from './kommon/math';
 
 type MouseLocation = FullAddress
@@ -743,7 +743,7 @@ export class EditingSolution {
 
     private getExtraView(screen_size: Vec2): SexprView {
         return {
-            pos: screen_size.mul(new Vec2(0.625, 0.2125)),
+            pos: screen_size.mul(new Vec2(0.75, 0.2125)),
             halfside: screen_size.y / 5.5,
             turns: 0,
         };
