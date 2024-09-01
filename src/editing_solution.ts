@@ -160,7 +160,7 @@ export class EditingSolution {
         }
 
         // test cases
-        const test_case_view = offsetView(main_view, new Vec2(-20, -5.5));
+        const test_case_view = offsetView(main_view, new Vec2(-20, -6));
         function helper(mouse_pos: Vec2, value: SexprLiteral, view: SexprView): OverlappedEditingThing | null {
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
             if (asdf === null) return null;
@@ -177,6 +177,12 @@ export class EditingSolution {
             new Vec2(0, 0),
             new Vec2(-1, -1),
         ]);
+        // const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
+        // drawer.drawPlus(null, asdf1);
+        // drawer.highlightPlus(asdf1);
+        // const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
+        // drawer.drawPlus(null, asdf2);
+        // drawer.highlightPlus(asdf2);
 
         const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {

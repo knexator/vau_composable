@@ -33,7 +33,7 @@ export class ElectingSolution {
         }
 
         // test cases
-        const test_case_view = offsetView(main_view, new Vec2(-20, -5.5));
+        const test_case_view = offsetView(main_view, new Vec2(-20, -6));
         drawer.drawMoleculePlease(doAtom('nil'), test_case_view);
         drawer.drawMoleculePlease(doAtom('nil'), offsetView(test_case_view, new Vec2(-15, 0)));
         drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
@@ -43,6 +43,12 @@ export class ElectingSolution {
             new Vec2(0, 0),
             new Vec2(-1, -1),
         ]);
+        // const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
+        // drawer.drawPlus(null, asdf1);
+        // drawer.highlightPlus(asdf1);
+        // const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
+        // drawer.drawPlus(null, asdf2);
+        // drawer.highlightPlus(asdf2);
 
         const overlapped = firstNonNull(overlaps);
         if (overlapped !== null) {
