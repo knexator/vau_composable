@@ -157,16 +157,17 @@ export class EditingSolution {
         }
 
         // test cases
+        const test_case_view = offsetView(main_view, new Vec2(-20, -5.5));
         function helper(mouse_pos: Vec2, value: SexprLiteral, view: SexprView): OverlappedEditingThing | null {
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
             if (asdf === null) return null;
             return { type: 'test_case', value, view };
         }
         overlaps.push(
-            helper(mouse_pos, doAtom('nil'), offsetView(main_view, new Vec2(-20, -5.5))),
-            helper(mouse_pos, doAtom('nil'), offsetView(main_view, new Vec2(-35, -5.5))),
+            helper(mouse_pos, doAtom('nil'), test_case_view),
+            helper(mouse_pos, doAtom('nil'), offsetView(test_case_view, new Vec2(-15, 0))),
         );
-        drawer.line(offsetView(main_view, new Vec2(-22.75, -5.5)), [
+        drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
             new Vec2(-3, 0),
             new Vec2(0, 0),
             new Vec2(-1, 1),
