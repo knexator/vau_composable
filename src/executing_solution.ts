@@ -6,8 +6,6 @@ import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, sub
 import { clamp01, in01, lerp, remap, remapClamped } from './kommon/math';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress, FullAddress, namesAtAndAfter } from './model';
 
-// TODO: bug: cable colors are offset by one. repro: main: {@a: @a; @b: @b; ...}
-
 export type OverlappedExecutionThing = { parent_view: SexprView, full_address: FullAddress, value: SexprTemplate };
 
 export function completeAddress(major: MatchCaseAddress, asdf: FullAddress['type'], cosa: OverlappedThing | null): OverlappedExecutionThing | null {
@@ -92,26 +90,11 @@ export class ExecutionState {
             nothingMatched(fnk.cases),
             input,
             { type: 'input_moving_to_next_option', target: [0] },
-            // { type: 'failing_to_match', which: [1, 0] },
-            // { type: 'matching', which: [1] },
             structuredClone(fnk),
         );
     }
 
-    private getViewOfMovingInput(view: SexprView, address: MatchCaseAddress, global_t: number = Infinity): SexprView {
-        const chair_view = getView(view, {
-            type: 'pattern',
-            major: address,
-            minor: [],
-        }, this.collapsed, global_t);
-        const unit = view.halfside / 4;
-        return offsetView(chair_view, new Vec2(-11, 0));
-    }
-
-    // TODO: these parameters are a code smell
     next(all_fnks: FunktionDefinition[], global_t: number): ExecutionState | ExecutionResult {
-        // console.log(this.collapsed.main);
-        // console.log(this.collapsed.inside.map(x => x.main.collapsed).join(','));
         switch (this.animation.type) {
             case 'final_result': {
                 return { type: 'success', result: this.input };
@@ -792,10 +775,7 @@ export class ExecutingSolution {
         this.anim_t = 0;
     }
 
-    // TODO: drawer as a parameter is a code smell
-    update(delta_time: number, drawer: Drawer, camera: Camera, global_t: number): AfterExecutingSolution | null {
-        const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
-
+    update(delta_time: number, global_t: number): AfterExecutingSolution | null {
         this.anim_t += delta_time * this.speed;
         while (this.anim_t >= 1) {
             this.anim_t -= 1;
@@ -811,10 +791,7 @@ export class ExecutingSolution {
         return null;
     }
 
-    // TODO: drawer as a parameter is a code smell
-    skip(drawer: Drawer, camera: Camera, global_t: number): AfterExecutingSolution {
-        const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
-
+    skip(global_t: number): AfterExecutingSolution {
         let next_state = this.cur_execution_state.next(this.all_fnks, global_t);
         while (next_state instanceof ExecutionState) {
             next_state = next_state.next(this.all_fnks, global_t);

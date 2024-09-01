@@ -258,10 +258,10 @@ function every_frame(cur_timestamp_millis: number) {
             }
         });
         if (input.keyboard.wasPressed(KeyCode.Escape)) {
-            cur_thing = cur_thing.skip(drawer, camera, global_t);
+            cur_thing = cur_thing.skip(global_t);
         }
         else {
-            cur_thing = cur_thing.update(delta_time, drawer, camera, global_t) ?? cur_thing;
+            cur_thing = cur_thing.update(delta_time, global_t) ?? cur_thing;
         }
     }
     else if (cur_thing instanceof AfterExecutingSolution) {
