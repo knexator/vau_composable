@@ -21,7 +21,6 @@ export type OverlappedEditingThing =
 export class EditingSolution {
     private collapsed: Collapsed;
 
-    private mouse_location: MouseLocation | null;
     // TODO: baaad
     public mouse_holding: SexprTemplate | null;
 
@@ -34,7 +33,6 @@ export class EditingSolution {
     ) {
         this.collapsed = fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases));
         // this.matched = nothingMatched(fnk.cases);
-        this.mouse_location = null;
         this.mouse_holding = null;
         // this.cells = fromCount(3, _ => parseSexprTemplate('1'));
     }
@@ -356,7 +354,6 @@ export class EditingSolution {
     }
 
     private withoutInteractions(): EditingSolution {
-        this.mouse_location = null;
         this.mouse_holding = null;
         return this;
     }
