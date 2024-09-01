@@ -6,17 +6,12 @@ import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWit
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom } from './model';
 import { inRange } from './kommon/math';
 
-type MouseLocation = FullAddress
-    | { type: 'input', address: SexprAddress }
-    | { type: 'toolbar', value: SexprTemplate, view: SexprView }
-    | { type: 'cell', cell: number, address: SexprAddress }
-    | { type: 'other_fnks', value: SexprLiteral, view: SexprView };
-
 export type OverlappedEditingThing =
     | ({ type: 'main' } & OverlappedExecutionThing)
     | { type: 'pole', kind: 'add' | 'return', address: MatchCaseAddress, view: SexprView }
     | { type: 'other_fnk', value: SexprLiteral, view: SexprView }
     | { type: 'toolbar', value: SexprTemplate, view: SexprView }
+    | { type: 'test_case', value: SexprTemplate, view: SexprView }
     | { type: 'cell', cell: number, address: SexprAddress, value: SexprTemplate, view: SexprView };
 export class EditingSolution {
     private collapsed: Collapsed;
@@ -161,14 +156,34 @@ export class EditingSolution {
             }
         }
 
+        // test cases
+        function helper(mouse_pos: Vec2, value: SexprLiteral, view: SexprView): OverlappedEditingThing | null {
+            const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
+            if (asdf === null) return null;
+            return { type: 'test_case', value, view };
+        }
+        overlaps.push(
+            helper(mouse_pos, doAtom('nil'), offsetView(main_view, new Vec2(-20, -5.5))),
+            helper(mouse_pos, doAtom('nil'), offsetView(main_view, new Vec2(-35, -5.5))),
+        );
+        drawer.line(offsetView(main_view, new Vec2(-22.75, -5.5)), [
+            new Vec2(-3, 0),
+            new Vec2(0, 0),
+            new Vec2(-1, 1),
+            new Vec2(0, 0),
+            new Vec2(-1, -1),
+        ]);
+
         const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {
             if (overlapped.type === 'pole') {
                 drawer.highlightPlus(overlapped.view);
             }
-            else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar') {
-                drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
-                this.printName(overlapped.value, drawer);
+            else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'test_case') {
+                if (this.mouse_holding === null) {
+                    drawer.highlightThing('fn_name', overlapped.value.type, overlapped.view);
+                    this.printName(overlapped.value, drawer);
+                }
             }
             else if (overlapped.type === 'cell') {
                 const value = assertNotNull(getAtLocalAddress(this.cells[overlapped.cell], overlapped.address));
@@ -285,16 +300,6 @@ export class EditingSolution {
             }
         }
 
-        drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-20, -5.5)));
-        drawer.drawMoleculePlease(doAtom('nil'), offsetView(main_view, new Vec2(-35, -5.5)));
-        drawer.line(offsetView(main_view, new Vec2(-22.75, -5.5)), [
-            new Vec2(-3, 0),
-            new Vec2(0, 0),
-            new Vec2(-1, 1),
-            new Vec2(0, 0),
-            new Vec2(-1, -1),
-        ]);
-
         return null;
     }
 
@@ -312,7 +317,7 @@ export class EditingSolution {
                 drawer.drawPlease(overlapped.full_address.type, mouse_holding, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
             }
         }
-        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'pole') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'test_case' || overlapped.type === 'pole') {
             // pass
         }
         else if (overlapped.type === 'cell') {
@@ -328,7 +333,7 @@ export class EditingSolution {
         if (overlapped.type === 'main') {
             this.setAt(overlapped.full_address, new_value);
         }
-        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'pole') {
+        else if (overlapped.type === 'other_fnk' || overlapped.type === 'toolbar' || overlapped.type === 'test_case' || overlapped.type === 'pole') {
             // pass
         }
         else if (overlapped.type === 'cell') {
