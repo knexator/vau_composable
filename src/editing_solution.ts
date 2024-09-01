@@ -62,25 +62,27 @@ export class EditingSolution {
     }
 
     private *otherFnksNew(main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
-        main_view = offsetView(main_view, new Vec2(-14, -7));
-        for (let k = 0; k < this.all_fnks.length; k++) {
+        main_view = offsetView(main_view, new Vec2(-14, 8));
+
+        // special functions
+        const built_in = ['#identity', '#eqAtoms?'].map(parseSexprLiteral);
+        for (let k = 0; k < built_in.length; k++) {
             yield {
-                value: this.all_fnks[k].name,
+                value: built_in[k],
                 view: {
-                    pos: offsetView(main_view, new Vec2(-6 - Math.floor(k / 6) * 6, 15 + (k % 6) * 8)).pos,
+                    pos: offsetView(main_view, new Vec2(-12 - k * 6, 0)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
             };
         }
 
-        // built in
-        const built_in = ['#identity', '#eqAtoms?'].map(parseSexprLiteral);
-        for (let k = 0; k < built_in.length; k++) {
+        // the rest
+        for (let k = 0; k < this.all_fnks.length; k++) {
             yield {
-                value: built_in[k],
+                value: this.all_fnks[k].name,
                 view: {
-                    pos: offsetView(main_view, new Vec2(0, 23 + k * 8)).pos,
+                    pos: offsetView(main_view, new Vec2(-(k % 4) * 6, 8 + Math.floor(k / 4) * 8)).pos,
                     halfside: main_view.halfside / 2,
                     turns: main_view.turns - 0.25,
                 },
@@ -99,7 +101,7 @@ export class EditingSolution {
         const overlaps: (OverlappedEditingThing | null)[] = [];
         // overlaps.push(drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse, this.input, main_view));
 
-        const main_view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
+        const main_view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
 
         let already_overlapped = false;
         {

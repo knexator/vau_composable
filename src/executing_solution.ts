@@ -779,7 +779,7 @@ export class ExecutingSolution {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
         const raw_mouse_pos = new Vec2(mouse.clientX - rect.left, mouse.clientY - rect.top);
 
-        const view = ExecutingSolution.getMainViewGood(drawer.getScreenSize(), camera);
+        const view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
         const overlapped = this.cur_execution_state.draw(drawer, this.anim_t, global_t, view, raw_mouse_pos);
         if (overlapped !== null) {
             drawer.highlightThing(overlapped.full_address.type, overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.full_address.minor));
@@ -791,9 +791,9 @@ export class ExecutingSolution {
         }
     }
 
-    public static getMainViewGood(screen_size: Vec2, camera: Camera): SexprView {
+    public static getMainView(screen_size: Vec2, camera: Camera): SexprView {
         const asdf = camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
-        return offsetView(asdf, new Vec2(28, 0));
+        return offsetView(asdf, new Vec2(28, -3));
     }
 }
 
