@@ -62,6 +62,13 @@ export class EditingSolution {
         }
     }
 
+    static viewOfFnk(name: SexprLiteral, all_fnks: FunktionDefinition[], main_view: SexprView): SexprView {
+        for (const { value, view } of EditingSolution.otherFnksNew(all_fnks, main_view)) {
+            if (equalSexprs(name, value)) return view;
+        }
+        throw new Error('bad name');
+    }
+
     static *otherFnksNew(all_fnks: FunktionDefinition[], main_view: SexprView): Generator<{ value: SexprLiteral, view: SexprView }, void, void> {
         main_view = offsetView(main_view, new Vec2(-14, 8));
 

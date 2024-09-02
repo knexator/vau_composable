@@ -11,6 +11,7 @@ export class ElectingSolution {
     constructor(
         private all_fnks: FunktionDefinition[],
         private all_levels: LevelDescription[],
+        private selected_name: { value: SexprLiteral, view: SexprView } | null = null,
         private cur_test_case_n: number = 0,
     ) { }
 
@@ -40,17 +41,31 @@ export class ElectingSolution {
             drawer.highlightThing('fn_name', overlapped.value.type, overlapped.parent_view);
             EditingSolution.printName(overlapped.value, drawer);
 
-            if (keyboard.wasPressed(KeyCode.Space)) {
-                const fnk = this.all_fnks.find(x => equalSexprs(x.name, fn_name));
-                if (fnk !== undefined) {
-                    // TODO: use test case as input
-                    // TODO: keep cells
-                    return new EditingSolution(this.all_fnks, fnk, doAtom('nil'), fromCount(3, _ => doAtom('nil')));
+            if (mouse.wasPressed(MouseButton.Left)) {
+                if (this.selected_name !== null && equalSexprs(fn_name, this.selected_name.value)) {
+                    const fnk = this.all_fnks.find(x => equalSexprs(x.name, fn_name));
+                    if (fnk !== undefined) {
+                        // TODO: use test case as input
+                        // TODO: keep cells
+                        return new EditingSolution(this.all_fnks, fnk, doAtom('nil'), fromCount(3, _ => doAtom('nil')));
+                    }
+                }
+                else {
+                    this.selected_name = { value: fn_name, view: overlapped.parent_view };
                 }
             }
+        }
 
-            const level_description = this.all_levels.find(x => equalSexprs(x.name, fn_name));
+        if (this.selected_name !== null) {
+            drawer.highlightThing('fn_name', this.selected_name.value.type, EditingSolution.viewOfFnk(this.selected_name.value, this.all_fnks, main_view));
+            const level_description = this.all_levels.find(x => equalSexprs(x.name, this.selected_name!.value));
             if (level_description !== undefined) {
+                drawer.ctx.fillStyle = 'black';
+                const screen_size = drawer.getScreenSize();
+                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+                drawer.ctx.textAlign = 'center';
+                drawer.ctx.fillText(level_description.description, screen_size.x * 0.5, screen_size.y * 0.5);
+
                 // test cases
                 const [sample_in, sample_out] = level_description.generate_test(this.cur_test_case_n);
                 const test_case_view = offsetView(main_view, new Vec2(-20, -6));
