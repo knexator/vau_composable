@@ -77,32 +77,7 @@ export class ElectingSolution {
             drawer.ctx.textAlign = 'center';
             drawer.ctx.fillText(this.selected.level.description, screen_size.x * 0.5, screen_size.y * 0.5);
 
-            // test cases
-            const [sample_in, sample_out] = this.selected.level.generate_test(this.cur_test_case_n);
-            const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
-            drawer.drawMoleculePlease(sample_out, test_case_view);
-            drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
-            drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
-                new Vec2(-3, 0),
-                new Vec2(0, 0),
-                new Vec2(-1, 1),
-                new Vec2(0, 0),
-                new Vec2(-1, -1),
-            ]);
-            const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
-            if (drawer.drawPlus(mouse_pos, asdf1)) {
-                drawer.highlightPlus(asdf1);
-                if (mouse.wasPressed(MouseButton.Left)) {
-                    this.cur_test_case_n -= 1;
-                }
-            }
-            const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
-            if (drawer.drawPlus(mouse_pos, asdf2)) {
-                drawer.highlightPlus(asdf2);
-                if (mouse.wasPressed(MouseButton.Left)) {
-                    this.cur_test_case_n += 1;
-                }
-            }
+            this.selected.test_case_viewer.drawAndUpdateFromElecting(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
         }
 
         return null;
@@ -114,4 +89,33 @@ class TestCaseViewer {
         private level: LevelDescription,
         private cur_test_case_n: number = 0,
     ) { }
+
+    drawAndUpdateFromElecting(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView) {
+        // test cases
+        const [sample_in, sample_out] = this.level.generate_test(this.cur_test_case_n);
+        const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
+        drawer.drawMoleculePlease(sample_out, test_case_view);
+        drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
+        drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
+            new Vec2(-3, 0),
+            new Vec2(0, 0),
+            new Vec2(-1, 1),
+            new Vec2(0, 0),
+            new Vec2(-1, -1),
+        ]);
+        const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
+        if (drawer.drawPlus(mouse_pos, asdf1)) {
+            drawer.highlightPlus(asdf1);
+            if (was_mouse_pressed) {
+                this.cur_test_case_n -= 1;
+            }
+        }
+        const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
+        if (drawer.drawPlus(mouse_pos, asdf2)) {
+            drawer.highlightPlus(asdf2);
+            if (was_mouse_pressed) {
+                this.cur_test_case_n += 1;
+            }
+        }
+    }
 }
