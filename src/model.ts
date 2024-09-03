@@ -660,6 +660,8 @@ export class LevelDescription {
     ) { }
 }
 
+export const NULL_DESCRIPTION = new LevelDescription(doAtom('nil'), 'no description/tests for this level', (_: number) => [doAtom('nil'), doAtom('nil')]);
+
 export class PersistenceStuff {
     constructor(
         public levels: LevelDescription[],

@@ -3,14 +3,19 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, LevelDescription, PersistenceStuff } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, LevelDescription, PersistenceStuff, NULL_DESCRIPTION } from './model';
 import { inRange } from './kommon/math';
 import { EditingSolution } from './editing_solution';
 
 export class ElectingSolution {
     constructor(
         private persistence: PersistenceStuff,
-        private selected_name: { value: SexprLiteral, view: SexprView } | null = null,
+        private selected: {
+            value: SexprLiteral,
+            view: SexprView,
+            test_case_viewer: TestCaseViewer,
+            level: LevelDescription,
+        } | null = null,
         private cur_test_case_n: number = 0,
     ) { }
 
@@ -49,7 +54,7 @@ export class ElectingSolution {
             EditingSolution.printName(overlapped.value, drawer);
 
             if (mouse.wasPressed(MouseButton.Left)) {
-                if (this.selected_name !== null && equalSexprs(fn_name, this.selected_name.value)) {
+                if (this.selected !== null && equalSexprs(fn_name, this.selected.value)) {
                     const fnk = this.all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (fnk !== undefined) {
                         // TODO: use test case as input
@@ -57,59 +62,56 @@ export class ElectingSolution {
                     }
                 }
                 else {
-                    this.selected_name = { value: fn_name, view: overlapped.parent_view };
+                    const level_description = this.all_levels.find(x => equalSexprs(x.name, fn_name)) ?? NULL_DESCRIPTION;
+                    this.selected = { value: fn_name, view: overlapped.parent_view, level: level_description, test_case_viewer: new TestCaseViewer(level_description) };
                 }
             }
         }
 
-        if (this.selected_name !== null) {
-            drawer.highlightThing('fn_name', this.selected_name.value.type, EditingSolution.viewOfFnk(this.selected_name.value, this.all_fnks, main_view));
-            const level_description = this.all_levels.find(x => equalSexprs(x.name, this.selected_name!.value));
-            if (level_description !== undefined) {
-                drawer.ctx.fillStyle = 'black';
-                const screen_size = drawer.getScreenSize();
-                drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-                drawer.ctx.textAlign = 'center';
-                drawer.ctx.fillText(level_description.description, screen_size.x * 0.5, screen_size.y * 0.5);
+        if (this.selected !== null) {
+            drawer.highlightThing('fn_name', this.selected.value.type, EditingSolution.viewOfFnk(this.selected.value, this.all_fnks, main_view));
 
-                // test cases
-                const [sample_in, sample_out] = level_description.generate_test(this.cur_test_case_n);
-                const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
-                drawer.drawMoleculePlease(sample_out, test_case_view);
-                drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
-                drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
-                    new Vec2(-3, 0),
-                    new Vec2(0, 0),
-                    new Vec2(-1, 1),
-                    new Vec2(0, 0),
-                    new Vec2(-1, -1),
-                ]);
-                const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
-                if (drawer.drawPlus(mouse_pos, asdf1)) {
-                    drawer.highlightPlus(asdf1);
-                    if (mouse.wasPressed(MouseButton.Left)) {
-                        this.cur_test_case_n -= 1;
-                    }
-                }
-                const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
-                if (drawer.drawPlus(mouse_pos, asdf2)) {
-                    drawer.highlightPlus(asdf2);
-                    if (mouse.wasPressed(MouseButton.Left)) {
-                        this.cur_test_case_n += 1;
-                    }
+            drawer.ctx.fillStyle = 'black';
+            const screen_size = drawer.getScreenSize();
+            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
+            drawer.ctx.textAlign = 'center';
+            drawer.ctx.fillText(this.selected.level.description, screen_size.x * 0.5, screen_size.y * 0.5);
+
+            // test cases
+            const [sample_in, sample_out] = this.selected.level.generate_test(this.cur_test_case_n);
+            const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
+            drawer.drawMoleculePlease(sample_out, test_case_view);
+            drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
+            drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
+                new Vec2(-3, 0),
+                new Vec2(0, 0),
+                new Vec2(-1, 1),
+                new Vec2(0, 0),
+                new Vec2(-1, -1),
+            ]);
+            const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
+            if (drawer.drawPlus(mouse_pos, asdf1)) {
+                drawer.highlightPlus(asdf1);
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    this.cur_test_case_n -= 1;
                 }
             }
-        }
-        else {
-            this.selected_name = {
-                value: doAtom('reverse'), view: {
-                    pos: Vec2.zero,
-                    halfside: 0,
-                    turns: 0,
-                },
-            };
+            const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
+            if (drawer.drawPlus(mouse_pos, asdf2)) {
+                drawer.highlightPlus(asdf2);
+                if (mouse.wasPressed(MouseButton.Left)) {
+                    this.cur_test_case_n += 1;
+                }
+            }
         }
 
         return null;
     }
+}
+
+class TestCaseViewer {
+    constructor(
+        private level: LevelDescription,
+        private cur_test_case_n: number = 0,
+    ) { }
 }
