@@ -58,7 +58,7 @@ export class ElectingSolution {
                     const fnk = this.all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (fnk !== undefined) {
                         // TODO: use test case as input
-                        return new EditingSolution(this.persistence, fnk, doAtom('nil'));
+                        return new EditingSolution(this.persistence, fnk, this.selected.test_case_viewer);
                     }
                 }
                 else {
@@ -84,11 +84,16 @@ export class ElectingSolution {
     }
 }
 
-class TestCaseViewer {
+export class TestCaseViewer {
     constructor(
         private level: LevelDescription,
         private cur_test_case_n: number = 0,
     ) { }
+
+    getInput(): SexprLiteral {
+        const [sample_in, sample_out] = this.level.generate_test(this.cur_test_case_n);
+        return sample_in;
+    }
 
     drawAndUpdateFromElecting(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView) {
         // test cases

@@ -5,7 +5,7 @@ import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
 import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, PersistenceStuff } from './model';
 import { inRange } from './kommon/math';
-import { ElectingSolution } from './electing_solution';
+import { ElectingSolution, TestCaseViewer } from './electing_solution';
 
 export type OverlappedEditingThing =
     | ({ type: 'main' } & OverlappedExecutionThing)
@@ -19,16 +19,16 @@ export class EditingSolution {
 
     // TODO: baaad
     public mouse_holding: SexprTemplate | null;
+    private input: SexprLiteral;
 
     constructor(
         private persistence: PersistenceStuff,
         private fnk: FunktionDefinition,
-        private input: SexprLiteral,
+        private test_case_viewer: TestCaseViewer,
     ) {
         this.collapsed = fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases));
-        // this.matched = nothingMatched(fnk.cases);
         this.mouse_holding = null;
-        // this.cells = fromCount(3, _ => parseSexprTemplate('1'));
+        this.input = test_case_viewer.getInput();
     }
 
     private get all_fnks() {
@@ -172,6 +172,7 @@ export class EditingSolution {
             }
         }
 
+        // TODO
         // test cases
         const test_case_view = offsetView(main_view, new Vec2(-20, -6));
         function helper(mouse_pos: Vec2, value: SexprLiteral, view: SexprView): OverlappedEditingThing | null {
@@ -180,8 +181,8 @@ export class EditingSolution {
             return { type: 'test_case', value, view };
         }
         overlaps.push(
+            helper(mouse_pos, this.test_case_viewer.getInput(), offsetView(test_case_view, new Vec2(-15, 0))),
             helper(mouse_pos, doAtom('nil'), test_case_view),
-            helper(mouse_pos, doAtom('nil'), offsetView(test_case_view, new Vec2(-15, 0))),
         );
         drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
             new Vec2(-3, 0),
@@ -301,7 +302,7 @@ export class EditingSolution {
                             const lit_name = assertLiteral(cur_value);
                             const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
                             if (other_fnk !== undefined && other_fnk !== this.fnk) {
-                                return new EditingSolution(this.persistence, other_fnk, this.input);
+                                return new EditingSolution(this.persistence, other_fnk, this.test_case_viewer);
                             }
                         }
                     }
