@@ -24,10 +24,10 @@ export class ElectingSolution {
         const main_view = ExecutingSolution.getMainView(drawer.getScreenSize(), camera);
 
         // ExecutionState.drawMainFnkName(drawer, mouse_pos, main_view, this.fnk.name);
-        drawer.line(main_view, [
-            new Vec2(-2, 0),
-            new Vec2(-50, 0),
-        ]);
+        // drawer.line(main_view, [
+        //     new Vec2(-2, 0),
+        //     new Vec2(-50, 0),
+        // ]);
 
         for (const { value, view } of EditingSolution.otherFnksNew(this.all_fnks, main_view)) {
             if (drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view) !== null) {
@@ -68,9 +68,9 @@ export class ElectingSolution {
 
                 // test cases
                 const [sample_in, sample_out] = level_description.generate_test(this.cur_test_case_n);
-                const test_case_view = offsetView(main_view, new Vec2(-20, -6));
-                drawer.drawMoleculePlease(sample_in, test_case_view);
-                drawer.drawMoleculePlease(sample_out, offsetView(test_case_view, new Vec2(-15, 0)));
+                const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
+                drawer.drawMoleculePlease(sample_out, test_case_view);
+                drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
                 drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
                     new Vec2(-3, 0),
                     new Vec2(0, 0),
@@ -78,13 +78,30 @@ export class ElectingSolution {
                     new Vec2(0, 0),
                     new Vec2(-1, -1),
                 ]);
-                // const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
-                // drawer.drawPlus(null, asdf1);
-                // drawer.highlightPlus(asdf1);
-                // const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
-                // drawer.drawPlus(null, asdf2);
-                // drawer.highlightPlus(asdf2);
+                const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
+                if (drawer.drawPlus(mouse_pos, asdf1)) {
+                    drawer.highlightPlus(asdf1);
+                    if (mouse.wasPressed(MouseButton.Left)) {
+                        this.cur_test_case_n -= 1;
+                    }
+                }
+                const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
+                if (drawer.drawPlus(mouse_pos, asdf2)) {
+                    drawer.highlightPlus(asdf2);
+                    if (mouse.wasPressed(MouseButton.Left)) {
+                        this.cur_test_case_n += 1;
+                    }
+                }
             }
+        }
+        else {
+            this.selected_name = {
+                value: doAtom('reverse'), view: {
+                    pos: Vec2.zero,
+                    halfside: 0,
+                    turns: 0,
+                },
+            };
         }
 
         return null;
