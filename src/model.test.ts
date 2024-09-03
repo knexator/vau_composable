@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Camera, computeOffset, offsetView, SexprView } from './drawer';
@@ -289,7 +289,7 @@ test('cable colors bug', () => {
             },
         ],
     };
-    let sut = new EditingSolution([fnk], fnk, doAtom('hola'), [])
+    let sut = new EditingSolution(new PersistenceStuff([], [fnk], []), fnk, doAtom('hola'))
         .startExecution(0)
         .cur_execution_state;
 

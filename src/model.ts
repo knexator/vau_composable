@@ -659,3 +659,11 @@ export class LevelDescription {
         public generate_test: (n: number) => [SexprLiteral, SexprLiteral],
     ) { }
 }
+
+export class PersistenceStuff {
+    constructor(
+        public levels: LevelDescription[],
+        public user_fnks: FunktionDefinition[],
+        public cells: SexprTemplate[],
+    ) { }
+}

@@ -3,17 +3,24 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, LevelDescription } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, LevelDescription, PersistenceStuff } from './model';
 import { inRange } from './kommon/math';
 import { EditingSolution } from './editing_solution';
 
 export class ElectingSolution {
     constructor(
-        private all_fnks: FunktionDefinition[],
-        private all_levels: LevelDescription[],
+        private persistence: PersistenceStuff,
         private selected_name: { value: SexprLiteral, view: SexprView } | null = null,
         private cur_test_case_n: number = 0,
     ) { }
+
+    private get all_fnks() {
+        return this.persistence.user_fnks;
+    }
+
+    private get all_levels() {
+        return this.persistence.levels;
+    }
 
     drawAndUpdate(drawer: Drawer, global_t: number, camera: Camera, mouse: Mouse, keyboard: Keyboard): ElectingSolution | EditingSolution | null {
         const rect = drawer.ctx.canvas.getBoundingClientRect();
@@ -46,8 +53,7 @@ export class ElectingSolution {
                     const fnk = this.all_fnks.find(x => equalSexprs(x.name, fn_name));
                     if (fnk !== undefined) {
                         // TODO: use test case as input
-                        // TODO: keep cells
-                        return new EditingSolution(this.all_fnks, fnk, doAtom('nil'), fromCount(3, _ => doAtom('nil')));
+                        return new EditingSolution(this.persistence, fnk, doAtom('nil'));
                     }
                 }
                 else {

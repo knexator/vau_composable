@@ -3,7 +3,7 @@ import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatc
 import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
 import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom } from './model';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, PersistenceStuff } from './model';
 import { inRange } from './kommon/math';
 import { ElectingSolution } from './electing_solution';
 
@@ -21,16 +21,22 @@ export class EditingSolution {
     public mouse_holding: SexprTemplate | null;
 
     constructor(
-        private all_fnks: FunktionDefinition[],
+        private persistence: PersistenceStuff,
         private fnk: FunktionDefinition,
         private input: SexprLiteral,
-        private cells: SexprTemplate[],
-        private previously_editing: EditingSolution | null = null,
     ) {
         this.collapsed = fakeCollapsed(everythingCollapsedExceptFirsts(fnk.cases));
         // this.matched = nothingMatched(fnk.cases);
         this.mouse_holding = null;
         // this.cells = fromCount(3, _ => parseSexprTemplate('1'));
+    }
+
+    private get all_fnks() {
+        return this.persistence.user_fnks;
+    }
+
+    private get cells() {
+        return this.persistence.cells;
     }
 
     private *toolbarThingsNew(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
@@ -247,12 +253,8 @@ export class EditingSolution {
         }
 
         if (keyboard.wasPressed(KeyCode.Escape)) {
-            // TODO URGENT: don't forget the levels
-            return new ElectingSolution(this.all_fnks, []);
+            return new ElectingSolution(this.persistence);
         }
-        // if (keyboard.wasPressed(KeyCode.Escape) && this.previously_editing !== null) {
-        //     return this.previously_editing;
-        // }
 
         if (overlapped !== null && overlapped.type === 'pole') {
             if (mouse.wasReleased(MouseButton.Left)) this.mouse_holding = null;
@@ -299,7 +301,7 @@ export class EditingSolution {
                             const lit_name = assertLiteral(cur_value);
                             const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
                             if (other_fnk !== undefined && other_fnk !== this.fnk) {
-                                return new EditingSolution(this.all_fnks, other_fnk, this.input, this.cells, this.withoutInteractions());
+                                return new EditingSolution(this.persistence, other_fnk, this.input);
                             }
                         }
                     }
@@ -387,11 +389,6 @@ export class EditingSolution {
         else {
             assert(false);
         }
-    }
-
-    private withoutInteractions(): EditingSolution {
-        this.mouse_holding = null;
-        return this;
     }
 
     startExecution(global_t: number) {

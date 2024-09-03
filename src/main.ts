@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -219,7 +219,13 @@ const all_levels: LevelDescription[] = [
     }),
 ];
 
-let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(all_fnks, all_levels);
+const persistence_stuff = new PersistenceStuff(
+    all_levels,
+    all_fnks,
+    cells,
+);
+
+let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(persistence_stuff);
 // let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
 const camera = new Camera();
 
