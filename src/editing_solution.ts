@@ -172,31 +172,13 @@ export class EditingSolution {
             }
         }
 
-        // TODO
-        // test cases
-        const test_case_view = offsetView(main_view, new Vec2(-20, -6));
-        function helper(mouse_pos: Vec2, value: SexprLiteral, view: SexprView): OverlappedEditingThing | null {
-            const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
-            if (asdf === null) return null;
-            return { type: 'test_case', value, view };
+        const test_overlap: OverlappedThing | null = this.test_case_viewer.drawAndUpdateFromEditing(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
+        if (test_overlap !== null) {
+            overlaps.push({
+                type: 'test_case', value: test_overlap.value,
+                view: getSexprGrandChildView(test_overlap.parent_view, test_overlap.address),
+            });
         }
-        overlaps.push(
-            helper(mouse_pos, this.test_case_viewer.getInput(), offsetView(test_case_view, new Vec2(-15, 0))),
-            helper(mouse_pos, doAtom('nil'), test_case_view),
-        );
-        drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
-            new Vec2(-3, 0),
-            new Vec2(0, 0),
-            new Vec2(-1, 1),
-            new Vec2(0, 0),
-            new Vec2(-1, -1),
-        ]);
-        // const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
-        // drawer.drawPlus(null, asdf1);
-        // drawer.highlightPlus(asdf1);
-        // const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
-        // drawer.drawPlus(null, asdf2);
-        // drawer.highlightPlus(asdf2);
 
         const overlapped = already_overlapped ? null : firstNonNull(overlaps);
         if (overlapped !== null) {
@@ -254,7 +236,7 @@ export class EditingSolution {
         }
 
         if (keyboard.wasPressed(KeyCode.Escape)) {
-            return new ElectingSolution(this.persistence);
+            return new ElectingSolution(this.persistence, this.fnk.name);
         }
 
         if (overlapped !== null && overlapped.type === 'pole') {
@@ -296,16 +278,16 @@ export class EditingSolution {
                         // pick up
                         this.mouse_holding = cloneSexpr(cur_value);
                     }
-                    else if (keyboard.wasPressed(KeyCode.Enter)) {
-                        // go to function
-                        if (isLiteral(cur_value)) {
-                            const lit_name = assertLiteral(cur_value);
-                            const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
-                            if (other_fnk !== undefined && other_fnk !== this.fnk) {
-                                return new EditingSolution(this.persistence, other_fnk, this.test_case_viewer);
-                            }
-                        }
-                    }
+                    // else if (keyboard.wasPressed(KeyCode.Enter)) {
+                    //     // go to function
+                    //     if (isLiteral(cur_value)) {
+                    //         const lit_name = assertLiteral(cur_value);
+                    //         const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
+                    //         if (other_fnk !== undefined && other_fnk !== this.fnk) {
+                    //             return new EditingSolution(this.persistence, other_fnk, this.test_case_viewer);
+                    //         }
+                    //     }
+                    // }
                     else if (mouse.wasPressed(MouseButton.Right)) {
                         // split
                         const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };

@@ -8,16 +8,24 @@ import { inRange } from './kommon/math';
 import { EditingSolution } from './editing_solution';
 
 export class ElectingSolution {
+    private selected: {
+        value: SexprLiteral,
+        test_case_viewer: TestCaseViewer,
+        level: LevelDescription,
+    } | null;
+
     constructor(
         private persistence: PersistenceStuff,
-        private selected: {
-            value: SexprLiteral,
-            view: SexprView,
-            test_case_viewer: TestCaseViewer,
-            level: LevelDescription,
-        } | null = null,
-        private cur_test_case_n: number = 0,
-    ) { }
+        fn_name: SexprLiteral | null = null,
+    ) {
+        if (fn_name === null) {
+            this.selected = null;
+        }
+        else {
+            const level_description = this.all_levels.find(x => equalSexprs(x.name, fn_name)) ?? NULL_DESCRIPTION;
+            this.selected = { value: fn_name, level: level_description, test_case_viewer: new TestCaseViewer(level_description) };
+        }
+    }
 
     private get all_fnks() {
         return this.persistence.user_fnks;
@@ -63,7 +71,7 @@ export class ElectingSolution {
                 }
                 else {
                     const level_description = this.all_levels.find(x => equalSexprs(x.name, fn_name)) ?? NULL_DESCRIPTION;
-                    this.selected = { value: fn_name, view: overlapped.parent_view, level: level_description, test_case_viewer: new TestCaseViewer(level_description) };
+                    this.selected = { value: fn_name, level: level_description, test_case_viewer: new TestCaseViewer(level_description) };
                 }
             }
         }
@@ -78,6 +86,10 @@ export class ElectingSolution {
             drawer.ctx.fillText(this.selected.level.description, screen_size.x * 0.5, screen_size.y * 0.5);
 
             this.selected.test_case_viewer.drawAndUpdateFromElecting(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
+
+            if (keyboard.wasPressed(KeyCode.Escape)) {
+                this.selected = null;
+            }
         }
 
         return null;
@@ -95,12 +107,17 @@ export class TestCaseViewer {
         return sample_in;
     }
 
-    drawAndUpdateFromElecting(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView) {
-        // test cases
+    drawAndUpdateFromEditing(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView): OverlappedThing | null {
+        const test_case_view = offsetView(main_view, new Vec2(-20, -6));
+        return this.drawAndUpdate(drawer, mouse_pos, was_mouse_pressed, test_case_view);
+    }
+
+    private drawAndUpdate(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, test_case_view: SexprView): OverlappedThing | null {
         const [sample_in, sample_out] = this.level.generate_test(this.cur_test_case_n);
-        const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
-        drawer.drawMoleculePlease(sample_out, test_case_view);
-        drawer.drawMoleculePlease(sample_in, offsetView(test_case_view, new Vec2(-15, 0)));
+        const overlaps = [
+            drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, sample_out, test_case_view),
+            drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, sample_in, offsetView(test_case_view, new Vec2(-15, 0))),
+        ];
         drawer.line(offsetView(test_case_view, new Vec2(-2.75, 0)), [
             new Vec2(-3, 0),
             new Vec2(0, 0),
@@ -122,5 +139,11 @@ export class TestCaseViewer {
                 this.cur_test_case_n += 1;
             }
         }
+        return firstNonNull(overlaps);
+    }
+
+    drawAndUpdateFromElecting(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView) {
+        const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
+        this.drawAndUpdate(drawer, mouse_pos, was_mouse_pressed, test_case_view);
     }
 }
