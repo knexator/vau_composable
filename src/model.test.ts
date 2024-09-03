@@ -1,11 +1,12 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff, LevelDescription } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Camera, computeOffset, offsetView, SexprView } from './drawer';
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
 import { ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
+import { TestCaseViewer } from './electing_solution';
 
 test('funktion add', () => {
     const add: FunktionDefinition = {
@@ -289,7 +290,8 @@ test('cable colors bug', () => {
             },
         ],
     };
-    let sut = new EditingSolution(new PersistenceStuff([], [fnk], []), fnk, doAtom('hola'))
+    const level: LevelDescription = new LevelDescription(doAtom('test'), 'test', (_: number) => [doAtom('hola'), doAtom('hola')]);
+    let sut = new EditingSolution(new PersistenceStuff([], [fnk], []), fnk, new TestCaseViewer(level))
         .startExecution(0)
         .cur_execution_state;
 
