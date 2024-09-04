@@ -1,10 +1,10 @@
 import * as twgl from 'twgl.js';
 import GUI from 'lil-gui';
 import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
+import { DefaultMap, assertNotNull, at, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doPair, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -201,17 +201,50 @@ const default_fnks: FunktionDefinition[] = [
 // import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
 
-const all_levels: LevelDescription[] = [
-    new LevelDescription(doAtom('reverse'), `Reverse the given list`, (n: number) => {
-        const rand = new Random(n.toString());
-        const misc_atoms = 'v1,v2,v3'.split(',').map(doAtom);
-        const asdf = fromCount(rand.int(0, 5), _ => rand.choice(misc_atoms));
-        return [
-            doList(asdf),
-            doList(reversed(asdf)),
+// const all_levels: LevelDescription[] = [
+//     new LevelDescription(doAtom('reverse'), `Reverse the given list`, (n: number) => {
+//         const rand = new Random(n.toString());
+//         const misc_atoms = 'v1,v2,v3'.split(',').map(doAtom);
+//         const asdf = fromCount(rand.int(0, 5), _ => rand.choice(misc_atoms));
+//         return [
+//             doList(asdf),
+//             doList(reversed(asdf)),
+//         ];
+//     }),
+// ];
+
+// TODO: print names in main menu test viewer
+
+const tutorial_levels: LevelDescription[] = [
+    new LevelDescription(doAtom('map'), `map inputs to outputs`, (n: number) => {
+        const pairs: [SexprLiteral, SexprLiteral][] = [
+            [doAtom('france'), doAtom('paris')],
+            [doAtom('spain'), doAtom('madrid')],
+            [doAtom('portugal'), doAtom('lisbon')],
+            [doAtom('germany'), doAtom('berlin')],
+            [doAtom('italy'), doAtom('rome')],
         ];
+        return pairs[mod(n, pairs.length)];
     }),
+    new LevelDescription(doAtom('wrap'), `wrap up the thing`, (n: number) => {
+        function helper(x: string): [SexprLiteral, SexprLiteral] {
+            return [doAtom(x), parseSexprLiteral(`((#first . #${x}) . #last)`)];
+        }
+        const pairs: [SexprLiteral, SexprLiteral][] = [
+            helper('france'),
+            helper('spain'),
+            helper('portugal'),
+            helper('germany'),
+            helper('italy'),
+        ];
+        return pairs[mod(n, pairs.length)];
+    }),
+    // unwrap
+    // ignore 1st
+    // (a . b) => (f(a) . f(b))
 ];
+
+const all_levels = tutorial_levels;
 
 const persistence_stuff = getFromStorage('vau_persist2', str => PersistenceStuff.fromString(str, all_levels),
     new PersistenceStuff(all_levels, all_levels.map(l => ({ name: l.name, cases: [DEFAULT_CASE] })), fromCount(3, _ => parseSexprTemplate('1'))),
