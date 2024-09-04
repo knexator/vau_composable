@@ -10,6 +10,8 @@ export type MatchCaseDefinition = {
     next: 'return' | MatchCaseDefinition[],
 };
 
+export const DEFAULT_CASE: MatchCaseDefinition = { pattern: doVar('value'), template: doVar('value'), fn_name_template: doAtom('identity'), next: 'return' };
+
 export type SexprTemplate =
     { type: 'variable', value: string }
     | { type: 'atom', value: string }
@@ -668,4 +670,19 @@ export class PersistenceStuff {
         public user_fnks: FunktionDefinition[],
         public cells: SexprTemplate[],
     ) { }
+
+    // FUTURE: proper validation
+
+    static fromString(str: string, levels: LevelDescription[]): PersistenceStuff {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const asdf: { fnks: string, cells: string } = JSON.parse(str);
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        return new PersistenceStuff(levels, parseFnks(asdf.fnks), JSON.parse(asdf.cells) as SexprTemplate[]);
+    }
+
+    toString(): string {
+        const fnks = this.user_fnks.map(x => fnkToString(x)).join('\n');
+        const cells = JSON.stringify(this.cells);
+        return JSON.stringify({ fnks, cells });
+    }
 }

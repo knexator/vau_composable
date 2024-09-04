@@ -4,7 +4,7 @@ import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
 import { DefaultMap, assertNotNull, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
 import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
 import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
+import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
 import { Camera, Collapsed, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
@@ -73,6 +73,7 @@ function var2var(a: string, next: MatchCaseDefinition[] | 'return'): MatchCaseDe
         next,
     };
 }
+
 const default_fnks: FunktionDefinition[] = [
     {
         name: doAtom('debug'),
@@ -200,13 +201,6 @@ const default_fnks: FunktionDefinition[] = [
 // import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
 
-// FUTURE: proper validation
-// const all_fnks = default_fnks;
-const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), default_fnks);
-// all_fnks.map(x => console.log(fnkToString(x)));
-// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-const cells: SexprTemplate[] = getFromStorage('vau_composable_cells', str => JSON.parse(str) as SexprTemplate[], fromCount(3, _ => parseSexprTemplate('1')));
-
 const all_levels: LevelDescription[] = [
     new LevelDescription(doAtom('reverse'), `Reverse the given list`, (n: number) => {
         const rand = new Random(n.toString());
@@ -219,10 +213,8 @@ const all_levels: LevelDescription[] = [
     }),
 ];
 
-const persistence_stuff = new PersistenceStuff(
-    all_levels,
-    all_fnks,
-    cells,
+const persistence_stuff = getFromStorage('vau_persist2', str => PersistenceStuff.fromString(str, all_levels),
+    new PersistenceStuff(all_levels, all_levels.map(l => ({ name: l.name, cases: [DEFAULT_CASE] })), fromCount(3, _ => parseSexprTemplate('1'))),
 );
 
 let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(persistence_stuff);
@@ -313,12 +305,13 @@ function every_frame(cur_timestamp_millis: number) {
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {
-        // localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
-        localStorage.setItem('vau_composable', all_fnks.map(x => fnkToString(x)).join('\n'));
-        localStorage.setItem('vau_composable_cells', JSON.stringify(cells));
+        localStorage.setItem('vau_persist', persistence_stuff.toString());
+        // // localStorage.setItem('vau_composable', JSON.stringify(all_fnks));
+        // localStorage.setItem('vau_composable', all_fnks.map(x => fnkToString(x)).join('\n'));
+        // localStorage.setItem('vau_composable_cells', JSON.stringify(cells));
     }
     if (input.keyboard.wasPressed(KeyCode.KeyC)) {
-        const savedata = all_fnks.map(x => fnkToString(x)).join('\n');
+        const savedata = persistence_stuff.user_fnks.map(x => fnkToString(x)).join('\n');
         void navigator.clipboard.writeText(savedata);
     }
     // if (input.keyboard.wasPressed(KeyCode.KeyV)) {
