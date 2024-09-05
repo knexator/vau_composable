@@ -7,6 +7,8 @@ import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, g
 import { inRange } from './kommon/math';
 import { EditingSolution } from './editing_solution';
 
+// TODO: multiple solutions per level
+
 export class ElectingSolution {
     private selected: {
         value: SexprLiteral,
@@ -80,10 +82,7 @@ export class ElectingSolution {
             drawer.highlightThing('fn_name', this.selected.value.type, EditingSolution.viewOfFnk(this.selected.value, this.all_fnks, main_view));
 
             drawer.ctx.fillStyle = 'black';
-            const screen_size = drawer.getScreenSize();
-            drawer.ctx.font = `bold ${Math.floor(screen_size.y / 30)}px sans-serif`;
-            drawer.ctx.textAlign = 'center';
-            drawer.ctx.fillText(this.selected.level.description, screen_size.x * 0.5, screen_size.y * 0.5);
+            drawer.text(this.selected.level.description, scaleAndOffsetView(main_view, new Vec2(20, 20), 0.15));
 
             const overlapped = this.selected.test_case_viewer.drawAndUpdateFromElecting(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
             if (overlapped !== null) {

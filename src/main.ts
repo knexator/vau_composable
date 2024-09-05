@@ -213,8 +213,6 @@ const default_fnks: FunktionDefinition[] = [
 //     }),
 // ];
 
-// TODO: print names in main menu test viewer
-
 const tutorial_levels: LevelDescription[] = [
     new LevelDescription(doAtom('map'), `map inputs to outputs`, (n: number) => {
         const pairs: [SexprLiteral, SexprLiteral][] = [
@@ -278,7 +276,7 @@ const persistence_stuff = getFromStorage('vau_persist2', str => PersistenceStuff
 
 let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(persistence_stuff);
 // let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
-const camera = new Camera();
+let camera = new Camera();
 
 // const cur_execution = new ExecutingSolution(all_fnks, bubbleUpFnk,
 //     parseSexprLiteral('(v1 v2 X v3 v1)'));
@@ -361,6 +359,10 @@ function every_frame(cur_timestamp_millis: number) {
     }
     else {
         const _: never = cur_thing;
+    }
+
+    if (input.keyboard.wasPressed(KeyCode.KeyR)) {
+        camera = new Camera();
     }
 
     if (input.keyboard.wasPressed(KeyCode.KeyQ)) {

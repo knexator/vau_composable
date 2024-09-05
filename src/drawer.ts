@@ -940,6 +940,14 @@ export class Drawer {
     private fillText(text: string, pos: Vec2) {
         this.ctx.fillText(text, pos.x, pos.y);
     }
+
+    text(text: string, view: SexprView) {
+        const screen_size = this.getScreenSize();
+        this.ctx.font = `bold ${Math.floor(view.halfside * screen_size.y / 100)}px sans-serif`;
+        console.log(view.halfside);
+        this.ctx.textAlign = 'center';
+        this.fillText(text, view.pos);
+    }
 }
 
 export function lerpSexprView(a: SexprView, b: SexprView, t: number): SexprView {
