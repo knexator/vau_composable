@@ -239,9 +239,35 @@ const tutorial_levels: LevelDescription[] = [
         ];
         return pairs[mod(n, pairs.length)];
     }),
-    // unwrap
-    // ignore 1st
-    // (a . b) => (f(a) . f(b))
+    new LevelDescription(doAtom('unwrap'), `unwrap the thing and map it`, (n: number) => {
+        const original_pairs: [SexprLiteral, SexprLiteral][] = [
+            [doAtom('france'), doAtom('paris')],
+            [doAtom('spain'), doAtom('madrid')],
+            [doAtom('portugal'), doAtom('lisbon')],
+            [doAtom('germany'), doAtom('berlin')],
+            [doAtom('italy'), doAtom('rome')],
+        ];
+
+        const pairs: [SexprLiteral, SexprLiteral][] = original_pairs.map(([a, b]) => {
+            return [doPair(doPair(doAtom('first'), a), doAtom('last')), b];
+        });
+
+        return pairs[mod(n, pairs.length)];
+    }),
+    new LevelDescription(doAtom('double'), `take 2 things, return 2 results`, (n: number) => {
+        const original_pairs: [SexprLiteral, SexprLiteral][] = [
+            [doAtom('france'), doAtom('paris')],
+            [doAtom('spain'), doAtom('madrid')],
+            [doAtom('portugal'), doAtom('lisbon')],
+            [doAtom('germany'), doAtom('berlin')],
+            [doAtom('italy'), doAtom('rome')],
+        ];
+
+        const rand = new Random(n.toString());
+        const [in1, out1] = rand.choice(original_pairs);
+        const [in2, out2] = rand.choice(original_pairs);
+        return [doPair(in1, in2), doPair(out1, out2)];
+    }),
 ];
 
 const all_levels = tutorial_levels;
