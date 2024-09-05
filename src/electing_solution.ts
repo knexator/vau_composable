@@ -85,7 +85,11 @@ export class ElectingSolution {
             drawer.ctx.textAlign = 'center';
             drawer.ctx.fillText(this.selected.level.description, screen_size.x * 0.5, screen_size.y * 0.5);
 
-            this.selected.test_case_viewer.drawAndUpdateFromElecting(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
+            const overlapped = this.selected.test_case_viewer.drawAndUpdateFromElecting(drawer, mouse_pos, mouse.wasPressed(MouseButton.Left), main_view);
+            if (overlapped !== null) {
+                drawer.highlightMolecule(overlapped.value.type, getSexprGrandChildView(overlapped.parent_view, overlapped.address));
+                EditingSolution.printName(overlapped.value, drawer);
+            }
 
             if (keyboard.wasPressed(KeyCode.Escape)) {
                 this.selected = null;
@@ -144,6 +148,6 @@ export class TestCaseViewer {
 
     drawAndUpdateFromElecting(drawer: Drawer, mouse_pos: Vec2, was_mouse_pressed: boolean, main_view: SexprView) {
         const test_case_view = scaleAndOffsetView(main_view, new Vec2(32, 0), 2);
-        this.drawAndUpdate(drawer, mouse_pos, was_mouse_pressed, test_case_view);
+        return this.drawAndUpdate(drawer, mouse_pos, was_mouse_pressed, test_case_view);
     }
 }
