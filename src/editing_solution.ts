@@ -278,16 +278,16 @@ export class EditingSolution {
                         // pick up
                         this.mouse_holding = cloneSexpr(cur_value);
                     }
-                    // else if (keyboard.wasPressed(KeyCode.Enter)) {
-                    //     // go to function
-                    //     if (isLiteral(cur_value)) {
-                    //         const lit_name = assertLiteral(cur_value);
-                    //         const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
-                    //         if (other_fnk !== undefined && other_fnk !== this.fnk) {
-                    //             return new EditingSolution(this.persistence, other_fnk, this.test_case_viewer);
-                    //         }
-                    //     }
-                    // }
+                    else if (keyboard.wasPressed(KeyCode.Enter)) {
+                        // go to function
+                        if (isLiteral(cur_value)) {
+                            const lit_name = assertLiteral(cur_value);
+                            const other_fnk = this.all_fnks.find(v => equalSexprs(v.name, lit_name));
+                            if (other_fnk !== undefined && other_fnk !== this.fnk) {
+                                return new EditingSolution(this.persistence, other_fnk, this.test_case_viewer);
+                            }
+                        }
+                    }
                     else if (mouse.wasPressed(MouseButton.Right)) {
                         // split
                         const new_value: SexprTemplate = { type: 'pair', left: cloneSexpr(cur_value), right: cloneSexpr(cur_value) };
