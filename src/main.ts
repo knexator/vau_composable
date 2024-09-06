@@ -277,6 +277,9 @@ const tutorial_save = new PersistenceStuff(tutorial_levels, tutorial_levels.map(
 // );
 const persistence_stuff = tutorial_save;
 // const persistence_stuff = advanced_save;
+// const persistence_stuff = getFromStorage('vau_persist', str => PersistenceStuff.fromString(str, tutorial_save.levels),
+//     advanced_save,
+// );
 
 let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(persistence_stuff);
 // let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
