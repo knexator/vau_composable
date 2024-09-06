@@ -942,8 +942,8 @@ export class Drawer {
     }
 
     text(text: string, view: SexprView) {
-        const screen_size = this.getScreenSize();
-        this.ctx.font = `bold ${Math.floor(view.halfside * screen_size.y / 100)}px sans-serif`;
+        // const screen_size = this.getScreenSize();
+        this.ctx.font = `bold ${Math.floor(view.halfside * 5)}px sans-serif`;
         console.log(view.halfside);
         this.ctx.textAlign = 'center';
         this.fillText(text, view.pos);

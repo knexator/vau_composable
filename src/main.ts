@@ -198,8 +198,10 @@ const default_fnks: FunktionDefinition[] = [
 // - second most common element of list
 // - DNA repair: "here is a list of common fail patterns, and their correct versions; apply it" (preparation for meta)
 
-// import * as x from './sample_save.txt?raw';
+import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
+// const all_fnks: FunktionDefinition[] = getFromStorage('vau_composable', str => parseFnks(str), default_fnks);
+const advanced_save = new PersistenceStuff([], parseFnks(x.default), fromCount(3, _ => parseSexprTemplate('1')));
 
 // const all_levels: LevelDescription[] = [
 //     new LevelDescription(doAtom('reverse'), `Reverse the given list`, (n: number) => {
@@ -268,11 +270,13 @@ const tutorial_levels: LevelDescription[] = [
     }),
 ];
 
-const all_levels = tutorial_levels;
+const tutorial_save = new PersistenceStuff(tutorial_levels, tutorial_levels.map(l => ({ name: l.name, cases: [DEFAULT_CASE] })), fromCount(3, _ => parseSexprTemplate('1')));
 
-const persistence_stuff = getFromStorage('vau_persist2', str => PersistenceStuff.fromString(str, all_levels),
-    new PersistenceStuff(all_levels, all_levels.map(l => ({ name: l.name, cases: [DEFAULT_CASE] })), fromCount(3, _ => parseSexprTemplate('1'))),
-);
+// const persistence_stuff = getFromStorage('vau_persist', str => PersistenceStuff.fromString(str, tutorial_save.levels),
+//     tutorial_save,
+// );
+const persistence_stuff = tutorial_save;
+// const persistence_stuff = advanced_save;
 
 let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new ElectingSolution(persistence_stuff);
 // let cur_thing: ElectingSolution | EditingSolution | ExecutingSolution | AfterExecutingSolution = new EditingSolution(all_fnks, all_fnks[0], parseSexprLiteral('(#true #true #true)'), cells);
