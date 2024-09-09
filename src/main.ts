@@ -254,6 +254,25 @@ const tutorial_levels: LevelDescription[] = [
 
         return pairs[mod(n, pairs.length)];
     }),
+    new LevelDescription(doAtom('unwrap2'), `unwrap the thing, map it, wrap it again`, (n: number) => {
+        const original_pairs: [SexprLiteral, SexprLiteral][] = [
+            [doAtom('france'), doAtom('paris')],
+            [doAtom('spain'), doAtom('madrid')],
+            [doAtom('portugal'), doAtom('lisbon')],
+            [doAtom('germany'), doAtom('berlin')],
+            [doAtom('italy'), doAtom('rome')],
+        ];
+
+        function wrap(x: SexprLiteral): SexprLiteral {
+            return doPair(doPair(doAtom('first'), x), doAtom('last'));
+        }
+
+        const pairs: [SexprLiteral, SexprLiteral][] = original_pairs.map(([a, b]) => {
+            return [wrap(a), wrap(b)];
+        });
+
+        return pairs[mod(n, pairs.length)];
+    }),
     new LevelDescription(doAtom('double'), `take 2 things, return 2 results`, (n: number) => {
         const original_pairs: [SexprLiteral, SexprLiteral][] = [
             [doAtom('france'), doAtom('paris')],

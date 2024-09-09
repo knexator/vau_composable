@@ -10,7 +10,7 @@ export type MatchCaseDefinition = {
     next: 'return' | MatchCaseDefinition[],
 };
 
-export const DEFAULT_CASE: MatchCaseDefinition = { pattern: doVar('value'), template: doVar('value'), fn_name_template: doAtom('identity'), next: 'return' };
+export const DEFAULT_CASE: MatchCaseDefinition = { pattern: doAtom('nil'), template: doAtom('nil'), fn_name_template: doAtom('identity'), next: 'return' };
 
 export type SexprTemplate =
     { type: 'variable', value: string }

@@ -112,6 +112,18 @@ export class Drawer {
         return computeOffset(view, mouse_pos).mag() < 2;
     }
 
+    drawArrow(mouse_pos: Vec2 | null, dir: 'up' | 'down', view: SexprView): boolean {
+        const r = 1;
+        const s = dir === 'up' ? 1 : -1;
+        this.line(view, [
+            new Vec2(-r, s * r / 2),
+            new Vec2(0, -s * r / 2),
+            new Vec2(r, s * r / 2),
+        ]);
+        if (mouse_pos === null) return false;
+        return computeOffset(view, mouse_pos).mag() < 2;
+    }
+
     drawCable(view: SexprView, variable_names: string[], points: Vec2[]) {
         if (points.length < 2) return;
         this.ctx.beginPath();

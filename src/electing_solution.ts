@@ -51,7 +51,8 @@ export class ElectingSolution {
         //     new Vec2(-50, 0),
         // ]);
 
-        for (const { value, view } of EditingSolution.otherFnksNew(this.all_fnks, main_view)) {
+        for (const { value, view } of EditingSolution.otherFnks(this.all_fnks, main_view)) {
+            if (value.type === 'atom' && (value.value === 'identity' || value.value === 'eqAtoms?')) continue;
             if (drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view) !== null) {
                 overlaps.push({ kind: 'template', parent_view: view, value, address: [] });
             }
@@ -129,14 +130,14 @@ export class TestCaseViewer {
             new Vec2(-1, -1),
         ]);
         const asdf1 = offsetView(test_case_view, new Vec2(-19, 2.5));
-        if (drawer.drawPlus(mouse_pos, asdf1)) {
+        if (drawer.drawArrow(mouse_pos, 'down', asdf1)) {
             drawer.highlightPlus(asdf1);
             if (was_mouse_pressed) {
                 this.cur_test_case_n -= 1;
             }
         }
         const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
-        if (drawer.drawPlus(mouse_pos, asdf2)) {
+        if (drawer.drawArrow(mouse_pos, 'up', asdf2)) {
             drawer.highlightPlus(asdf2);
             if (was_mouse_pressed) {
                 this.cur_test_case_n += 1;
