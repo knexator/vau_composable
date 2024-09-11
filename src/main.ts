@@ -221,8 +221,8 @@ const tutorial_levels: LevelDescription[] = [
             [doAtom('france'), doAtom('paris')],
             [doAtom('spain'), doAtom('madrid')],
             [doAtom('portugal'), doAtom('lisbon')],
-            [doAtom('germany'), doAtom('berlin')],
-            [doAtom('italy'), doAtom('rome')],
+            // [doAtom('germany'), doAtom('berlin')],
+            // [doAtom('italy'), doAtom('rome')],
         ];
         return pairs[mod(n, pairs.length)];
     }),
@@ -234,8 +234,8 @@ const tutorial_levels: LevelDescription[] = [
             helper('france'),
             helper('spain'),
             helper('portugal'),
-            helper('germany'),
-            helper('italy'),
+            // helper('germany'),
+            // helper('italy'),
         ];
         return pairs[mod(n, pairs.length)];
     }),
@@ -244,8 +244,8 @@ const tutorial_levels: LevelDescription[] = [
             [doAtom('france'), doAtom('paris')],
             [doAtom('spain'), doAtom('madrid')],
             [doAtom('portugal'), doAtom('lisbon')],
-            [doAtom('germany'), doAtom('berlin')],
-            [doAtom('italy'), doAtom('rome')],
+            // [doAtom('germany'), doAtom('berlin')],
+            // [doAtom('italy'), doAtom('rome')],
         ];
 
         const pairs: [SexprLiteral, SexprLiteral][] = original_pairs.map(([a, b]) => {
@@ -259,8 +259,8 @@ const tutorial_levels: LevelDescription[] = [
             [doAtom('france'), doAtom('paris')],
             [doAtom('spain'), doAtom('madrid')],
             [doAtom('portugal'), doAtom('lisbon')],
-            [doAtom('germany'), doAtom('berlin')],
-            [doAtom('italy'), doAtom('rome')],
+            // [doAtom('germany'), doAtom('berlin')],
+            // [doAtom('italy'), doAtom('rome')],
         ];
 
         function wrap(x: SexprLiteral): SexprLiteral {
@@ -278,14 +278,47 @@ const tutorial_levels: LevelDescription[] = [
             [doAtom('france'), doAtom('paris')],
             [doAtom('spain'), doAtom('madrid')],
             [doAtom('portugal'), doAtom('lisbon')],
-            [doAtom('germany'), doAtom('berlin')],
-            [doAtom('italy'), doAtom('rome')],
+            // [doAtom('germany'), doAtom('berlin')],
+            // [doAtom('italy'), doAtom('rome')],
         ];
 
         const rand = new Random(n.toString());
         const [in1, out1] = rand.choice(original_pairs);
         const [in2, out2] = rand.choice(original_pairs);
         return [doPair(in1, in2), doPair(out1, out2)];
+    }),
+    new LevelDescription(doAtom('anyRed'), `return True if there is some Red, False otherwise`, (n: number) => {
+        const hardcoded_cases: [SexprLiteral, SexprLiteral][] = [
+            [doAtom('spain'), doAtom('true')],
+            [doAtom('france'), doAtom('false')],
+            [doAtom('portugal'), doAtom('false')],
+            [doPair(doAtom('spain'), doAtom('france')), doAtom('true')],
+            [doPair(doAtom('portugal'), doAtom('france')), doAtom('false')],
+            [doPair(doAtom('portugal'), doAtom('spain')), doAtom('true')],
+            [doPair(doAtom('france'), doPair(doAtom('portugal'), doAtom('spain'))), doAtom('true')],
+            [doPair(doAtom('portugal'), doPair(doAtom('portugal'), doAtom('france'))), doAtom('false')],
+            [doPair(doPair(doAtom('spain'), doAtom('portugal')), doAtom('france')), doAtom('true')],
+            [doPair(doPair(doAtom('portugal'), doAtom('france')), doPair(doAtom('portugal'), doAtom('france'))), doAtom('false')],
+            [doPair(doPair(doAtom('portugal'), doAtom('spain')), doPair(doAtom('portugal'), doAtom('france'))), doAtom('true')],
+        ];
+        return hardcoded_cases[mod(Math.abs(n), hardcoded_cases.length)];
+    }),
+    new LevelDescription(doAtom('anyRed2'), `return True if there is some Red, False otherwise`, (n: number) => {
+        const hardcoded_cases: [SexprLiteral, SexprLiteral][] = [
+            [doList([]), doAtom('false')],
+            [doList(['spain'].map(doAtom)), doAtom('true')],
+            [doList(['france'].map(doAtom)), doAtom('false')],
+            [doList(['portugal'].map(doAtom)), doAtom('false')],
+            [doList(['spain', 'france'].map(doAtom)), doAtom('true')],
+            [doList(['portugal', 'spain'].map(doAtom)), doAtom('true')],
+            [doList(['france', 'portugal'].map(doAtom)), doAtom('false')],
+            [doList(['portugal', 'spain', 'france'].map(doAtom)), doAtom('true')],
+            [doList(['portugal', 'portugal', 'france'].map(doAtom)), doAtom('false')],
+            [doList(['france', 'portugal', 'spain', 'france'].map(doAtom)), doAtom('true')],
+            [doList(['france', 'portugal', 'portugal', 'france'].map(doAtom)), doAtom('false')],
+            [doList(['france', 'portugal', 'france', 'spain', 'portugal'].map(doAtom)), doAtom('false')],
+        ];
+        return hardcoded_cases[mod(Math.abs(n), hardcoded_cases.length)];
     }),
 ];
 

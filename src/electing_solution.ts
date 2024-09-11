@@ -133,14 +133,14 @@ export class TestCaseViewer {
         if (drawer.drawArrow(mouse_pos, 'down', asdf1)) {
             drawer.highlightPlus(asdf1);
             if (was_mouse_pressed) {
-                this.cur_test_case_n -= 1;
+                this.cur_test_case_n += 1;
             }
         }
         const asdf2 = offsetView(test_case_view, new Vec2(-19, -2.5));
         if (drawer.drawArrow(mouse_pos, 'up', asdf2)) {
             drawer.highlightPlus(asdf2);
             if (was_mouse_pressed) {
-                this.cur_test_case_n += 1;
+                this.cur_test_case_n -= 1;
             }
         }
         return firstNonNull(overlaps);

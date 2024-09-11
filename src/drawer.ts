@@ -1179,10 +1179,16 @@ const colorFromAtom: (atom: string) => Color = (() => {
     generated.set('v2', new Color(0.3, 0.9, 0.9));
     generated.set('v3', new Color(0.9, 0.3, 0.9));
     generated.set('f1', Color.fromInt(0x9E008B));
+    generated.set('france', Color.fromInt(0xFA00FF));
+    generated.set('paris', Color.fromInt(0xFF8EEC));
+    generated.set('spain', Color.fromInt(0xFFB600));
+    generated.set('madrid', Color.fromInt(0xFFE18E));
+    generated.set('portugal', Color.fromInt(0x00E5FF));
+    generated.set('lisbon', Color.fromInt(0x9EFFF2));
     `#ff0000
     #ffff00
-    #c71585
     #00fa9a
+    #c71585
     #0000ff
     #1e90ff
     #ffdab9`.trim().split('\n').forEach((s, k) => {

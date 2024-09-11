@@ -159,7 +159,7 @@ export class EditingSolution {
             }
         }
 
-        for (let k = 0; k < 3; k++) {
+        for (let k = 0; k < 1; k++) {
             const value = this.cells[k];
             const view = this.getCellView(drawer.getScreenSize(), k);
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);
@@ -389,7 +389,7 @@ export class EditingSolution {
     private getCellView(screen_size: Vec2, k: number): SexprView {
         assert(inRange(k, 0, 3));
         return {
-            pos: screen_size.mul(new Vec2(0.875, 0.5 + k * 0.1975)),
+            pos: screen_size.mul(new Vec2(0.875, 0.5 + (2 - k) * 0.1975)),
             halfside: screen_size.y * 0.5 / 5.5,
             turns: 0,
         };
