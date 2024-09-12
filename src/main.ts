@@ -287,7 +287,7 @@ const tutorial_levels: LevelDescription[] = [
         const [in2, out2] = rand.choice(original_pairs);
         return [doPair(in1, in2), doPair(out1, out2)];
     }),
-    new LevelDescription(doAtom('anyRed'), `return True if there is some Red, False otherwise`, (n: number) => {
+    new LevelDescription(doAtom('anyRed'), `return True if there is some orange, False otherwise`, (n: number) => {
         const hardcoded_cases: [SexprLiteral, SexprLiteral][] = [
             [doAtom('spain'), doAtom('true')],
             [doAtom('france'), doAtom('false')],
@@ -303,7 +303,7 @@ const tutorial_levels: LevelDescription[] = [
         ];
         return hardcoded_cases[mod(Math.abs(n), hardcoded_cases.length)];
     }),
-    new LevelDescription(doAtom('anyRed2'), `return True if there is some Red, False otherwise`, (n: number) => {
+    new LevelDescription(doAtom('anyRed2'), `return True if there is some orange, False otherwise`, (n: number) => {
         const hardcoded_cases: [SexprLiteral, SexprLiteral][] = [
             [doList([]), doAtom('false')],
             [doList(['spain'].map(doAtom)), doAtom('true')],
