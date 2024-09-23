@@ -737,7 +737,7 @@ export class ExecutionState {
 export class ExecutingSolution {
     cur_execution_state: ExecutionState;
     anim_t: number;
-    public speed: number = 1;
+    public speed: number = 3;
     constructor(
         private all_fnks: FunktionDefinition[],
         original_fnk: FunktionDefinition,
