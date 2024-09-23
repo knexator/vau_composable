@@ -1,10 +1,9 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, Drawer, toggleCollapsed, getPoleAtPosition, getAtPosition, fakeCollapsed, offsetView, sexprAdressFromScreenPosition, getSexprGrandChildView, getFnkNameView, Camera, OverlappedThing, ensureCollapsed, everythingCollapsedExceptFirsts, rotateAndScaleView, scaleAndOffsetView } from './drawer';
-import { asMainFnk2, asMainInput, asMainInput2, drawHangingCases, drawHangingCasesModern, ExecutingSolution, ExecutionState, OverlappedExecutionThing } from './executing_solution';
+import { SexprView, Drawer, offsetView, getSexprGrandChildView, Camera, OverlappedThing, scaleAndOffsetView } from './drawer';
+import { ExecutingSolution } from './executing_solution';
 import { KeyCode, Keyboard, Mouse, MouseButton } from './kommon/input';
-import { assertNotNull, at, assert, fromCount, firstNonNull, eqArrays, startsWith, commonPrefixLen, last, single, filterIndices, replace } from './kommon/kommon';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, FullAddress, SexprTemplate, setAt, deletePole, addPoleAsFirstChild, getAtLocalAddress, setAtLocalAddress, parseSexprTemplate, parseSexprLiteral, SexprAddress, movePole, cloneSexpr, fixExtraPolesNeeded, isLiteral, SexprNullable, newFnk, knownVariables, doAtom, LevelDescription, PersistenceStuff, NULL_DESCRIPTION } from './model';
-import { inRange } from './kommon/math';
+import { firstNonNull } from './kommon/kommon';
+import { SexprLiteral, assertLiteral, equalSexprs, LevelDescription, PersistenceStuff, NULL_DESCRIPTION } from './model';
 import { EditingSolution } from './editing_solution';
 
 // TODO: multiple solutions per level

@@ -1,10 +1,10 @@
 import { Vec2 } from '../../kanvas2d/dist/kanvas2d';
-import { FloatingBinding, Collapsed, MatchedInput, nothingCollapsed, nothingMatched, SexprView, getView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, getAtPosition, sexprAdressFromScreenPosition, getFnkNameView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing, computeOffset, ensureCollapsed } from './drawer';
+import { FloatingBinding, Collapsed, MatchedInput, nothingMatched, SexprView, generateFloatingBindings, updateMatchedForNewPattern, updateMatchedForMissingTemplate, Drawer, lerpSexprView, toggleCollapsed, fakeCollapsed, everythingCollapsedExceptFirsts, offsetView, rotateAndScaleView, getSexprGrandChildView, getCollapseAt, getCollapsedAfter, COLLAPSE_DURATION, scaleViewCentered, Camera, OverlappedThing, ensureCollapsed } from './drawer';
 import { EditingSolution, OverlappedEditingThing } from './editing_solution';
-import { Mouse, MouseButton } from './kommon/input';
-import { assert, assertNotNull, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip2, zip3, zip4 } from './kommon/kommon';
-import { clamp01, in01, lerp, remap, remapClamped } from './kommon/math';
-import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getAtLocalAddress, SexprNullable, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, applyFunktion, allVariableNames, KnownVariables, knownVariables, SexprAddress, FullAddress, namesAtAndAfter } from './model';
+import { Mouse } from './kommon/input';
+import { assert, at, enumerate, eqArrays, firstNonNull, last, subdivideT, zip4 } from './kommon/kommon';
+import { clamp01, lerp, remapClamped } from './kommon/math';
+import { MatchCaseAddress, FunktionDefinition, SexprLiteral, generateBindings, getAt, getCaseAt, fillTemplate, fillFnkBindings, assertLiteral, equalSexprs, sexprToString, validCaseAddress, SexprTemplate, getCasesAfter, MatchCaseDefinition, builtIn_eqAtoms, KnownVariables, knownVariables, FullAddress, namesAtAndAfter } from './model';
 
 export type OverlappedExecutionThing = { parent_view: SexprView, full_address: FullAddress, value: SexprTemplate };
 

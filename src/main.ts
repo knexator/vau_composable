@@ -1,11 +1,10 @@
 import * as twgl from 'twgl.js';
-import GUI from 'lil-gui';
-import { Input, KeyCode, Mouse, MouseButton } from './kommon/input';
-import { DefaultMap, assertNotNull, at, fromCount, fromRange, getFromStorage, last, objectMap, repeat, reversed, reversedForEach, zip2 } from './kommon/kommon';
-import { mod, towards, lerp, inRange, clamp, argmax, argmin, max, remap, clamp01, randomInt, randomFloat, randomChoice, doSegmentsIntersect, closestPointOnSegment, roundTo } from './kommon/math';
-import { initGL2, Vec2, Color, GenericDrawer, StatefulDrawer, CircleDrawer, m3, CustomSpriteDrawer, Transform, IRect, IColor, IVec2, FullscreenShader } from 'kanvas2d';
-import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseAddress, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, assertLiteral, doAtom, doList, doPair, doVar, equalSexprs, fillFnkBindings, fillTemplate, fnkToString, generateBindings, getAt, getCaseAt, parseFnks, parseSexprLiteral, parseSexprTemplate, sexprToString } from './model';
-import { Camera, Collapsed, Drawer } from './drawer';
+import { Input, KeyCode, MouseButton } from './kommon/input';
+import { fromCount } from './kommon/kommon';
+import { mod } from './kommon/math';
+import { Vec2 } from 'kanvas2d';
+import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, doAtom, doList, doPair, doVar, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
+import { Camera, Drawer } from './drawer';
 import { AfterExecutingSolution, ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 import { ElectingSolution } from './electing_solution';
