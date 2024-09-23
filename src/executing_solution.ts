@@ -767,9 +767,14 @@ export class ExecutingSolution {
     }
 
     skip(global_t: number): AfterExecutingSolution {
+        let remaining_tries = 100_000;
         let next_state = this.cur_execution_state.next(this.all_fnks, global_t);
         while (next_state instanceof ExecutionState) {
             next_state = next_state.next(this.all_fnks, global_t);
+            remaining_tries -= 1;
+            if (remaining_tries === 0) {
+                return new AfterExecutingSolution(this.original_editing, { type: 'failure', reason: 'execution went on too long' });
+            }
         }
 
         return new AfterExecutingSolution(this.original_editing, next_state);
