@@ -1,4 +1,23 @@
 #launch {
+	0 -> #interpreter: ((#input #f1 #output) #bubbleUpF1 (
+		#bubbleUpF1 . (
+			(
+				((#atom . #f1) . (#variable . #v2))
+				(#atom . #identity)
+				((#atom . #f1) . (#variable . #v2)) . #return)
+			(
+				((#variable . #v1) . (#variable . #v2))
+				(#atom . #bubbleUpF1)
+				(#variable . #v2)
+				(
+					((#atom . #f1) . (#variable . #v3))
+					(#atom . #identity)
+					((#atom . #f1) . ((#variable . #v1) . (#variable . #v3))) . #return))
+		))) 
+	{
+		1 -> #equal?: (#f1 #input #output);
+	}
+	0 -> #interpreter: ((#input #f1 #output) #bubbleUpF1 (#bubbleUpF1 (((#atom . #f1) . (#variable . #v2)) . ((#atom . #identity) . (((#atom . #f1) . (#variable . #v2)) . #return))) (((#variable . #v1) . (#variable . #v2)) (#atom . #bubbleUpF1) (#variable . #v2) (((#atom . #f1) . (#variable . #v3)) . ((#atom . #identity) . (((#atom . #f1) . ((#variable . #v1) . (#variable . #v3))) . #return))))));
 	0 -> (#math . (#peano . #inc)): 0 {
 		1 -> (#math . (#peano . #inc)): 1;
 	}
@@ -13,7 +32,6 @@
 		}
 	}
 	0 -> #identity: 0;
-	0 -> #interpreter: ((#input #f1 #output) #bubbleUpF1 (#bubbleUpF1 (((#atom . #f1) . (#variable . #v2)) . ((#atom . #identity) . (((#atom . #f1) . (#variable . #v2)) . #return))) (((#variable . #v1) . (#variable . #v2)) (#atom . #bubbleUpF1) (#variable . #v2) (((#atom . #f1) . (#variable . #v3)) . ((#atom . #identity) . (((#atom . #f1) . ((#variable . #v1) . (#variable . #v3))) . #return))))));
 	(#true . 4) -> #reverse: (#v3 #input) {
 		0 -> #identity: 0;
 	}
