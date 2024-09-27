@@ -65,6 +65,25 @@ export class Drawer {
         public ctx: CanvasRenderingContext2D,
     ) { }
 
+    drawFnkAttachPoint(view: SexprView) {
+        this.ctx.strokeStyle = 'black';
+        this.ctx.beginPath();
+        this.drawArc(view.pos, 0.25 * view.halfside, 0, 1);
+        this.ctx.stroke();
+
+        this.line(view, [
+            new Vec2(0, -1),
+            new Vec2(0, -3),
+        ]);
+    }
+
+    drawAttachPoint(view: SexprView) {
+        this.ctx.strokeStyle = 'black';
+        this.ctx.beginPath();
+        this.drawArc(view.pos, 0.25 * view.halfside, 0, 1);
+        this.ctx.stroke();
+    }
+
     highlightPlus(view: SexprView) {
         this.ctx.beginPath();
         this.ctx.strokeStyle = 'cyan';
@@ -935,6 +954,11 @@ export class Drawer {
     drawCircle(center: Vec2, radius: number) {
         this.ctx.moveTo(center.x + radius, center.y);
         this.ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+    }
+
+    drawArc(center: Vec2, radius: number, start_angle: number, end_angle: number) {
+        this.ctx.moveTo(center.x + radius, center.y);
+        this.ctx.arc(center.x, center.y, radius, start_angle, end_angle * 2 * Math.PI);
     }
 
     moveTo(pos: Vec2) {
