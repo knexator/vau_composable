@@ -1,0 +1,216 @@
+built in: eqAtoms?, identity
+speed, stack size, code size, number of unique atoms used
+
+planetFromOlympian {
+    hermes -> mercury;
+    ares -> mars;
+    aprhodite -> venus;
+    zeus -> jupyter;
+    poseidon -> neptune;
+    kronos -> saturn;
+    hades -> pluto;
+}
+
+wrappedEtcEtc { ... }
+
+(planetFromOlympian . (
+    ( (atom . hermes) identity (atom . mercury) return )
+    ( (atom . ares) identity (atom . mars) return )
+    ...
+))
+==
+(compileMap . ( (hermes . mercury) (ares . mars) ... ))
+
+compileMap {
+    nil -> nil;
+    ((@key . @value) . @rest) -> compileMap: @rest {
+        @rest_compiled -> ( ((atom . @key) identity (atom . @value) return) . @rest_compiled );
+    }
+}
+
+compileEqAtoms {
+    nil -> ( ((var . @_) identity false return ) . nil );
+    (@first . @rest) -> compileEqAtoms: @rest {
+        @rest_compiled -> ( (((atom . @key) . (atom . @key)) identity true return) . @rest_compiled );
+    }
+}
+
+equal? {
+	((@leftleft . @leftright) . (@rightleft . @rightright)) -> equal?: (@leftleft . @rightleft) {
+		false -> false;
+		true -> equal?: (@leftright . @rightright);
+	}
+	(@left . @right) -> eqAtoms?: (@left . @right);
+}
+
+concat {
+    (@a . nil) -> @a;
+    (nil . @b) -> @b;
+    (@a . (@bh . @br)) -> append: (@bh . @a) {
+        @a2 -> concat: (@a2 . @br);
+    }
+}
+
+// like concat, but does not fully respect the order
+(bindings . combine) {
+    (@a . nil) -> @a;
+    (nil . @b) -> @b;
+    ((@a1 . @a2) . @b) -> (bindings . combine): (@a2 . (@a1 . @b));
+}
+
+(bindings . get) {
+    ( (atom . @value) . @input) -> eqAtoms?: (@value . @input) {
+        false -> false;
+        true -> nil;
+    }
+    ( (var . @value) . @input) -> ((@value . @input) . nil);
+
+    ((@pattern_left . @pattern_right) . (@input_left . @input_right)) -> 
+            (bindings . get): (@pattern_left . @input_left) {
+        false -> false;
+        @bindings_left -> (bindings . get): (@pattern_right . @pattern_right) {
+            false -> false;
+            @bindings_right -> (bindings . combine): (@bindings_left . @bindings_right);
+        }
+    }
+}
+
+(bindings . apply) {
+    ( (atom . @value) . @bindings) -> @value;
+    ( (var . @name) . @bindings) -> (dict . lookup): (@bindings . @name);
+    ( (@left . @right) . @bindings) -> (bindings . apply): (@left . @bindings) {
+        @new_left -> (bindings . apply): (@right . @bindings) {
+            @new_right -> (@new_left . @new_right);
+        }
+    }
+}
+
+(dict . lookup) {
+	(@key . ((@maybe_key . @maybe_value) . @rest)) -> equal?: (@key . @maybe_key) {
+		true -> @maybe_value;
+		false -> (dict . lookup): (@key . @rest);
+	}
+}
+
+interpreter {
+    (identity @input . @all_fnks) -> @input;
+    (eqAtoms? @input . @all_fnks) -> eqAtoms?: input;
+    (@fnk_name @input . @all_fnks) -> (dict . lookup): (@fnk_name . @all_fnks) {
+        @fnk_def -> (interpreter . applyCases): (@fnk_def @input @all_fnks . nil);
+    }
+}
+
+(interpreter . applyCases) {
+    ( (@first_case . @rest_cases) @input @all_fnks @parent_bindings ) -> @first_case {
+        (@pattern @fnk_name @template . @next) -> (bindings . get): (@pattern . @input) {
+            false -> (interpreter . applyCases): ( @rest_cases @input @all_fnks @parent_bindings )
+            @local_bindings -> (bindings . combine): (@local_bindings . @parent_bindings) {
+                @bindings -> (bindings . apply): (@template . @bindings) {
+                    @new_input -> interpreter: ( @fnk_name @new_input . @all_fnks ) {
+                        @result -> @rest_cases {
+                            return -> @result;
+                            @more_cases -> (interpreter . applyCases): ( @more_cases @result @all_fnks @bindings )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+(binary . add) {
+    (nil . @b) -> @b;
+    (@a . nil) -> @a;
+    ( (b0 . @a_rest) . (@b_first . @b_rest) ) -> (binary . add): (@a_rest . @b_rest) {
+        @rest -> (@b_first . @rest);
+    }
+    ( (@a_first . @a_rest) . (b0 . @b_rest) ) -> (binary . add): (@a_rest . @b_rest) {
+        @rest -> (@a_first . @rest);
+    }
+    ( (b1 . @a_rest) . (b1 . @b_rest) ) -> (binary . add): (@a_rest . @b_rest) {
+        @naive_rest -> (binary . inc): @naive_rest {
+            @rest -> (b1 . @rest);
+        }
+    }
+}
+
+(binary . inc) {
+    nil -> b1;
+    (b0 . @rest) -> (b1 . @rest);
+    (b1 . @rest) -> (binary . inc): @rest {
+        @new_rest -> (b0 . @new_rest);
+    }
+}
+
+(binary . dec) {
+    nil -> false;
+    (b1 . @rest) -> (b0 . @rest);
+    (b0 . @rest) -> (binary . dec) {
+        false -> false;
+        @res -> (b1 . res);
+    }
+}
+
+// sign: isNegative?
+(binary signed . sub) {
+    (nil . @b) -> (true . @b);
+    (@a . nil) -> (false . @a);
+    ( (b0 . @a_rest) . (b0 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
+        (@sign . @result) -> (@sign b0 . @result);
+    }
+    ( (b1 . @a_rest) . (b1 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
+        (@sign . @result) -> (@sign b0 . @result);
+    }
+    ( (b1 . @a_rest) . (b0 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
+        (@sign . @result) -> (binary sign . inc): (@sign b0 . result);
+    }
+    ( (b0 . @a_rest) . (b1 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
+        (@sign . @result) -> (binary sign . dec): (@sign b0 . result);
+    }
+}
+
+(binary signed . inc) {
+    (false . @val) -> (binary . inc): @val {
+        @res -> (false . @res);
+    }
+    (true . @val) -> (binary . dec): @val {
+        false -> (false . (b1 . nil));
+        @res -> (true . @res);
+    }
+}
+
+(binary signed . dec) {
+    (true . @val) -> (binary . inc): @val {
+        @res -> (true . @res);
+    }
+    (false . @val) -> (binary . dec): @val {
+        false -> (true . (b1 . nil));
+        @res -> (false . @res);
+    }
+}
+
+(sort . binary) {
+    nil -> nil;
+    (@v) -> (@v);
+    ...
+}
+
+// (sum (map (zip c1 c2) absDist))
+// gets a list of chars
+(advent day1 p1) {
+    @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars {
+        (@col1 . @col2) -> (sort . binary): @col1 {
+            @sorted_col1 -> (sort . binary): @col2 {
+                @sorted_col2 -> (advent day1 p1 . final): (@sorted_col1 @sorted_col2 . b0);
+            }
+        }
+    }
+}
+
+(advent day1 p1 . final) {
+    ((@c1_first . @c1_rest) (@c2_first . @c2_rest) . @acc) -> (binary . absDist): (@c1_first . @c2_first) {
+        @diff -> (binary . add): (@diff . @acc) {
+            @new_acc -> (advent day1 p1 . final): (@c1_rest @c2_rest . @new_acc);
+        }
+    }
+}

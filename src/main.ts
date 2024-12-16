@@ -196,6 +196,7 @@ const default_fnks: FunktionDefinition[] = [
 // - run-length encoding?
 // - second most common element of list
 // - DNA repair: "here is a list of common fail patterns, and their correct versions; apply it" (preparation for meta)
+// - f(g(h(x))), something that is best solved with a meta '(-> h g f)' function
 
 import * as x from './sample_save.txt?raw';
 // localStorage.setItem('vau_composable', x.default);
