@@ -490,10 +490,11 @@ export class ExecutionState {
                 if (this.parent === null) throw new Error('unreachable');
                 overlaps.push(this.parent.draw(drawer, anim_t, global_t, main_view, mouse));
                 overlaps.push(this.drawMainInput(drawer, mouse, offsetView(main_view, new Vec2(32 - 32 * anim_t, 0))));
+                drawer.drawFnkAttachPoint(offsetView(main_view, new Vec2(lerp(28, -4, anim_t), 0)));
                 overlaps.push(completeAddress([], 'fn_name',
                     drawer.drawTemplateAndReturnThingUnderMouse(mouse, this.fnk.name, this.original_fnk.name, lerpSexprView(
-                        rotateAndScaleView(offsetView(main_view, new Vec2(29, -2)), -1 / 4, 1 / 2),
-                        rotateAndScaleView(offsetView(main_view, new Vec2(-5, -2)), -1 / 4, 1),
+                        rotateAndScaleView(offsetView(main_view, new Vec2(28, -3)), -1 / 4, 1 / 2),
+                        rotateAndScaleView(offsetView(main_view, new Vec2(-4, -5)), -1 / 4, 1),
                         anim_t))));
 
                 const next = this.fnk.cases;
@@ -730,7 +731,8 @@ export class ExecutionState {
     }
 
     static drawMainFnkName(drawer: Drawer, mouse: Vec2, view: SexprView, name: SexprLiteral): OverlappedExecutionThing | null {
-        return asMainFnk(drawer.drawTemplateAndReturnThingUnderMouse(mouse, name, name, rotateAndScaleView(offsetView(view, new Vec2(-5, -2)), -1 / 4, 1)));
+        drawer.drawFnkAttachPoint(offsetView(view, new Vec2(-4, 0)));
+        return asMainFnk(drawer.drawTemplateAndReturnThingUnderMouse(mouse, name, name, rotateAndScaleView(offsetView(view, new Vec2(-4, -5)), -1 / 4, 1)));
     }
 }
 
@@ -799,7 +801,7 @@ export class ExecutingSolution {
     public static getMainView(screen_size: Vec2, camera: Camera): SexprView {
         const asdf = camera.viewAt(new Vec2(0.15, 0.25), 1 / 17, screen_size.y);
         // return offsetView(asdf, new Vec2(28, -3));
-        return offsetView(asdf, new Vec2(32, -5));
+        return offsetView(asdf, new Vec2(32, 0));
     }
 }
 
@@ -1039,13 +1041,16 @@ function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: n
     cur_address: MatchCaseAddress, special: null | { type: 'bindings', bindings: FloatingBinding[], anim_t: number },
 ): OverlappedEditingThing | null {
     const overlaps: (OverlappedEditingThing | null)[] = [];
-    const aaa = offsetView(view, new Vec2(-8, 0));
+    const aaa = offsetView(view, new Vec2(-7, 0));
     const extended_amount = lerp(
-        lerp(4, 12, extended_main) - 4 * (1 - collapsed),
+        lerp(4, 12, extended_main) - 5 * (1 - collapsed),
         lerp(4, 12, extended_main) - 2 * (1 - collapsed),
         extended_minor,
     );
     // const extended_amount = (main_case ? 12 : 4) - 2 * (1 - collapsed);
+    if (last(cur_address) == 0) {
+        drawer.drawAttachPoint(offsetView(aaa, new Vec2(3, -v_offset_delta)));
+    }
     drawer.drawCable(aaa, parent_names.main, [
         new Vec2(3, -v_offset_delta),
         new Vec2(3, 4),
@@ -1068,7 +1073,9 @@ function drawCaseWrapperModern(view: SexprView, main_case: boolean, collapsed: n
 }
 
 function drawFnkName(drawer: Drawer, mouse: Vec2 | null, name: SexprTemplate, name_original: SexprTemplate, view: SexprView): OverlappedThing | null {
-    const fnk_view = rotateAndScaleView(offsetView(view, new Vec2(29, -2)), -1 / 4, 1 / 2);
+    view = offsetView(view, new Vec2(28, -3));
+    drawer.drawFnkAttachPoint(offsetView(view, new Vec2(0, 3)));
+    const fnk_view = rotateAndScaleView(view, -1 / 4, 1 / 2);
     if (name_original.type === 'atom' && name_original.value === 'identity') {
         return drawer.returnTemplateUnderMouse(mouse, name, fnk_view);
     }
