@@ -49,7 +49,7 @@ export function isLiteral(x: SexprTemplate): boolean {
 }
 
 import { COLLAPSE_DURATION, Collapsed } from './drawer';
-import { addAt, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
+import { addAt, assert, assertEmpty, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
 // import grammar from './sexpr.pegjs?raw';
 // import * as peggy from 'peggy';
 // const parser = peggy.generate(grammar);
@@ -101,6 +101,12 @@ function changeSomeAtomsToVars(thing: SexprTemplate, mode: '#' | '@'): SexprTemp
 
 export function parseSexprLiteral(input: string, mode: '#' | '@' = '#'): SexprLiteral {
     return assertLiteral(parseSexprTemplate(input, mode));
+}
+
+function asList(x: SexprTemplate): SexprTemplate[] {
+    const { list, sentinel } = asListPlusSentinel(x);
+    if (isAtom(sentinel, 'nil')) return list;
+    throw new Error(`bad sentinel: ${sexprToString(sentinel)}`);
 }
 
 function asListPlusSentinel(x: SexprTemplate): { list: SexprTemplate[], sentinel: { type: 'variable' | 'atom', value: string } } {
@@ -230,7 +236,45 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     for (const fnk of all_fnks) {
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
-    throw new Error(`Couldn't find the requested funktion: ${sexprToString(fnk_name)}`);
+    if (fnk_name.type === 'pair') {
+        return { name: fnk_name, cases: casesFromSexpr(applyFunktion(all_fnks, fnk_name.left, fnk_name.right)) };
+    }
+    throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
+}
+
+function casesFromSexpr(sexpr: SexprLiteral): MatchCaseDefinition[] {
+    return asList(sexpr).map((c) => {
+        const { list: [pattern, fn_name_template, template, ...extra], sentinel: next } = asListPlusSentinel(c);
+        assertEmpty(extra);
+        return {
+            pattern: templateFromLiteralRepresentation(pattern),
+            // fn_name_template: templateFromLiteralRepresentation(fn_name_template),
+            fn_name_template: fn_name_template,
+            template: templateFromLiteralRepresentation(template),
+            next: isAtom(next, 'return') ? 'return' : casesFromSexpr(assertLiteral(next)),
+        };
+    });
+}
+
+function templateFromLiteralRepresentation(s: SexprTemplate): SexprTemplate {
+    if (s.type !== 'pair') throw new Error(`bad value: ${s.type}, ${s.value}`);
+    // TODO: uncomment next line
+    // if (isAtom(s.left, 'atom')) return { type: 'atom', value: atomValue(s.right) };
+    if (isAtom(s.left, 'atom')) return s.right;
+    if (isAtom(s.left, 'var')) return { type: 'variable', value: atomValue(s.right) };
+    return doPairT(
+        templateFromLiteralRepresentation(s.left),
+        templateFromLiteralRepresentation(s.right),
+    );
+}
+
+function atomValue(s: SexprTemplate): string {
+    if (s.type !== 'atom') throw new Error(`bad: ${sexprToString(s)}`);
+    return s.value;
+}
+
+function sexprFromCases(cases: MatchCaseDefinition[]): SexprLiteral {
+    throw new Error('TODO');
 }
 
 function isAtom(v: SexprTemplate, x: string): boolean {

@@ -298,6 +298,10 @@ export function addAt<T>(arr: T[], new_element: T, index: number): T[] {
     return result;
 }
 
+export function assertEmpty<T>(arr: T[]): void {
+    if (arr.length > 0) throw new Error(`assertEmpty got a non-empty: ${arr}`);
+}
+
 export function assertNotNull<T>(element: T | null): T {
     if (element === null) throw new Error('assertNotNull got a null');
     return element;
