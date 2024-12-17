@@ -1,7 +1,7 @@
 {
     function listToSexpr(elements) {
         if (elements.length === 0) {
-            return {type: "nil"}
+            return {type: "hardcoded_atom", value: "nil"}
         } else {
             return {type: "pair", left: elements[0], right: listToSexpr(elements.slice(1))}
         }
@@ -24,7 +24,11 @@ sexpr = _ atom:word _ {return {type: "atom", value: atom}}
 
 fnk   = _ name:sexpr _ "{" _ cases:match_case+ _ "}" _ { return {name, cases}; }
 
-match_case = _ pattern:sexpr _ "->" _ fn_name_template:sexpr _ ":" _ template:sexpr _ next:(
+match_case = _ pattern:sexpr _ "->" _ 
+    fn_name_template:(
+        v: sexpr _ ":" {return v} 
+        / "" {return {type: 'hardcoded_atom', value: 'identity'}}
+    ) _ template:sexpr _ next:(
         ";" { return "return"; }
         / "{" _ items:match_case+ _ "}" { return items; }
     ) { return {pattern, fn_name_template, template, next}; }

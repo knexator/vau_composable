@@ -70,8 +70,10 @@ export function parseSexprTemplate(input: string, mode: '#' | '@' = '#'): SexprT
 
 function changeSomeAtomsToVars(thing: SexprTemplate, mode: '#' | '@'): SexprTemplate {
     // @ts-expect-error special case for the parser
-    if (thing.type === 'nil') {
-        return { type: 'atom', value: 'nil' };
+    if (thing.type === 'hardcoded_atom') {
+        // @ts-expect-error special case
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        return { type: 'atom', value: thing.value };
     }
     else if (thing.type === 'atom') {
         if (mode === '#') {
@@ -97,8 +99,8 @@ function changeSomeAtomsToVars(thing: SexprTemplate, mode: '#' | '@'): SexprTemp
     throw new Error('unreachable');
 }
 
-export function parseSexprLiteral(input: string): SexprLiteral {
-    return assertLiteral(parseSexprTemplate(input));
+export function parseSexprLiteral(input: string, mode: '#' | '@' = '#'): SexprLiteral {
+    return assertLiteral(parseSexprTemplate(input, mode));
 }
 
 function asListPlusSentinel(x: SexprTemplate): { list: SexprTemplate[], sentinel: { type: 'variable' | 'atom', value: string } } {
