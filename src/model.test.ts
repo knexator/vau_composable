@@ -8,6 +8,14 @@ import { ExecutingSolution, ExecutionState } from './executing_solution';
 import { EditingSolution } from './editing_solution';
 import { TestCaseViewer } from './electing_solution';
 
+test('parse', () => {
+    expect(parseSexprTemplate('hi', '#').type).toStrictEqual('variable');
+    expect(parseSexprTemplate('#hi', '#').type).toStrictEqual('atom');
+
+    expect(parseSexprTemplate('hi', '@').type).toStrictEqual('atom');
+    expect(parseSexprTemplate('@hi', '@').type).toStrictEqual('variable');
+});
+
 test('funktion add', () => {
     const add: FunktionDefinition = {
         name: { type: 'atom', value: 'add' },

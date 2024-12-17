@@ -63,9 +63,38 @@ import { addAt, at, deleteAt, or, replace, reversedForEach, single } from './kom
 // @ts-expect-error no typing
 import * as parser from './sexpr.mjs';
 
-export function parseSexprTemplate(input: string): SexprTemplate {
+export function parseSexprTemplate(input: string, mode: '#' | '@' = '#'): SexprTemplate {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return parser.parse(input) as SexprTemplate;
+    return changeSomeAtomsToVars(parser.parse(input) as SexprLiteral, mode);
+}
+
+function changeSomeAtomsToVars(thing: SexprTemplate, mode: '#' | '@'): SexprTemplate {
+    // @ts-expect-error special case for the parser
+    if (thing.type === 'nil') {
+        return { type: 'atom', value: 'nil' };
+    }
+    else if (thing.type === 'atom') {
+        if (mode === '#') {
+            if (thing.value[0] === '#') {
+                return { type: 'atom', value: thing.value.slice(1) };
+            }
+            else {
+                return { type: 'variable', value: thing.value };
+            }
+        }
+        else if (mode === '@') {
+            if (thing.value[0] === '@') {
+                return { type: 'variable', value: thing.value.slice(1) };
+            }
+            else {
+                return { type: 'atom', value: thing.value };
+            }
+        }
+    }
+    else if (thing.type === 'pair') {
+        return doPairT(changeSomeAtomsToVars(thing.left, mode), changeSomeAtomsToVars(thing.right, mode));
+    }
+    throw new Error('unreachable');
 }
 
 export function parseSexprLiteral(input: string): SexprLiteral {
@@ -557,10 +586,26 @@ export function fnkToString(fnk: FunktionDefinition): string {
     return sexprToString(fnk.name) + ' {\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n') + '\n}';
 }
 
-export function parseFnks(input: string): FunktionDefinition[] {
+export function parseFnks(input: string, mode: '#' | '@' = '#'): FunktionDefinition[] {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const raw_thing = parser.parse(input) as FunktionDefinition[];
-    return raw_thing;
+    return raw_thing.map(f => asdf(f));
+
+    function asdf(f: FunktionDefinition): FunktionDefinition {
+        return {
+            name: assertLiteral(changeSomeAtomsToVars(f.name, mode)),
+            cases: f.cases.map(c => asdf2(c)),
+        };
+    }
+
+    function asdf2(c: MatchCaseDefinition): MatchCaseDefinition {
+        return {
+            pattern: changeSomeAtomsToVars(c.pattern, mode),
+            template: changeSomeAtomsToVars(c.template, mode),
+            fn_name_template: changeSomeAtomsToVars(c.fn_name_template, mode),
+            next: (c.next === 'return') ? 'return' : c.next.map(x => asdf2(x)),
+        };
+    }
 }
 
 export function allVariableNames(thing: SexprNullable): string[] {
@@ -626,6 +671,10 @@ export function doList(values: SexprLiteral[]): SexprLiteral {
         result = doPair(v, result);
     });
     return result;
+}
+
+export function doPairT(left: SexprTemplate, right: SexprTemplate): { type: 'pair', left: SexprTemplate, right: SexprTemplate } {
+    return { type: 'pair', left, right };
 }
 
 export function doPair(left: SexprLiteral, right: SexprLiteral): { type: 'pair', left: SexprLiteral, right: SexprLiteral } {
