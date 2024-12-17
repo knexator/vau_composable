@@ -42,7 +42,7 @@ export class EditingSolution {
     private *toolbarThingsNew(main_view: SexprView): Generator<{ value: SexprTemplate, view: SexprView }, void, void> {
         const atom_values: SexprLiteral[] = [
             parseSexprLiteral('(#nil . #nil)'),
-            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(parseSexprLiteral),
+            ...['#nil', '#true', '#false', '#input', '#output', '#v1', '#v2', '#v3', '#f1', '#f2', '#f3', '#f4'].map(s => parseSexprLiteral(s)),
         ];
 
         for (let k = 0; k < 12; k++) {
@@ -79,7 +79,7 @@ export class EditingSolution {
         main_view = offsetView(main_view, new Vec2(-14, 8));
 
         // special functions
-        const built_in = ['#identity', '#eqAtoms?'].map(parseSexprLiteral);
+        const built_in = ['#identity', '#eqAtoms?'].map(s => parseSexprLiteral(s));
         for (let k = 0; k < built_in.length; k++) {
             yield {
                 value: built_in[k],
@@ -159,7 +159,7 @@ export class EditingSolution {
             }
         }
 
-        for (let k = 0; k < 1; k++) {
+        for (let k = 0; k < 3; k++) {
             const value = this.cells[k];
             const view = this.getCellView(drawer.getScreenSize(), k);
             const asdf = drawer.drawMoleculePleaseAndReturnThingUnderMouse(mouse_pos, value, view);

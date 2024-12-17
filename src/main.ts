@@ -1,6 +1,6 @@
 import * as twgl from 'twgl.js';
 import { Input, KeyCode, MouseButton } from './kommon/input';
-import { fromCount } from './kommon/kommon';
+import { fromCount, getFromStorage } from './kommon/kommon';
 import { mod } from './kommon/math';
 import { Vec2 } from 'kanvas2d';
 import { DEFAULT_CASE, FunktionDefinition, LevelDescription, MatchCaseDefinition, PersistenceStuff, SexprLiteral, SexprTemplate, doAtom, doList, doPair, doVar, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate } from './model';
