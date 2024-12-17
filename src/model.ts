@@ -50,14 +50,22 @@ export function isLiteral(x: SexprTemplate): boolean {
 
 import { COLLAPSE_DURATION, Collapsed } from './drawer';
 import { addAt, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
-import grammar from './sexpr.pegjs?raw';
-import * as peggy from 'peggy';
-const parser = peggy.generate(grammar);
+// import grammar from './sexpr.pegjs?raw';
+// import * as peggy from 'peggy';
+// const parser = peggy.generate(grammar);
+
+// export function parseSexprTemplate(input: string): SexprTemplate {
+//     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+//     const raw_thing = parser.parse(input) as SexprLiteral;
+//     return raw_thing;
+// }
+
+// @ts-expect-error no typing
+import * as parser from './sexpr.mjs';
 
 export function parseSexprTemplate(input: string): SexprTemplate {
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const raw_thing = parser.parse(input) as SexprLiteral;
-    return raw_thing;
+    return parser.parse(input) as SexprTemplate;
 }
 
 export function parseSexprLiteral(input: string): SexprLiteral {
@@ -626,6 +634,10 @@ export function doPair(left: SexprLiteral, right: SexprLiteral): { type: 'pair',
 
 export function doAtom(value: string): SexprLiteral {
     return { type: 'atom', value };
+}
+
+export function doNil(): SexprLiteral {
+    return { type: 'atom', value: 'nil' };
 }
 
 export function doVar(value: string): SexprTemplate {
