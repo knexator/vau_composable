@@ -1,5 +1,5 @@
-built in: eqAtoms?, identity
-speed, stack size, code size, number of unique atoms used
+// built in: eqAtoms?, identity
+// speed, stack size, code size, number of unique atoms used
 
 planetFromOlympian {
     hermes -> mercury;
@@ -11,15 +11,15 @@ planetFromOlympian {
     hades -> pluto;
 }
 
-wrappedEtcEtc { ... }
+// wrappedEtcEtc { ... }
 
-(planetFromOlympian . (
-    ( (atom . hermes) identity (atom . mercury) return )
-    ( (atom . ares) identity (atom . mars) return )
-    ...
-))
-==
-(compileMap . ( (hermes . mercury) (ares . mars) ... ))
+// (planetFromOlympian . (
+    // ( (atom . hermes) identity (atom . mercury) return )
+    // ( (atom . ares) identity (atom . mars) return )
+    // ...
+// ))
+// ==
+// (compileMap . ( (hermes . mercury) (ares . mars) ... ))
 
 compileMap {
     nil -> nil;
@@ -103,13 +103,13 @@ interpreter {
 (interpreter . applyCases) {
     ( (@first_case . @rest_cases) @input @all_fnks @parent_bindings ) -> @first_case {
         (@pattern @fnk_name @template . @next) -> (bindings . get): (@pattern . @input) {
-            false -> (interpreter . applyCases): ( @rest_cases @input @all_fnks @parent_bindings )
+            false -> (interpreter . applyCases): ( @rest_cases @input @all_fnks @parent_bindings );
             @local_bindings -> (bindings . combine): (@local_bindings . @parent_bindings) {
                 @bindings -> (bindings . apply): (@template . @bindings) {
                     @new_input -> interpreter: ( @fnk_name @new_input . @all_fnks ) {
                         @result -> @rest_cases {
                             return -> @result;
-                            @more_cases -> (interpreter . applyCases): ( @more_cases @result @all_fnks @bindings )
+                            @more_cases -> (interpreter . applyCases): ( @more_cases @result @all_fnks @bindings );
                         }
                     }
                 }
@@ -191,8 +191,20 @@ interpreter {
 
 (sort . binary) {
     nil -> nil;
-    (@v) -> (@v);
-    ...
+    (@a . @rest) -> (sort . binary): @rest {
+        @sorted_rest -> (sort binary . insert): (@a . @sorted_rest);
+    }
+}
+
+(sort binary . insert) {
+    (@val . nil) -> (@val . nil);
+    (@val @first . @rest) -> (binary . compare): (@val . @first) {
+        less -> (@val @first . @rest);
+        equal -> (@val @first . @rest);
+        greater -> (sort binary . insert): (@val . @rest) {
+            @res -> (@val . @res);
+        }
+    }
 }
 
 // (sum (map (zip c1 c2) absDist))
