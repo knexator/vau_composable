@@ -233,9 +233,13 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     throw new Error(`Couldn't find the requested funktion: ${sexprToString(fnk_name)}`);
 }
 
+function isAtom(v: SexprTemplate, x: string): boolean {
+    return v.type === 'atom' && v.value === x;
+}
+
 export function applyFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
-    if (fnk_name.type === 'atom' && fnk_name.value === 'identity') return argument;
-    if (fnk_name.type === 'atom' && fnk_name.value === 'eqAtoms?') return builtIn_eqAtoms(argument);
+    if (isAtom(fnk_name, 'identity')) return argument;
+    if (isAtom(fnk_name, 'eqAtoms?')) return builtIn_eqAtoms(argument);
     const fnk = findFunktion(all_fnks, fnk_name);
     return applyMatchOptions(all_fnks, fnk.cases, argument, []);
 }
