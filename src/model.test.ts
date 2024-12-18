@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff, LevelDescription } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff, LevelDescription, casesFromSexpr, sexprFromCases } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Camera, computeOffset, offsetView, SexprView } from './drawer';
@@ -40,6 +40,27 @@ test('funktion add', () => {
     const actual_output = applyFunktion([add], parseSexprLiteral('#add'), input);
 
     expect(actual_output).toStrictEqual(expected_output);
+});
+
+test('fnk -> sexpr -> fnk', () => {
+    const add: FunktionDefinition = {
+        name: { type: 'atom', value: 'add' },
+        cases: [
+            {
+                pattern: parseSexprTemplate(`(#0 . y)`),
+                template: parseSexprTemplate(`y`),
+                fn_name_template: parseSexprTemplate(`#identity`),
+                next: 'return',
+            },
+            {
+                pattern: parseSexprTemplate(`((#succ . x) . y)`),
+                template: parseSexprTemplate(`(x . (#succ . y))`),
+                fn_name_template: parseSexprTemplate(`#add`),
+                next: 'return',
+            },
+        ],
+    };
+    expect(casesFromSexpr(sexprFromCases(add.cases))).toStrictEqual(add.cases);
 });
 
 test('funktion bubbleUp', () => {

@@ -49,7 +49,7 @@ export function isLiteral(x: SexprTemplate): boolean {
 }
 
 import { COLLAPSE_DURATION, Collapsed } from './drawer';
-import { addAt, assert, assertEmpty, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
+import { addAt, assert, assertEmpty, assertNotNull, at, deleteAt, or, replace, reversedForEach, single } from './kommon/kommon';
 // import grammar from './sexpr.pegjs?raw';
 // import * as peggy from 'peggy';
 // const parser = peggy.generate(grammar);
@@ -94,7 +94,7 @@ function changeSomeAtomsToVars(thing: SexprTemplate, mode: '#' | '@'): SexprTemp
         }
     }
     else if (thing.type === 'pair') {
-        return doPairT(changeSomeAtomsToVars(thing.left, mode), changeSomeAtomsToVars(thing.right, mode));
+        return doPair(changeSomeAtomsToVars(thing.left, mode), changeSomeAtomsToVars(thing.right, mode));
     }
     throw new Error('unreachable');
 }
@@ -249,10 +249,11 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
     throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
 }
 
-function casesFromSexpr(sexpr: SexprLiteral): MatchCaseDefinition[] {
+export function casesFromSexpr(sexpr: SexprLiteral): MatchCaseDefinition[] {
     return asList(sexpr).map((c) => {
         const { list: [pattern, fn_name_template, template, ...extra], sentinel: next } = asListPlusSentinel(c);
         assertEmpty(extra);
+        [pattern, fn_name_template, template, next].map(assertNotNull);
         return {
             pattern: templateFromLiteralRepresentation(pattern),
             // fn_name_template: templateFromLiteralRepresentation(fn_name_template),
@@ -269,7 +270,7 @@ function templateFromLiteralRepresentation(s: SexprTemplate): SexprTemplate {
     // if (isAtom(s.left, 'atom')) return { type: 'atom', value: atomValue(s.right) };
     if (isAtom(s.left, 'atom')) return s.right;
     if (isAtom(s.left, 'var')) return { type: 'variable', value: atomValue(s.right) };
-    return doPairT(
+    return doPair(
         templateFromLiteralRepresentation(s.left),
         templateFromLiteralRepresentation(s.right),
     );
@@ -280,8 +281,30 @@ function atomValue(s: SexprTemplate): string {
     return s.value;
 }
 
-function sexprFromCases(cases: MatchCaseDefinition[]): SexprLiteral {
-    throw new Error('TODO');
+export function sexprFromCases(cases: MatchCaseDefinition[]): SexprLiteral {
+    return doList<SexprLiteral>(cases.map((c) => {
+        return doListWithSentinel<SexprLiteral>([
+            literalRepresentationFromTemplate(c.pattern),
+            assertLiteral(c.fn_name_template),
+            // literalRepresentationFromTemplate(c.fn_name_template),
+            literalRepresentationFromTemplate(c.template),
+        ], c.next === 'return' ? doAtom('return') : sexprFromCases(c.next));
+    }));
+}
+
+function literalRepresentationFromTemplate(s: SexprTemplate): SexprLiteral {
+    if (s.type === 'atom') {
+        return doPair(doAtom('atom'), s);
+    }
+    else if (s.type === 'variable') {
+        return doPair(doAtom('var'), doAtom(s.value));
+    }
+    else {
+        return doPair(
+            literalRepresentationFromTemplate(s.left),
+            literalRepresentationFromTemplate(s.right),
+        );
+    }
 }
 
 function isAtom(v: SexprTemplate, x: string): boolean {
@@ -722,19 +745,21 @@ export function getCasesAfter(fnk: FunktionDefinition, address: MatchCaseAddress
     return siblings.slice(at(address, -1));
 }
 
-export function doList(values: SexprLiteral[]): SexprLiteral {
-    let result = doAtom('nil');
+export function doList<T extends (SexprLiteral | SexprTemplate)>(values: T[]): T {
+    // @ts-expect-error TS skill issue
+    return doListWithSentinel(values, doNil());
+}
+
+export function doListWithSentinel<T extends (SexprLiteral | SexprTemplate)>(values: T[], sentinel: T): T {
+    let result: T = sentinel;
     reversedForEach(values, (v) => {
-        result = doPair(v, result);
+        // @ts-expect-error TS skill issue
+        result = doPair<T>(v, result);
     });
     return result;
 }
 
-export function doPairT(left: SexprTemplate, right: SexprTemplate): { type: 'pair', left: SexprTemplate, right: SexprTemplate } {
-    return { type: 'pair', left, right };
-}
-
-export function doPair(left: SexprLiteral, right: SexprLiteral): { type: 'pair', left: SexprLiteral, right: SexprLiteral } {
+export function doPair<T extends (SexprLiteral | SexprTemplate)>(left: T, right: T): { type: 'pair', left: T, right: T } {
     return { type: 'pair', left, right };
 }
 

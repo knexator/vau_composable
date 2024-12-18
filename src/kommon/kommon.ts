@@ -302,8 +302,9 @@ export function assertEmpty<T>(arr: T[]): void {
     if (arr.length > 0) throw new Error(`assertEmpty got a non-empty: ${arr}`);
 }
 
-export function assertNotNull<T>(element: T | null): T {
+export function assertNotNull<T>(element: T | null | undefined): T {
     if (element === null) throw new Error('assertNotNull got a null');
+    if (element === undefined) throw new Error('assertNotNull got an undefined');
     return element;
 }
 
