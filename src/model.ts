@@ -232,7 +232,7 @@ export function equalSexprs(a: SexprLiteral, b: SexprLiteral): boolean {
     return false;
 }
 
-function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): FunktionDefinition {
+export function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): FunktionDefinition {
     for (const fnk of all_fnks) {
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }

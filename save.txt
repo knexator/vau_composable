@@ -1,6 +1,10 @@
 // built in: eqAtoms?, identity
 // speed, stack size, code size, number of unique atoms used
 
+// required tools: 
+//  clipboard
+//  sexpr <=> fnk
+
 planetFromOlympian {
     hermes -> mercury;
     ares -> mars;
@@ -245,6 +249,17 @@ interpreter {
     @numbers -> (advent day1 p1 test . mapEachHexaToBinary): @numbers {
         @binary_numbers -> (sort . binary): @binary_numbers;
     }
+}
+
+(compiled . map) {
+    @fnk_name -> (
+        ((#atom . nil) #identity (#atom . nil) . #return)
+        (((#var . #first) . (#var . #rest)) @fnk_name (#var . #first) (
+            (#var . #mapped_first) ((compiled . map) . @fnk_name) (#var . #rest) ((#var . #mapped_rest) . (#identity . (((#var . #mapped_first) . (#var . #mapped_rest)) . #return)))
+        ))
+    );
+
+    (((#atom) . (#identity . ((#atom) . #return))) (((#var . #first) . (#var . #rest)) (#binary . #fromHexadecimal) (#var . #first) ((#var . #mapped_first) (#advent . (#day1 . (#p1 . (#test . #mapEachHexaToBinary)))) (#var . #rest) ((#var . #mapped_rest) . (#identity . (((#var . #mapped_first) . (#var . #mapped_rest)) . #return))))))
 }
 
 (advent day1 p1 test . mapEachHexaToBinary) {
