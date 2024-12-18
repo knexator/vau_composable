@@ -237,7 +237,14 @@ function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): F
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
     if (fnk_name.type === 'pair') {
-        return { name: fnk_name, cases: casesFromSexpr(applyFunktion(all_fnks, fnk_name.left, fnk_name.right)) };
+        try {
+            const new_fnk = { name: fnk_name, cases: casesFromSexpr(applyFunktion(all_fnks, fnk_name.left, fnk_name.right)) };
+            all_fnks.push(new_fnk);
+            return new_fnk;
+        }
+        catch (error) {
+            throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
+        }
     }
     throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
 }

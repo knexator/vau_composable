@@ -21,6 +21,7 @@ planetFromOlympian {
 // ==
 // (compileMap . ( (hermes . mercury) (ares . mars) ... ))
 
+// TODO: change this to 'hardcoded map'
 compileMap {
     nil -> nil;
     ((@key . @value) . @rest) -> compileMap: @rest {
@@ -146,13 +147,14 @@ interpreter {
 (binary . dec) {
     nil -> false;
     (b1 . @rest) -> (b0 . @rest);
-    (b0 . @rest) -> (binary . dec) {
+    (b0 . @rest) -> (binary . dec): @rest {
         false -> false;
-        @res -> (b1 . res);
+        @res -> (b1 . @res);
     }
 }
 
 // sign: isNegative?
+// TODO: change the name so it's clear the input is unsigned
 (binary signed . sub) {
     (nil . @b) -> (true . @b);
     (@a . nil) -> (false . @a);
@@ -163,10 +165,10 @@ interpreter {
         (@sign . @result) -> (@sign b0 . @result);
     }
     ( (b1 . @a_rest) . (b0 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
-        (@sign . @result) -> (binary sign . inc): (@sign b0 . result);
+        (@sign . @result) -> (binary signed . inc): (@sign b0 . @result);
     }
     ( (b0 . @a_rest) . (b1 . @b_rest) ) -> (binary signed . sub): (@a_rest . @b_rest) {
-        (@sign . @result) -> (binary sign . dec): (@sign b0 . result);
+        (@sign . @result) -> (binary signed . dec): (@sign b0 . @result);
     }
 }
 
@@ -203,9 +205,27 @@ interpreter {
         less -> (@val @first . @rest);
         equal -> (@val @first . @rest);
         greater -> (sort binary . insert): (@val . @rest) {
-            @res -> (@val . @res);
+            @new_res -> (@first . @new_res);
         }
     }
+}
+
+(binary . compare) {
+    (@a . @b) -> (binary signed . sub): (@a . @b) {
+        (@sign . @value) -> (binary . isZero): @value {
+            true -> equal;
+            false -> @sign {
+                true -> less;
+                false -> greater;
+            }
+        }
+    }
+}
+
+(binary . isZero) {
+    nil -> true;
+    (b1 . @rest) -> false;
+    (b0 . @rest) -> (binary . isZero): @rest;
 }
 
 // (sum (map (zip c1 c2) absDist))
@@ -219,6 +239,26 @@ interpreter {
         }
     }
 }
+
+(advent day1 p1 . test) {
+    // @numbers -> ((compile mapEach) . (binary . fromHexadecimal)): @numbers;
+    @numbers -> (advent day1 p1 test . mapEachHexaToBinary): @numbers {
+        @binary_numbers -> (sort . binary): @binary_numbers;
+    }
+}
+
+(advent day1 p1 test . mapEachHexaToBinary) {
+    nil -> nil;
+    (@first . @rest) -> (binary . fromHexadecimal): @first {
+        @mapped_first -> (advent day1 p1 test . mapEachHexaToBinary): @rest {
+            @mapped_rest -> (@mapped_first . @mapped_rest);
+        }
+    }
+}
+
+// (compile mapEach) {
+    // @fnk_name
+// }
 
 (advent day1 p1 . final) {
     ((@c1_first . @c1_rest) (@c2_first . @c2_rest) . @acc) -> (binary . absDist): (@c1_first . @c2_first) {
@@ -248,6 +288,27 @@ interpreter {
         (e . (b0 b1 b1 b1))
         (f . (b1 b1 b1 b1))
     )): @digit;
+}
+
+(hexadecimal to . binary) {
+    @stuff -> (compileMap . ( 
+        (() . 0 ) 
+        ((b1) . 1 ) 
+        ((b0 b1) . 2 ) 
+        ((b1 b1) . 3 )
+        ((b0 b0 b1) . 4 )
+        ((b1 b0 b1) . 5 )
+        ((b0 b1 b1) . 6 )
+        ((b1 b1 b1) . 7 )
+        ((b0 b0 b0 b1) . 8 )
+        ((b1 b0 b0 b1) . 9 )
+        ((b0 b1 b0 b1) . a )
+        ((b1 b1 b0 b1) . b )
+        ((b0 b0 b1 b1) . c )
+        ((b1 b0 b1 b1) . d )
+        ((b0 b1 b1 b1) . e )
+        ((b1 b1 b1 b1) . f )
+    )): @stuff;
 }
 
 // 3   4
