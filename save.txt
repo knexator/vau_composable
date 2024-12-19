@@ -57,6 +57,13 @@ concat {
     }
 }
 
+append {
+    (@element . nil) -> (@element);
+    (@element . (@first . @rest)) -> append: (@element . @rest) {
+        @new_rest -> (@first . @new_rest);
+    }
+}
+
 // like concat, but does not fully respect the order
 (bindings . combine) {
     (@a . nil) -> @a;
@@ -122,6 +129,11 @@ interpreter {
             }
         }
     }
+}
+
+(binary multiply . 10) {
+    // 8 * v + 2 * v;
+    @v -> (binary . add): ( (b0 b0 b0 . @v) . (b0 . @v) );
 }
 
 (binary . add) {
@@ -241,7 +253,10 @@ interpreter {
 // (sum (map (zip c1 c2) absDist))
 // gets a list of chars
 // ./vau save.txt '(advent day1 . p1)' '(3 SPACE SPACE SPACE 4 NEWLINE 4 SPACE SPACE SPACE 3 NEWLINE 2 SPACE SPACE SPACE 5 NEWLINE 1 SPACE SPACE SPACE 3 NEWLINE 3 SPACE SPACE SPACE 9 NEWLINE 3 SPACE SPACE SPACE 3 NEWLINE)'
+// ./vau save.txt '(advent day1 . p1)' '(4 1 2 2 6 SPACE SPACE SPACE 6 9 1 9 0 NEWLINE)'
 (advent day1 . p1) {
+    @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars;
+
     @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars {
         (@col1 . @col2) -> (sort . binary): @col1 {
             @sorted_col1 -> (sort . binary): @col2 {
@@ -260,6 +275,25 @@ interpreter {
                 @bin_b -> ( (@bin_a . @rest_a) . (@bin_b . @rest_b) );
             }
         }
+    }
+    @chars -> (parse hexadecimal until space or newline): @chars {
+        (@number_1 SPACE SPACE SPACE . @rest) -> (binary . fromHexadecimal): @number_1 {
+            @binary_1 -> (parse hexadecimal until space or newline): @rest {
+                (@number_2 NEWLINE . @rest_2) -> (binary . fromHexadecimal): @number_2 {
+                    // TODO: more
+                    @binary_2 -> (binary . add): (@binary_1 . @binary_2);
+                }
+            }
+        }
+    }
+}
+
+(parse hexadecimal until space or newline) {
+    nil -> (nil . nil);
+    (SPACE . @rest) -> (nil . (SPACE . @rest));
+    (NEWLINE . @rest) -> (nil . (NEWLINE . @rest));
+    (@char . @rest) -> (parse hexadecimal until space or newline): @rest {
+        (@val . @real_rest) -> ((@char . @val) . @real_rest);
     }
 }
 
@@ -294,6 +328,9 @@ interpreter {
 
 // ./vau save.txt '(binary . fromHexadecimal)' 1
 (binary . fromHexadecimal) {
+    (@first . @rest) -> reverse: (@first . @rest) {
+        @reversed -> (binary fromHexadecimal . fromReversed): @reversed;
+    }
     @digit -> (compileMap . ( 
         (0 . ()) 
         (1 . (b1)) 
@@ -314,7 +351,25 @@ interpreter {
     )): @digit;
 }
 
-(hexadecimal to . binary) {
+reverse {
+    nil -> nil;
+    (@first . @rest) -> reverse: @rest {
+        @new_rest -> append: (@first . @new_rest);
+    }
+}
+
+(binary fromHexadecimal . fromReversed) {
+    nil -> nil;
+    (@last . @rest) -> (binary fromHexadecimal . fromReversed): @rest {
+        @rest_binary -> (binary multiply . 10): @rest_binary {
+            @rest_scaled -> (binary . fromHexadecimal): @last {
+                @last_binary -> (binary . add): (@last_binary . @rest_scaled);
+            }
+        }
+    }
+}
+
+(hexadecimal . fromBinary) {
     @stuff -> (compileMap . ( 
         (() . 0 ) 
         ((b1) . 1 ) 
