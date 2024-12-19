@@ -141,7 +141,7 @@ interpreter {
 }
 
 (binary . inc) {
-    nil -> b1;
+    nil -> (b1);
     (b0 . @rest) -> (b1 . @rest);
     (b1 . @rest) -> (binary . inc): @rest {
         @new_rest -> (b0 . @new_rest);
