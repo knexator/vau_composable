@@ -119,6 +119,17 @@ function asListPlusSentinel(x: SexprTemplate): { list: SexprTemplate[], sentinel
     }
 }
 
+function asNElementList(count: number, s: SexprTemplate): { list: SexprTemplate[], rest: SexprTemplate } {
+    if (count === 0) {
+        return { list: [], rest: s };
+    }
+    else {
+        if (s.type !== 'pair') throw new Error('bad');
+        const { list: inner_list, rest } = asNElementList(count - 1, s.right);
+        return { list: [s.left, ...inner_list], rest };
+    }
+}
+
 export function sexprToString(input: SexprTemplate, mode: '#' | '@' | '#@' = '#'): string {
     const { list, sentinel } = asListPlusSentinel(input);
     const sentinel_str = sentinel.type === 'atom'
@@ -237,21 +248,28 @@ export function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLite
         if (equalSexprs(fnk.name, fnk_name)) return fnk;
     }
     if (fnk_name.type === 'pair') {
-        try {
-            const new_fnk = { name: fnk_name, cases: casesFromSexpr(applyFunktion(all_fnks, fnk_name.left, fnk_name.right)) };
-            all_fnks.push(new_fnk);
-            return new_fnk;
-        }
-        catch (error) {
-            throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
-        }
+        // try {
+        const new_fnk = { name: fnk_name, cases: casesFromSexpr(applyFunktion(all_fnks, fnk_name.left, fnk_name.right)) };
+        all_fnks.push(new_fnk);
+        return new_fnk;
+        // }
+        // catch (error) {
+        //     throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
+        // }
     }
     throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
 }
 
 export function casesFromSexpr(sexpr: SexprLiteral): MatchCaseDefinition[] {
     return asList(sexpr).map((c) => {
-        const { list: [pattern, fn_name_template, template, ...extra], sentinel: next } = asListPlusSentinel(c);
+        const { list: [pattern, fn_name_template, template, ...extra], rest: next } = asNElementList(3, c);
+        // let { list: [pattern, fn_name_template, template, ...extra], sentinel: next } = asListPlusSentinel(c);
+        // if (isAtom(next, 'nil')) {
+        //     next = doList(extra);
+        // }
+        // else {
+        //     assertEmpty(extra);
+        // }
         assertEmpty(extra);
         [pattern, fn_name_template, template, next].map(assertNotNull);
         return {

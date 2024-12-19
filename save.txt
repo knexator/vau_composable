@@ -244,22 +244,24 @@ interpreter {
     }
 }
 
+//  ./vau save.txt '(advent day1 p1 . test)' '(6 1 2 3)'
 (advent day1 p1 . test) {
-    // @numbers -> ((compile mapEach) . (binary . fromHexadecimal)): @numbers;
-    @numbers -> (advent day1 p1 test . mapEachHexaToBinary): @numbers {
-        @binary_numbers -> (sort . binary): @binary_numbers;
+    @numbers -> ((compiled . map) . (binary . fromHexadecimal)): @numbers {
+        @binary_numbers -> (sort . binary): @binary_numbers {
+            @sorted_binary_numbers -> ((compiled . map) . (hexadecimal to . binary)): @sorted_binary_numbers;
+        }
     }
 }
 
 (compiled . map) {
     @fnk_name -> (
-        ((#atom . nil) #identity (#atom . nil) . #return)
-        (((#var . #first) . (#var . #rest)) @fnk_name (#var . #first) (
-            (#var . #mapped_first) ((compiled . map) . @fnk_name) (#var . #rest) ((#var . #mapped_rest) . (#identity . (((#var . #mapped_first) . (#var . #mapped_rest)) . #return)))
+        ((atom . nil) identity (atom . nil) . return)
+        (((var . first) . (var . rest)) @fnk_name (var . first) . (
+            ((var . mapped_first) ((compiled . map) . @fnk_name) (var . rest) . (
+                ((var . mapped_rest) identity ((var . mapped_first) . (var . mapped_rest)) . return)
+            ))
         ))
     );
-
-    (((#atom) . (#identity . ((#atom) . #return))) (((#var . #first) . (#var . #rest)) (#binary . #fromHexadecimal) (#var . #first) ((#var . #mapped_first) (#advent . (#day1 . (#p1 . (#test . #mapEachHexaToBinary)))) (#var . #rest) ((#var . #mapped_rest) . (#identity . (((#var . #mapped_first) . (#var . #mapped_rest)) . #return))))))
 }
 
 (advent day1 p1 test . mapEachHexaToBinary) {
