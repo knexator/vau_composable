@@ -157,6 +157,12 @@ interpreter {
     }
 }
 
+(binary . absDist) {
+    (@a . @b) -> (binary signed . sub): (@a . @b) {
+        (@sign . @result) -> @result;
+    }
+}
+
 // sign: isNegative?
 // TODO: change the name so it's clear the input is unsigned
 (binary signed . sub) {
@@ -234,11 +240,24 @@ interpreter {
 
 // (sum (map (zip c1 c2) absDist))
 // gets a list of chars
-(advent day1 p1) {
+// ./vau save.txt '(advent day1 . p1)' '(3 SPACE SPACE SPACE 4 NEWLINE 4 SPACE SPACE SPACE 3 NEWLINE 2 SPACE SPACE SPACE 5 NEWLINE 1 SPACE SPACE SPACE 3 NEWLINE 3 SPACE SPACE SPACE 9 NEWLINE 3 SPACE SPACE SPACE 3 NEWLINE)'
+(advent day1 . p1) {
     @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars {
         (@col1 . @col2) -> (sort . binary): @col1 {
             @sorted_col1 -> (sort . binary): @col2 {
-                @sorted_col2 -> (advent day1 p1 . final): (@sorted_col1 @sorted_col2 . b0);
+                // @sorted_col2 -> (@sorted_col1 @sorted_col2);
+                @sorted_col2 -> (advent day1 p1 . final): (@sorted_col1 @sorted_col2 . (b0));
+            }
+        }
+    }
+}
+
+(advent day1 p1 . parseAndConvertToBinaryAnd2Cols) {
+    nil -> (nil . nil);
+    (@a SPACE SPACE SPACE @b NEWLINE . @rest) -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @rest {
+        (@rest_a . @rest_b) -> (binary . fromHexadecimal): @a {
+            @bin_a -> (binary . fromHexadecimal): @b {
+                @bin_b -> ( (@bin_a . @rest_a) . (@bin_b . @rest_b) );
             }
         }
     }
@@ -264,20 +283,8 @@ interpreter {
     );
 }
 
-(advent day1 p1 test . mapEachHexaToBinary) {
-    nil -> nil;
-    (@first . @rest) -> (binary . fromHexadecimal): @first {
-        @mapped_first -> (advent day1 p1 test . mapEachHexaToBinary): @rest {
-            @mapped_rest -> (@mapped_first . @mapped_rest);
-        }
-    }
-}
-
-// (compile mapEach) {
-    // @fnk_name
-// }
-
 (advent day1 p1 . final) {
+    (nil nil . @acc) -> @acc;
     ((@c1_first . @c1_rest) (@c2_first . @c2_rest) . @acc) -> (binary . absDist): (@c1_first . @c2_first) {
         @diff -> (binary . add): (@diff . @acc) {
             @new_acc -> (advent day1 p1 . final): (@c1_rest @c2_rest . @new_acc);
