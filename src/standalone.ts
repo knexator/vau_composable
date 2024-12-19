@@ -19,6 +19,10 @@ if (process.argv[2] === 'fnk2val') {
 }
 else {
     const all_fnks = parseFnks(fileContents(process.argv[2]), '@');
-    const result = applyFunktion(all_fnks, parseSexprLiteral(process.argv[3], '@'), parseSexprLiteral(process.argv[4], '@'));
+    const input = parseSexprLiteral(process.argv[4] === 'file' ? fileContents(process.argv[5]) : process.argv[4], '@');
+    const fnk_name = parseSexprLiteral(process.argv[3], '@');
+    console.time('eval');
+    const result = applyFunktion(all_fnks, fnk_name, input);
+    console.timeEnd('eval');
     console.log(sexprToString(result, '@'));
 }

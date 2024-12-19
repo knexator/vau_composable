@@ -255,8 +255,6 @@ interpreter {
 // ./vau save.txt '(advent day1 . p1)' '(3 SPACE SPACE SPACE 4 NEWLINE 4 SPACE SPACE SPACE 3 NEWLINE 2 SPACE SPACE SPACE 5 NEWLINE 1 SPACE SPACE SPACE 3 NEWLINE 3 SPACE SPACE SPACE 9 NEWLINE 3 SPACE SPACE SPACE 3 NEWLINE)'
 // ./vau save.txt '(advent day1 . p1)' '(4 1 2 2 6 SPACE SPACE SPACE 6 9 1 9 0 NEWLINE)'
 (advent day1 . p1) {
-    @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars;
-
     @chars -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @chars {
         (@col1 . @col2) -> (sort . binary): @col1 {
             @sorted_col1 -> (sort . binary): @col2 {
@@ -277,11 +275,12 @@ interpreter {
         }
     }
     @chars -> (parse hexadecimal until space or newline): @chars {
-        (@number_1 SPACE SPACE SPACE . @rest) -> (binary . fromHexadecimal): @number_1 {
-            @binary_1 -> (parse hexadecimal until space or newline): @rest {
+        (@number_1 SPACE SPACE SPACE . @rest_1) -> (binary . fromHexadecimal): @number_1 {
+            @binary_1 -> (parse hexadecimal until space or newline): @rest_1 {
                 (@number_2 NEWLINE . @rest_2) -> (binary . fromHexadecimal): @number_2 {
-                    // TODO: more
-                    @binary_2 -> (binary . add): (@binary_1 . @binary_2);
+                    @binary_2 -> (advent day1 p1 . parseAndConvertToBinaryAnd2Cols): @rest_2 {
+                        (@col_a_rest . @col_b_rest) -> ( (@binary_1 . @col_a_rest) . (@binary_2 . @col_b_rest) );
+                    }
                 }
             }
         }
@@ -370,6 +369,7 @@ reverse {
 }
 
 (hexadecimal . fromBinary) {
+    // todo: more than 1 digit
     @stuff -> (compileMap . ( 
         (() . 0 ) 
         ((b1) . 1 ) 
