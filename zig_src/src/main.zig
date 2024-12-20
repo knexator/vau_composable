@@ -12,6 +12,10 @@ const std = @import("std");
 // };
 const Atom = struct {
     value: []const u8,
+
+    const nil: Atom = .{
+        .value = "nil",
+    };
 };
 const Pair = struct {
     left: *const Sexpr,
@@ -62,6 +66,10 @@ fn parseSexpr(input: []const u8) !struct { sexpr: Sexpr, rest: []const u8 } {
                 .sexpr = .{ .pair = .{ .left = &left, .right = &right } },
                 .rest = rest[1..],
             };
+            // } else {
+            //     // const rest_asdf = try parseSexpr(rest[1..]);
+            //     // _ = rest_asdf; // autofix
+            // }
         } else return error.TODO;
     }
     const asdf = try parseAtom(rest);
@@ -69,8 +77,9 @@ fn parseSexpr(input: []const u8) !struct { sexpr: Sexpr, rest: []const u8 } {
 }
 
 fn parseAtom(input: []const u8) !struct { atom: Atom, rest: []const u8 } {
+    const word_breaks: [std.ascii.whitespace.len + 1]u8 = .{')'} ++ std.ascii.whitespace;
     const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
-    const word_end = std.mem.indexOfAnyPos(u8, rest, 0, &std.ascii.whitespace) orelse rest.len;
+    const word_end = std.mem.indexOfAnyPos(u8, rest, 0, &word_breaks) orelse rest.len;
     return .{
         .atom = Atom{ .value = rest[0..word_end] },
         .rest = rest[word_end..],
@@ -99,7 +108,7 @@ test "parse atom" {
 }
 
 test "parse pair" {
-    const raw_input = "( hello . there )";
+    const raw_input = "(hello . there)";
 
     var remaining: []const u8 = raw_input;
     const asdf = try parseSexpr(remaining);
@@ -111,6 +120,20 @@ test "parse pair" {
     try std.testing.expectEqualStrings("there", atom2.value);
     try std.testing.expectEqualStrings("", remaining);
 }
+
+// test "parse list" {
+//     const raw_input = "( hello )";
+
+//     var remaining: []const u8 = raw_input;
+//     const asdf = try parseSexpr(remaining);
+//     const atom1 = asdf.sexpr.pair.left.atom;
+//     const atom2 = asdf.sexpr.pair.right.atom;
+//     remaining = asdf.rest;
+
+//     try std.testing.expectEqualStrings("hello", atom1.value);
+//     try std.testing.expectEqualStrings("nil", atom2.value);
+//     try std.testing.expectEqualStrings("", remaining);
+// }
 
 // test "parse pair" {
 //     const input = "(hello . there)";
