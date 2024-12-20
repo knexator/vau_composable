@@ -1,5 +1,7 @@
 const std = @import("std");
 
+// Design decision 1: strings live on the input buffer
+
 // const max_inlined_len = 12;
 // const Atom = union(enum) {
 //     inlined: struct {
@@ -42,27 +44,22 @@ pub fn main() !void {
     try bw.flush();
 }
 
-fn parseSexpr(allocator: std.mem.Allocator, reader: anytype) !Sexpr {
-    const atom = try parseAtom(allocator, reader);
-    return Sexpr{ .atom = atom };
+fn parseSexpr(input: []const u8) !struct { sexpr: Sexpr, rest: []const u8 } {
+    // if (input[0] == '(') {
+    //      = parseSexpr(input: []const u8)
+    // }
+    const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    const asdf = try parseAtom(rest);
+    return .{ .sexpr = Sexpr{ .atom = asdf.atom }, .rest = asdf.rest };
 }
 
-fn parseAtom(allocator: std.mem.Allocator, reader: anytype) !Atom {
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
-
-    while (true) {
-        const byte = reader.readByte() catch |err| switch (err) {
-            error.EndOfStream => break,
-            else => return err,
-        };
-        if (std.ascii.isWhitespace(byte)) {
-            break;
-        }
-        try buffer.append(byte);
-    }
-
-    return Atom{ .value = try buffer.toOwnedSlice() };
+fn parseAtom(input: []const u8) !struct { atom: Atom, rest: []const u8 } {
+    const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    const word_end = std.mem.indexOfAnyPos(u8, rest, 0, &std.ascii.whitespace) orelse rest.len;
+    return .{
+        .atom = Atom{ .value = rest[0..word_end] },
+        .rest = rest[word_end..],
+    };
 }
 
 fn parsePair(allocator: std.mem.Allocator, reader: anytype) !Pair {
@@ -71,17 +68,19 @@ fn parsePair(allocator: std.mem.Allocator, reader: anytype) !Pair {
 }
 
 test "parse atom" {
-    const input = "hello there";
-    var fbs = std.io.fixedBufferStream(input);
-    const reader = fbs.reader();
+    const raw_input = "hello there";
 
-    const atom1 = (try parseSexpr(std.testing.allocator, reader)).atom;
-    defer std.testing.allocator.free(atom1.value);
-    const atom2 = (try parseSexpr(std.testing.allocator, reader)).atom;
-    defer std.testing.allocator.free(atom2.value);
+    var remaining: []const u8 = raw_input;
+    const asdf1 = try parseSexpr(remaining);
+    const atom1 = asdf1.sexpr.atom;
+    remaining = asdf1.rest;
+    const asdf2 = try parseSexpr(remaining);
+    const atom2 = asdf2.sexpr.atom;
+    remaining = asdf2.rest;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
+    try std.testing.expectEqualStrings("", remaining);
 }
 
 // test "parse pair" {
@@ -97,7 +96,18 @@ test "parse atom" {
 //     try std.testing.expectEqualStrings("there", pair.right.atom.value);
 // }
 
-// pub fn PeekableReader() type {}
+// pub fn PeekableReader(comptime peekable_size: usize, comptime ReaderType: type) type {
+//     return struct {
+//         unbuffered_reader: ReaderType,
+//         buf: [peekable_size]u8 = undefined,
+//         start: usize = 0,
+//         end: usize = 0,
+
+//         const Self = @This();
+
+//         pub fn peek(self: *Self, dest: []u8)
+//     };
+// }
 
 // test "simple test" {
 //     var list = std.ArrayList(i32).init(std.testing.allocator);
