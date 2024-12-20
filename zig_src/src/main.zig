@@ -14,8 +14,8 @@ const Atom = struct {
     value: []const u8,
 };
 const Pair = struct {
-    left: *Sexpr,
-    right: *Sexpr,
+    left: *const Sexpr,
+    right: *const Sexpr,
 };
 const Sexpr = union(enum) {
     atom: Atom,
@@ -43,12 +43,27 @@ pub fn main() !void {
 
     try bw.flush();
 }
-
+// , allocator: std.mem.Allocator
 fn parseSexpr(input: []const u8) !struct { sexpr: Sexpr, rest: []const u8 } {
     // if (input[0] == '(') {
     //      = parseSexpr(input: []const u8)
     // }
-    const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    if (rest[0] == '(') {
+        const first_asdf = try parseSexpr(rest[1..]);
+        const left = first_asdf.sexpr;
+        rest = std.mem.trimLeft(u8, first_asdf.rest, &std.ascii.whitespace);
+        if (rest[0] == '.') {
+            const second_asdf = try parseSexpr(rest[1..]);
+            const right = second_asdf.sexpr;
+            rest = std.mem.trimLeft(u8, second_asdf.rest, &std.ascii.whitespace);
+            if (rest[0] != ')') return error.BAD_INPUT;
+            return .{
+                .sexpr = .{ .pair = .{ .left = &left, .right = &right } },
+                .rest = rest[1..],
+            };
+        } else return error.TODO;
+    }
     const asdf = try parseAtom(rest);
     return .{ .sexpr = Sexpr{ .atom = asdf.atom }, .rest = asdf.rest };
 }
@@ -77,6 +92,20 @@ test "parse atom" {
     const asdf2 = try parseSexpr(remaining);
     const atom2 = asdf2.sexpr.atom;
     remaining = asdf2.rest;
+
+    try std.testing.expectEqualStrings("hello", atom1.value);
+    try std.testing.expectEqualStrings("there", atom2.value);
+    try std.testing.expectEqualStrings("", remaining);
+}
+
+test "parse pair" {
+    const raw_input = "( hello . there )";
+
+    var remaining: []const u8 = raw_input;
+    const asdf = try parseSexpr(remaining);
+    const atom1 = asdf.sexpr.pair.left.atom;
+    const atom2 = asdf.sexpr.pair.right.atom;
+    remaining = asdf.rest;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
