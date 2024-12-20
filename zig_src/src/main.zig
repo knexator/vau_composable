@@ -21,6 +21,10 @@ const Atom = struct {
     pub fn equals(this: Atom, other: Atom) bool {
         return std.mem.eql(u8, this.value, other.value);
     }
+
+    pub fn isVar(this: Atom) bool {
+        return this.value.len > 1 and this.value[0] == '@';
+    }
 };
 const Pair = struct {
     left: *const Sexpr,
@@ -243,6 +247,85 @@ fn asListPlusSentinel(s: Sexpr, l: *std.ArrayList(*const Sexpr)) !Sexpr {
         .pair => {
             try l.append(s.pair.left);
             return try asListPlusSentinel(s.pair.right.*, l);
+        },
+    }
+}
+
+test "fill template" {
+    const pattern_input = "((@a . b) . @c)";
+    const value_input = "((first . b) . second)";
+
+    const template_input = "(@a . (b . @c))";
+    const expected = "(first b . second)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const pattern = (try parseSexpr(pattern_input, &pool)).sexpr;
+    const value = (try parseSexpr(value_input, &pool)).sexpr;
+    const template = (try parseSexpr(template_input, &pool)).sexpr;
+
+    const result = (try bindAndFill(&pattern, &value, &template, &pool, std.testing.allocator)).?.*;
+
+    var buffer: [expected.len]u8 = undefined;
+    var in_stream = std.io.fixedBufferStream(&buffer);
+    const writer = in_stream.writer().any();
+    try writeSexpr(result, writer, std.testing.allocator);
+
+    try std.testing.expectEqualStrings(expected, in_stream.getWritten());
+}
+
+fn bindAndFill(pattern: *const Sexpr, value: *const Sexpr, template: *const Sexpr, pool: *MemoryPool(Sexpr), temp_allocator: std.mem.Allocator) !?*const Sexpr {
+    var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_allocator);
+    defer bindings.deinit();
+    const valid = try generateBindings(pattern, value, &bindings);
+    if (!valid) return null;
+
+    // try std.testing.expectEqual(2, bindings.count());
+
+    return try fillTemplate(template, &bindings, pool);
+}
+
+fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr)) !bool {
+    switch (pattern.*) {
+        .atom => |pat| {
+            if (pat.isVar()) {
+                // TODO: return false if variable was already bound
+                try bindings.put(pat.value, value);
+                return true;
+            } else {
+                switch (value.*) {
+                    .pair => return false,
+                    .atom => |val| return std.mem.eql(u8, pat.value, val.value),
+                }
+            }
+        },
+        .pair => |pat| {
+            switch (value.*) {
+                .atom => return false,
+                .pair => |val| {
+                    return (try generateBindings(pat.left, val.left, bindings)) and (try generateBindings(pat.right, val.right, bindings));
+                },
+            }
+        },
+    }
+}
+
+fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr), pool: *MemoryPool(Sexpr)) !*const Sexpr {
+    switch (template.*) {
+        .atom => |templ| {
+            if (templ.isVar()) {
+                return bindings.get(templ.value).?;
+            } else {
+                return template;
+            }
+        },
+        .pair => |templ| {
+            const left = try fillTemplate(templ.left, bindings, pool);
+            const right = try fillTemplate(templ.right, bindings, pool);
+            const result: *Sexpr = try pool.create();
+            result.* = Sexpr{ .pair = Pair{ .left = left, .right = right } };
+            return result;
         },
     }
 }
