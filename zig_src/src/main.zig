@@ -17,6 +17,10 @@ const Atom = struct {
     const nil: Atom = .{
         .value = "nil",
     };
+
+    pub fn equals(this: Atom, other: Atom) bool {
+        return std.mem.eql(u8, this.value, other.value);
+    }
 };
 const Pair = struct {
     left: *const Sexpr,
@@ -25,6 +29,19 @@ const Pair = struct {
 const Sexpr = union(enum) {
     atom: Atom,
     pair: Pair,
+
+    pub fn equals(this: Sexpr, other: Sexpr) bool {
+        return switch (this) {
+            .atom => switch (other) {
+                .atom => this.atom.equals(other.atom),
+                .pair => false,
+            },
+            .pair => switch (other) {
+                .atom => false,
+                .pair => this.pair.left.equals(other.pair.left.*) and this.pair.right.equals(other.pair.right.*),
+            },
+        };
+    }
 };
 
 pub fn main() !void {
@@ -49,34 +66,36 @@ pub fn main() !void {
     try bw.flush();
 }
 // , allocator: std.mem.Allocator
-fn parseSexpr(input: []const u8, pool: *MemoryPool(Sexpr)) !struct { sexpr: Sexpr, rest: []const u8 } {
+fn parseSexpr(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, BAD_INPUT }!struct { sexpr: Sexpr, rest: []const u8 } {
     var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
     if (rest[0] == '(') {
-        const first_asdf = try parseSexpr(rest[1..], pool);
-        const left: *Sexpr = try pool.create();
-        left.* = first_asdf.sexpr;
-        rest = std.mem.trimLeft(u8, first_asdf.rest, &std.ascii.whitespace);
-        if (rest[0] == '.') {
-            const second_asdf = try parseSexpr(rest[1..], pool);
-            const right: *Sexpr = try pool.create();
-            right.* = second_asdf.sexpr;
-            rest = std.mem.trimLeft(u8, second_asdf.rest, &std.ascii.whitespace);
-            if (rest[0] != ')') return error.BAD_INPUT;
-            return .{
-                .sexpr = .{ .pair = .{ .left = left, .right = right } },
-                .rest = rest[1..],
-            };
-        } else if (rest[0] == ')') {
-            const right: *Sexpr = try pool.create();
-            right.* = .{ .atom = Atom.nil };
-            return .{
-                .sexpr = .{ .pair = .{ .left = left, .right = right } },
-                .rest = rest[1..],
-            };
-        } else return error.TODO;
+        const asdf = try parseSexprInsideParens(rest[1..], pool);
+        return .{ .sexpr = asdf.sexpr, .rest = asdf.rest };
     }
     const asdf = try parseAtom(rest);
     return .{ .sexpr = Sexpr{ .atom = asdf.atom }, .rest = asdf.rest };
+}
+
+fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct { sexpr: Sexpr, rest: []const u8 } {
+    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    if (rest[0] == ')') {
+        return .{ .sexpr = Sexpr{ .atom = Atom.nil }, .rest = rest[1..] };
+    }
+    if (rest[0] == '.') {
+        const final_asdf = try parseSexpr(rest[1..], pool);
+        rest = std.mem.trimLeft(u8, final_asdf.rest, &std.ascii.whitespace);
+        if (rest[0] != ')') return error.BAD_INPUT;
+        return .{ .sexpr = final_asdf.sexpr, .rest = rest[1..] };
+    }
+    const first_asdf = try parseSexpr(rest, pool);
+    const rest_asdf = try parseSexprInsideParens(first_asdf.rest, pool);
+
+    const left: *Sexpr = try pool.create();
+    left.* = first_asdf.sexpr;
+    const right: *Sexpr = try pool.create();
+    right.* = rest_asdf.sexpr;
+
+    return .{ .sexpr = .{ .pair = .{ .left = left, .right = right } }, .rest = rest_asdf.rest };
 }
 
 fn parseAtom(input: []const u8) !struct { atom: Atom, rest: []const u8 } {
@@ -145,7 +164,7 @@ test "parse nested" {
 }
 
 test "parse one element list" {
-    const raw_input = "( hello )";
+    const raw_input = "(hello)";
 
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
@@ -159,6 +178,19 @@ test "parse one element list" {
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("nil", atom2.value);
     try std.testing.expectEqualStrings("", remaining);
+}
+
+test "parse complex stuff" {
+    const raw_input_1 = "(() a (b c) . (d e))";
+    const raw_input_2 = "(nil . (a . ((b . (c . nil)) . (d . (e . nil)))))";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const actual = (try parseSexpr(raw_input_1, &pool)).sexpr;
+    const expected = (try parseSexpr(raw_input_2, &pool)).sexpr;
+
+    try std.testing.expect(expected.equals(actual));
 }
 
 // test "parse pair" {
