@@ -192,3 +192,57 @@ test "parse complex stuff" {
 
     try std.testing.expect(expected.equals(actual));
 }
+
+test "to string" {
+    const raw_input = "(() a (b c) d . e)";
+    const expected = "(nil a (b c) d . e)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    var buffer: [expected.len]u8 = undefined;
+    var in_stream = std.io.fixedBufferStream(&buffer);
+    const writer = in_stream.writer().any();
+    const sexpr = (try parseSexpr(raw_input, &pool)).sexpr;
+    try writeSexpr(sexpr, writer, std.testing.allocator);
+
+    try std.testing.expectEqualStrings(expected, in_stream.getWritten());
+}
+
+fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) !void {
+    switch (s) {
+        .atom => {
+            try w.writeAll(s.atom.value);
+        },
+        .pair => {
+            var asdf = std.ArrayList(*const Sexpr).init(temp_allocator);
+            defer asdf.deinit();
+
+            const sentinel = try asListPlusSentinel(s, &asdf);
+            try w.writeAll("(");
+            for (asdf.items, 0..) |item, k| {
+                try writeSexpr(item.*, w, temp_allocator);
+                if (k + 1 < asdf.items.len) {
+                    try w.writeAll(" ");
+                }
+            }
+            if (sentinel.equals(Sexpr{ .atom = Atom.nil })) {
+                try w.writeAll(")");
+            } else {
+                try w.writeAll(" . ");
+                try writeSexpr(sentinel, w, temp_allocator);
+                try w.writeAll(")");
+            }
+        },
+    }
+}
+
+fn asListPlusSentinel(s: Sexpr, l: *std.ArrayList(*const Sexpr)) !Sexpr {
+    switch (s) {
+        .atom => return s,
+        .pair => {
+            try l.append(s.pair.left);
+            return try asListPlusSentinel(s.pair.right.*, l);
+        },
+    }
+}
