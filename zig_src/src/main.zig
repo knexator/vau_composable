@@ -65,7 +65,7 @@ pub fn main() !void {
 
     try bw.flush();
 }
-// , allocator: std.mem.Allocator
+
 fn parseSexpr(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, BAD_INPUT }!struct { sexpr: Sexpr, rest: []const u8 } {
     var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
     if (rest[0] == '(') {
@@ -192,36 +192,3 @@ test "parse complex stuff" {
 
     try std.testing.expect(expected.equals(actual));
 }
-
-// test "parse pair" {
-//     const input = "(hello . there)";
-//     var fbs = std.io.fixedBufferStream(input);
-//     const reader = fbs.reader();
-
-//     const pair = try parseSexpr(std.testing.allocator, reader);
-//     defer std.testing.allocator.free(pair.left.atom.value);
-//     defer std.testing.allocator.free(pair.right.atom.value);
-
-//     try std.testing.expectEqualStrings("hello", pair.left.atom.value);
-//     try std.testing.expectEqualStrings("there", pair.right.atom.value);
-// }
-
-// pub fn PeekableReader(comptime peekable_size: usize, comptime ReaderType: type) type {
-//     return struct {
-//         unbuffered_reader: ReaderType,
-//         buf: [peekable_size]u8 = undefined,
-//         start: usize = 0,
-//         end: usize = 0,
-
-//         const Self = @This();
-
-//         pub fn peek(self: *Self, dest: []u8)
-//     };
-// }
-
-// test "simple test" {
-//     var list = std.ArrayList(i32).init(std.testing.allocator);
-//     defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-//     try list.append(42);
-//     try std.testing.expectEqual(@as(i32, 42), list.pop());
-// }
