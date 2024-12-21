@@ -380,6 +380,39 @@ test "parse flat fnk" {
     try std.testing.expectEqualStrings("add", fnk.name.atom.value);
     try std.testing.expectEqual(2, fnk.cases.items.len);
     try std.testing.expectEqualStrings("@a", fnk.cases.items[1].pattern.pair.left.pair.right.atom.value);
+    try std.testing.expectEqual(null, fnk.cases.items[1].next);
+    try std.testing.expectEqualStrings("", remaining);
+}
+
+test "parse nested fnk" {
+    const raw_input =
+        \\ senseless: {
+        \\  (nil . @b) -> @b {
+        \\      nil -> nil;
+        \\      @a -> (asdf @a);
+        \\  }
+        \\  ((S . @a) . @b) -> add: (@a . (S . @b)) {
+        \\      @x -> @x {
+        \\          @y -> @y;
+        \\      }
+        \\      @x -> @x {
+        \\          @y -> @y;
+        \\      }
+        \\  }
+        \\ }
+    ;
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    var remaining: []const u8 = raw_input;
+    const fnk = try parseFnk(&remaining, &pool, std.testing.allocator);
+    defer fnk.arena.deinit();
+
+    try std.testing.expectEqual(2, fnk.cases.items.len);
+    try std.testing.expectEqual(2, fnk.cases.items[1].next.?.items.len);
+    try std.testing.expectEqual(1, fnk.cases.items[1].next.?.items[1].next.?.items.len);
+    // try std.testing.expectEqualStrings("@a", fnk.cases.items[1].pattern.pair.left.pair.right.atom.value);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -427,7 +460,8 @@ fn parseMatchCases(input: *[]const u8, pool: *MemoryPool(Sexpr), arena: *std.hea
         if (parseCharIfPossible(input, ';')) {
             next = null;
         } else {
-            return error.TODO;
+            try parseChar(input, '{');
+            next = try parseMatchCases(input, pool, arena);
         }
         skipWhitespace(input);
 
