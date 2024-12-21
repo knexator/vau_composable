@@ -14,9 +14,7 @@ const MemoryPool = std.heap.MemoryPool;
 const Atom = struct {
     value: []const u8,
 
-    const nil: Atom = .{
-        .value = "nil",
-    };
+    const nil: Atom = .{ .value = "nil" };
 
     pub fn equals(this: Atom, other: Atom) bool {
         return std.mem.eql(u8, this.value, other.value);
@@ -34,6 +32,8 @@ const Sexpr = union(enum) {
     atom: Atom,
     pair: Pair,
 
+    const identity = Sexpr{ .atom = .{ .value = "identity" } };
+
     pub fn equals(this: Sexpr, other: Sexpr) bool {
         return switch (this) {
             .atom => switch (other) {
@@ -46,6 +46,20 @@ const Sexpr = union(enum) {
             },
         };
     }
+};
+
+const InnerCases = std.ArrayListUnmanaged(MatchCaseDefinition);
+const MatchCaseDefinition = struct {
+    pattern: Sexpr,
+    fn_name: Sexpr,
+    template: Sexpr,
+    next: ?InnerCases,
+};
+
+const Fnk = struct {
+    name: Sexpr,
+    cases: InnerCases,
+    arena: std.heap.ArenaAllocator,
 };
 
 pub fn main() !void {
@@ -70,7 +84,13 @@ pub fn main() !void {
     try bw.flush();
 }
 
-fn parseSexpr(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, BAD_INPUT }!struct { sexpr: Sexpr, rest: []const u8 } {
+fn parseSexpr(input: *[]const u8, pool: *MemoryPool(Sexpr)) !Sexpr {
+    const result = try parseSexprTrue(input.*, pool);
+    input.* = result.rest;
+    return result.sexpr;
+}
+
+fn parseSexprTrue(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, BAD_INPUT }!struct { sexpr: Sexpr, rest: []const u8 } {
     var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
     if (rest[0] == '(') {
         const asdf = try parseSexprInsideParens(rest[1..], pool);
@@ -86,12 +106,12 @@ fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct {
         return .{ .sexpr = Sexpr{ .atom = Atom.nil }, .rest = rest[1..] };
     }
     if (rest[0] == '.') {
-        const final_asdf = try parseSexpr(rest[1..], pool);
+        const final_asdf = try parseSexprTrue(rest[1..], pool);
         rest = std.mem.trimLeft(u8, final_asdf.rest, &std.ascii.whitespace);
         if (rest[0] != ')') return error.BAD_INPUT;
         return .{ .sexpr = final_asdf.sexpr, .rest = rest[1..] };
     }
-    const first_asdf = try parseSexpr(rest, pool);
+    const first_asdf = try parseSexprTrue(rest, pool);
     const rest_asdf = try parseSexprInsideParens(first_asdf.rest, pool);
 
     const left: *Sexpr = try pool.create();
@@ -103,7 +123,7 @@ fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct {
 }
 
 fn parseAtom(input: []const u8) !struct { atom: Atom, rest: []const u8 } {
-    const word_breaks: [std.ascii.whitespace.len + 1]u8 = .{')'} ++ std.ascii.whitespace;
+    const word_breaks = .{ '(', ')', ':', '.', ';' } ++ std.ascii.whitespace;
     const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
     const word_end = std.mem.indexOfAnyPos(u8, rest, 0, &word_breaks) orelse rest.len;
     return .{
@@ -119,15 +139,30 @@ test "parse atom" {
     defer pool.deinit();
 
     var remaining: []const u8 = raw_input;
-    const asdf1 = try parseSexpr(remaining, &pool);
+    const asdf1 = try parseSexprTrue(remaining, &pool);
     const atom1 = asdf1.sexpr.atom;
     remaining = asdf1.rest;
-    const asdf2 = try parseSexpr(remaining, &pool);
+    const asdf2 = try parseSexprTrue(remaining, &pool);
     const atom2 = asdf2.sexpr.atom;
     remaining = asdf2.rest;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
+    try std.testing.expectEqualStrings("", remaining);
+}
+
+test "helper function" {
+    const raw_input = "hello there";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    var remaining: []const u8 = raw_input;
+    const sexpr1 = try parseSexpr(&remaining, &pool);
+    const sexpr2 = try parseSexpr(&remaining, &pool);
+
+    try std.testing.expectEqualStrings("hello", sexpr1.atom.value);
+    try std.testing.expectEqualStrings("there", sexpr2.atom.value);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -138,10 +173,9 @@ test "parse pair" {
     defer pool.deinit();
 
     var remaining: []const u8 = raw_input;
-    const asdf = try parseSexpr(remaining, &pool);
-    const atom1 = asdf.sexpr.pair.left.atom;
-    const atom2 = asdf.sexpr.pair.right.atom;
-    remaining = asdf.rest;
+    const sexpr = try parseSexpr(&remaining, &pool);
+    const atom1 = sexpr.pair.left.atom;
+    const atom2 = sexpr.pair.right.atom;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
@@ -155,11 +189,10 @@ test "parse nested" {
     defer pool.deinit();
 
     var remaining: []const u8 = raw_input;
-    const asdf = try parseSexpr(remaining, &pool);
-    const atom1 = asdf.sexpr.pair.left.atom;
-    const atom2 = asdf.sexpr.pair.right.pair.left.atom;
-    const atom3 = asdf.sexpr.pair.right.pair.right.atom;
-    remaining = asdf.rest;
+    const sexpr = try parseSexpr(&remaining, &pool);
+    const atom1 = sexpr.pair.left.atom;
+    const atom2 = sexpr.pair.right.pair.left.atom;
+    const atom3 = sexpr.pair.right.pair.right.atom;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
@@ -174,10 +207,9 @@ test "parse one element list" {
     defer pool.deinit();
 
     var remaining: []const u8 = raw_input;
-    const asdf = try parseSexpr(remaining, &pool);
-    const atom1 = asdf.sexpr.pair.left.atom;
-    const atom2 = asdf.sexpr.pair.right.atom;
-    remaining = asdf.rest;
+    const sexpr = try parseSexpr(&remaining, &pool);
+    const atom1 = sexpr.pair.left.atom;
+    const atom2 = sexpr.pair.right.atom;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("nil", atom2.value);
@@ -191,8 +223,8 @@ test "parse complex stuff" {
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
 
-    const actual = (try parseSexpr(raw_input_1, &pool)).sexpr;
-    const expected = (try parseSexpr(raw_input_2, &pool)).sexpr;
+    const actual = (try parseSexprTrue(raw_input_1, &pool)).sexpr;
+    const expected = (try parseSexprTrue(raw_input_2, &pool)).sexpr;
 
     try std.testing.expect(expected.equals(actual));
 }
@@ -207,7 +239,7 @@ test "to string" {
     var buffer: [expected.len]u8 = undefined;
     var in_stream = std.io.fixedBufferStream(&buffer);
     const writer = in_stream.writer().any();
-    const sexpr = (try parseSexpr(raw_input, &pool)).sexpr;
+    const sexpr = (try parseSexprTrue(raw_input, &pool)).sexpr;
     try writeSexpr(sexpr, writer, std.testing.allocator);
 
     try std.testing.expectEqualStrings(expected, in_stream.getWritten());
@@ -261,9 +293,9 @@ test "fill template" {
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
 
-    const pattern = (try parseSexpr(pattern_input, &pool)).sexpr;
-    const value = (try parseSexpr(value_input, &pool)).sexpr;
-    const template = (try parseSexpr(template_input, &pool)).sexpr;
+    const pattern = (try parseSexprTrue(pattern_input, &pool)).sexpr;
+    const value = (try parseSexprTrue(value_input, &pool)).sexpr;
+    const template = (try parseSexprTrue(template_input, &pool)).sexpr;
 
     const result = (try bindAndFill(&pattern, &value, &template, &pool, std.testing.allocator)).?.*;
 
@@ -328,4 +360,98 @@ fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const
             return result;
         },
     }
+}
+
+test "parse flat fnk" {
+    const raw_input =
+        \\ add: {
+        \\  (nil . @b) -> @b;
+        \\  ((S . @a) . @b) -> add: (@a . (S . @b));
+        \\ }
+    ;
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    var remaining: []const u8 = raw_input;
+    const fnk = try parseFnk(&remaining, &pool, std.testing.allocator);
+    defer fnk.arena.deinit();
+
+    try std.testing.expectEqualStrings("add", fnk.name.atom.value);
+    try std.testing.expectEqual(2, fnk.cases.items.len);
+    try std.testing.expectEqualStrings("@a", fnk.cases.items[1].pattern.pair.left.pair.right.atom.value);
+    try std.testing.expectEqualStrings("", remaining);
+}
+
+fn parseFnk(input: *[]const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.Allocator) !Fnk {
+    const result = try parseFnkTrue(input.*, pool, allocator);
+    input.* = result.rest;
+    return result.fnk;
+}
+
+fn parseFnkTrue(input: []const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.Allocator) !struct { fnk: Fnk, rest: []const u8 } {
+    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    const name = try parseSexpr(&rest, pool);
+    skipWhitespace(&rest);
+    try parseChar(&rest, ':');
+    skipWhitespace(&rest);
+    try parseChar(&rest, '{');
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    const cases = try parseMatchCases(&rest, pool, &arena);
+    skipWhitespace(&rest);
+    return .{ .fnk = Fnk{ .name = name, .cases = cases, .arena = arena }, .rest = rest };
+}
+
+fn parseMatchCases(input: *[]const u8, pool: *MemoryPool(Sexpr), arena: *std.heap.ArenaAllocator) !InnerCases {
+    var list = std.ArrayListUnmanaged(MatchCaseDefinition){};
+    skipWhitespace(input);
+    while (!parseCharIfPossible(input, '}')) {
+        const pattern = try parseSexpr(input, pool);
+        skipWhitespace(input);
+        try parseChar(input, '-');
+        try parseChar(input, '>');
+        skipWhitespace(input);
+        const fn_name_or_template = try parseSexpr(input, pool);
+        skipWhitespace(input);
+        var fn_name: Sexpr = undefined;
+        var template: Sexpr = undefined;
+        if (parseCharIfPossible(input, ':')) {
+            fn_name = fn_name_or_template;
+            template = try parseSexpr(input, pool);
+            skipWhitespace(input);
+        } else {
+            fn_name = Sexpr.identity;
+            template = fn_name_or_template;
+        }
+        var next: ?InnerCases = undefined;
+        if (parseCharIfPossible(input, ';')) {
+            next = null;
+        } else {
+            return error.TODO;
+        }
+        skipWhitespace(input);
+
+        try list.append(arena.allocator(), .{
+            .pattern = pattern,
+            .fn_name = fn_name,
+            .template = template,
+            .next = next,
+        });
+    }
+    return list;
+}
+
+fn skipWhitespace(input: *[]const u8) void {
+    input.* = std.mem.trimLeft(u8, input.*, &std.ascii.whitespace);
+}
+
+fn parseChar(input: *[]const u8, comptime expected: u8) !void {
+    if (input.*[0] != expected) return error.BAD_INPUT;
+    input.* = input.*[1..];
+}
+
+fn parseCharIfPossible(input: *[]const u8, comptime expected: u8) bool {
+    if (input.*[0] != expected) return false;
+    input.* = input.*[1..];
+    return true;
 }
