@@ -100,14 +100,82 @@ const FnkCollection = std.ArrayHashMap(*const Sexpr, Fnk, struct {
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
+    defer {
+        bw.flush() catch std.debug.panic("flush failed!", .{});
+    }
+
     const stdout = bw.writer();
 
     try stdout.print("@sizeOf(Pair): {d}\n", .{@sizeOf(Pair)});
     try stdout.print("@sizeOf(Atom): {d}\n", .{@sizeOf(Atom)});
     try stdout.print("@sizeOf(Sexpr): {d}\n", .{@sizeOf(Sexpr)});
 
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer {
+        const deinit_status = gpa.deinit();
+        if (deinit_status == .leak) std.debug.panic("leaked memory!", .{});
+    }
+    const allocator = gpa.allocator();
+
     // const allocator = std.heap.wasm_allocator;
-    // var args = try std.process.argsWithAllocator(allocator);
+
+    var temp_allocator_instance = std.heap.ArenaAllocator.init(allocator);
+    defer temp_allocator_instance.deinit();
+    const temp_allocator = temp_allocator_instance.allocator();
+
+    var pool = MemoryPool(Sexpr).init(allocator);
+    defer pool.deinit();
+
+    var args = try std.process.argsWithAllocator(allocator);
+    defer args.deinit();
+
+    _ = args.next().?;
+    const save_file_name = args.next().?;
+    var fn_name_raw = args.next().?;
+    var input_raw = args.next().?;
+
+    const fn_name = try parseSexpr(&fn_name_raw, &pool);
+    const input = try parseSexpr(&input_raw, &pool);
+
+    try stdout.print("fn name: ", .{});
+    try writeSexpr(fn_name, stdout.any(), temp_allocator);
+    try stdout.print("\n", .{});
+
+    try stdout.print("input: ", .{});
+    try writeSexpr(input, stdout.any(), temp_allocator);
+    try stdout.print("\n", .{});
+
+    var fnk_collection = FnkCollection.init(allocator);
+    defer fnk_collection.deinit();
+
+    const save_file = try std.fs.cwd().openFile(save_file_name, .{});
+    defer save_file.close();
+
+    const save_input: []const u8 = try save_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(save_input);
+
+    var remaining_fnk_input = save_input;
+    while (true) {
+        skipWhitespace(&remaining_fnk_input);
+        if (remaining_fnk_input.len == 0) break;
+        const fnk = try parseFnk(&remaining_fnk_input, &pool, allocator);
+        try fnk_collection.put(&fnk.name, fnk);
+    }
+    defer {
+        for (fnk_collection.values()) |fnk| {
+            fnk.arena.deinit();
+        }
+    }
+
+    const result = try applyFnk(&fnk_collection, &fn_name, &input, temp_allocator, &pool);
+    try stdout.print("result: ", .{});
+    try writeSexpr(result, stdout.any(), temp_allocator);
+    try stdout.print("\n", .{});
+
+    // while (args.next()) |arg| {
+    //     try stdout.print("arg: {s}\n", .{arg});
+    //     std.fs.cwd().openFile(arg, flags: File.OpenFlags)
+    // }
     // defer args.deinit();
     // _ = args.skip();
     // while (args.next()) |arg| {
@@ -116,7 +184,6 @@ pub fn main() !void {
     //     try stdout.print("arg: {s}\n", .{arg});
     // }
 
-    try bw.flush();
 }
 
 fn parseSexpr(input: *[]const u8, pool: *MemoryPool(Sexpr)) !Sexpr {
@@ -597,26 +664,3 @@ fn undoLastBindings(bindings: *Bindings, original_count: usize) !void {
         try bindings.reIndex();
     }
 }
-
-// function applyMatchOptions(
-// all_fnks: FunktionDefinition[],
-// cases: MatchCaseDefinition[],
-// argument: SexprLiteral,
-// parent_bindings: Binding[]
-// ): SexprLiteral {
-//     for (const match_case_definition of cases) {
-//         const cur_bindings = generateBindings(argument, match_case_definition.pattern);
-//         if (cur_bindings === null) continue;
-//         const all_bindings = parent_bindings.concat(cur_bindings);
-//         const next_fn_name = fillTemplate(match_case_definition.fn_name_template, all_bindings);
-//         const next_arg = fillTemplate(match_case_definition.template, all_bindings);
-//         const next_value = applyFunktion(all_fnks, next_fn_name, next_arg);
-//         if (match_case_definition.next === 'return') {
-//             return next_value;
-//         }
-//         else {
-//             return applyMatchOptions(all_fnks, match_case_definition.next, next_value, all_bindings);
-//         }
-//     }
-//     throw new Error(`No matching cases for argument ${sexprToString(argument)}; cases are [${cases.map(x => sexprToString(x.pattern)).join(', ')}]`);
-// }
