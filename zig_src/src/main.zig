@@ -83,11 +83,15 @@ const FnkCollection = std.ArrayHashMap(Sexpr, FnkBody, struct {
     pub fn hash(self: @This(), s: Sexpr) u32 {
         return switch (s) {
             .atom => |a| std.array_hash_map.hashString(a.value),
-            // TODO: hash that works, lol
-            .pair => |p| hash(self, p.left.*) ^ hash(self, p.right.*),
-            // var hasher = Wyhash.init(0);
-            // autoHash(&hasher, key);
-            // return @truncate(hasher.final());
+            .pair => |p| {
+                return std.hash.uint32(hash(self, p.left.*)) ^ hash(self, p.right.*);
+                // var hasher = std.hash.Wyhash.init(0);
+                // std.hash.autoHash(&hasher, struct {
+                //     left: u32,
+                //     right: u32,
+                // }{ .left = hash(self, p.left.*), .right = hash(self, p.right.*) });
+                // return @truncate(hasher.final());
+            },
         };
     }
     pub fn eql(self: @This(), a: Sexpr, b: Sexpr, b_index: usize) bool {
