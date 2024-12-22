@@ -33,6 +33,7 @@ const Sexpr = union(enum) {
     pair: Pair,
 
     const identity = Sexpr{ .atom = .{ .value = "identity" } };
+    const @"eqAtoms?" = Sexpr{ .atom = .{ .value = "eqAtoms?" } };
 
     pub fn equals(this: Sexpr, other: Sexpr) bool {
         return switch (this) {
@@ -56,11 +57,32 @@ const MatchCaseDefinition = struct {
     next: ?InnerCases,
 };
 
+const Bindings = std.StringArrayHashMap(*const Sexpr);
+
+// TODO: separate this into FnkBody and just the name
 const Fnk = struct {
     name: Sexpr,
     cases: InnerCases,
     arena: std.heap.ArenaAllocator,
 };
+
+const FnkCollection = std.ArrayHashMap(*const Sexpr, Fnk, struct {
+    pub fn hash(self: @This(), s: *const Sexpr) u32 {
+        return switch (s.*) {
+            .atom => |a| std.array_hash_map.hashString(a.value),
+            // TODO: hash that works, lol
+            .pair => |p| hash(self, p.left) ^ hash(self, p.right),
+            // var hasher = Wyhash.init(0);
+            // autoHash(&hasher, key);
+            // return @truncate(hasher.final());
+        };
+    }
+    pub fn eql(self: @This(), a: *const Sexpr, b: *const Sexpr, b_index: usize) bool {
+        _ = self;
+        _ = b_index;
+        return Sexpr.equals(a.*, b.*);
+    }
+}, true);
 
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
@@ -217,32 +239,37 @@ test "parse one element list" {
 }
 
 test "parse complex stuff" {
-    const raw_input_1 = "(() a (b c) . (d e))";
-    const raw_input_2 = "(nil . (a . ((b . (c . nil)) . (d . (e . nil)))))";
+    var raw_input_1: []const u8 = "(() a (b c) . (d e))";
+    var raw_input_2: []const u8 = "(nil . (a . ((b . (c . nil)) . (d . (e . nil)))))";
 
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
 
-    const actual = (try parseSexprTrue(raw_input_1, &pool)).sexpr;
-    const expected = (try parseSexprTrue(raw_input_2, &pool)).sexpr;
+    const actual = (try parseSexpr(&raw_input_1, &pool));
+    const expected = (try parseSexpr(&raw_input_2, &pool));
 
     try std.testing.expect(expected.equals(actual));
 }
 
 test "to string" {
-    const raw_input = "(() a (b c) d . e)";
+    var raw_input: []const u8 = "(() a (b c) d . e)";
     const expected = "(nil a (b c) d . e)";
 
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
 
+    const sexpr = try parseSexpr(&raw_input, &pool);
     var buffer: [expected.len]u8 = undefined;
-    var in_stream = std.io.fixedBufferStream(&buffer);
-    const writer = in_stream.writer().any();
-    const sexpr = (try parseSexprTrue(raw_input, &pool)).sexpr;
-    try writeSexpr(sexpr, writer, std.testing.allocator);
+    const result = try writeSexprHelper(sexpr, &buffer, std.testing.allocator);
 
-    try std.testing.expectEqualStrings(expected, in_stream.getWritten());
+    try std.testing.expectEqualStrings(expected, result);
+}
+
+fn writeSexprHelper(sexpr: Sexpr, buffer: []u8, temp_allocator: std.mem.Allocator) ![]u8 {
+    var in_stream = std.io.fixedBufferStream(buffer);
+    const writer = in_stream.writer().any();
+    try writeSexpr(sexpr, writer, temp_allocator);
+    return in_stream.getWritten();
 }
 
 fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) !void {
@@ -328,6 +355,7 @@ fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.S
             } else {
                 switch (value.*) {
                     .pair => return false,
+                    // TODO: use Atom.equals
                     .atom => |val| return std.mem.eql(u8, pat.value, val.value),
                 }
             }
@@ -489,3 +517,90 @@ fn parseCharIfPossible(input: *[]const u8, comptime expected: u8) bool {
     input.* = input.*[1..];
     return true;
 }
+
+test "apply flat fnk" {
+    var raw_fnk: []const u8 =
+        \\ add: {
+        \\  (nil . @b) -> @b;
+        \\  ((S . @a) . @b) -> add: (@a . (S . @b));
+        \\ }
+    ;
+    var raw_input: []const u8 = "( (S S) . (S S) )";
+    var raw_expected: []const u8 = "(S S S S)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const add_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    defer add_fnk.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+    try fnk_collection.put(&add_fnk.name, add_fnk);
+    const actual = try applyFnk(&fnk_collection, &add_fnk.name, &input, std.testing.allocator, &pool);
+
+    try std.testing.expect(Sexpr.equals(expected, actual));
+}
+
+fn applyFnk(all_fnks: *FnkCollection, name: *const Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !Sexpr {
+    if (name.*.equals(Sexpr.identity)) return input.*;
+    if (name.*.equals(Sexpr.@"eqAtoms?")) return error.TODO;
+    const fnk = all_fnks.get(name).?;
+
+    var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
+    defer bindings.deinit();
+
+    return try applyMatchOptions(all_fnks, fnk.cases, input, &bindings, pool);
+}
+
+fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, TODO, NO_VALID_MATCH }!Sexpr {
+    const initial_bindings_count = bindings.count();
+    for (cases.items) |case| {
+        if (!try generateBindings(&case.pattern, input, bindings)) {
+            try undoLastBindings(bindings, initial_bindings_count);
+            continue;
+        }
+        const argument = try fillTemplate(&case.template, bindings, pool);
+        const value = try applyFnk(all_fnks, &case.fn_name, argument, bindings.allocator, pool);
+        if (case.next) |next| {
+            return try applyMatchOptions(all_fnks, next, &value, bindings, pool);
+        } else {
+            return value;
+        }
+    }
+    return error.NO_VALID_MATCH;
+}
+
+fn undoLastBindings(bindings: *Bindings, original_count: usize) !void {
+    const did_something = bindings.unmanaged.entries.len != original_count;
+    bindings.unmanaged.entries.shrinkRetainingCapacity(original_count);
+    if (did_something) {
+        try bindings.reIndex();
+    }
+}
+
+// function applyMatchOptions(
+// all_fnks: FunktionDefinition[],
+// cases: MatchCaseDefinition[],
+// argument: SexprLiteral,
+// parent_bindings: Binding[]
+// ): SexprLiteral {
+//     for (const match_case_definition of cases) {
+//         const cur_bindings = generateBindings(argument, match_case_definition.pattern);
+//         if (cur_bindings === null) continue;
+//         const all_bindings = parent_bindings.concat(cur_bindings);
+//         const next_fn_name = fillTemplate(match_case_definition.fn_name_template, all_bindings);
+//         const next_arg = fillTemplate(match_case_definition.template, all_bindings);
+//         const next_value = applyFunktion(all_fnks, next_fn_name, next_arg);
+//         if (match_case_definition.next === 'return') {
+//             return next_value;
+//         }
+//         else {
+//             return applyMatchOptions(all_fnks, match_case_definition.next, next_value, all_bindings);
+//         }
+//     }
+//     throw new Error(`No matching cases for argument ${sexprToString(argument)}; cases are [${cases.map(x => sexprToString(x.pattern)).join(', ')}]`);
+// }
