@@ -72,28 +72,28 @@ const MatchCaseDefinition = struct {
 
 const Bindings = std.StringArrayHashMap(*const Sexpr);
 
-// TODO: separate this into FnkBody and just the name
-const Fnk = struct {
-    name: Sexpr,
+const Fnk = struct { name: Sexpr, body: FnkBody };
+
+const FnkBody = struct {
     cases: InnerCases,
     arena: std.heap.ArenaAllocator,
 };
 
-const FnkCollection = std.ArrayHashMap(*const Sexpr, Fnk, struct {
-    pub fn hash(self: @This(), s: *const Sexpr) u32 {
-        return switch (s.*) {
+const FnkCollection = std.ArrayHashMap(Sexpr, FnkBody, struct {
+    pub fn hash(self: @This(), s: Sexpr) u32 {
+        return switch (s) {
             .atom => |a| std.array_hash_map.hashString(a.value),
             // TODO: hash that works, lol
-            .pair => |p| hash(self, p.left) ^ hash(self, p.right),
+            .pair => |p| hash(self, p.left.*) ^ hash(self, p.right.*),
             // var hasher = Wyhash.init(0);
             // autoHash(&hasher, key);
             // return @truncate(hasher.final());
         };
     }
-    pub fn eql(self: @This(), a: *const Sexpr, b: *const Sexpr, b_index: usize) bool {
+    pub fn eql(self: @This(), a: Sexpr, b: Sexpr, b_index: usize) bool {
         _ = self;
         _ = b_index;
-        return Sexpr.equals(a.*, b.*);
+        return Sexpr.equals(a, b);
     }
 }, true);
 
@@ -159,7 +159,7 @@ pub fn main() !void {
         skipWhitespace(&remaining_fnk_input);
         if (remaining_fnk_input.len == 0) break;
         const fnk = try parseFnk(&remaining_fnk_input, &pool, allocator);
-        try fnk_collection.put(&fnk.name, fnk);
+        try fnk_collection.put(fnk.name, fnk.body);
     }
     defer {
         for (fnk_collection.values()) |fnk| {
@@ -167,7 +167,7 @@ pub fn main() !void {
         }
     }
 
-    const result = try applyFnk(&fnk_collection, &fn_name, &input, temp_allocator, &pool);
+    const result = try applyFnk(&fnk_collection, fn_name, &input, temp_allocator, &pool);
     try stdout.print("result: ", .{});
     try writeSexpr(result, stdout.any(), temp_allocator);
     try stdout.print("\n", .{});
@@ -483,12 +483,12 @@ test "parse flat fnk" {
 
     var remaining: []const u8 = raw_input;
     const fnk = try parseFnk(&remaining, &pool, std.testing.allocator);
-    defer fnk.arena.deinit();
+    defer fnk.body.arena.deinit();
 
     try std.testing.expectEqualStrings("add", fnk.name.atom.value);
-    try std.testing.expectEqual(2, fnk.cases.items.len);
-    try std.testing.expectEqualStrings("@a", fnk.cases.items[1].pattern.pair.left.pair.right.atom.value);
-    try std.testing.expectEqual(null, fnk.cases.items[1].next);
+    try std.testing.expectEqual(2, fnk.body.cases.items.len);
+    try std.testing.expectEqualStrings("@a", fnk.body.cases.items[1].pattern.pair.left.pair.right.atom.value);
+    try std.testing.expectEqual(null, fnk.body.cases.items[1].next);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -515,11 +515,11 @@ test "parse nested fnk" {
 
     var remaining: []const u8 = raw_input;
     const fnk = try parseFnk(&remaining, &pool, std.testing.allocator);
-    defer fnk.arena.deinit();
+    defer fnk.body.arena.deinit();
 
-    try std.testing.expectEqual(2, fnk.cases.items.len);
-    try std.testing.expectEqual(2, fnk.cases.items[1].next.?.items.len);
-    try std.testing.expectEqual(1, fnk.cases.items[1].next.?.items[1].next.?.items.len);
+    try std.testing.expectEqual(2, fnk.body.cases.items.len);
+    try std.testing.expectEqual(2, fnk.body.cases.items[1].next.?.items.len);
+    try std.testing.expectEqual(1, fnk.body.cases.items[1].next.?.items[1].next.?.items.len);
     // try std.testing.expectEqualStrings("@a", fnk.cases.items[1].pattern.pair.left.pair.right.atom.value);
     try std.testing.expectEqualStrings("", remaining);
 }
@@ -540,7 +540,7 @@ fn parseFnkTrue(input: []const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.
     var arena = std.heap.ArenaAllocator.init(allocator);
     const cases = try parseMatchCases(&rest, pool, &arena);
     skipWhitespace(&rest);
-    return .{ .fnk = Fnk{ .name = name, .cases = cases, .arena = arena }, .rest = rest };
+    return .{ .fnk = Fnk{ .name = name, .body = FnkBody{ .cases = cases, .arena = arena } }, .rest = rest };
 }
 
 fn parseMatchCases(input: *[]const u8, pool: *MemoryPool(Sexpr), arena: *std.heap.ArenaAllocator) !InnerCases {
@@ -612,22 +612,22 @@ test "apply flat fnk" {
     defer pool.deinit();
 
     const add_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
-    defer add_fnk.arena.deinit();
+    defer add_fnk.body.arena.deinit();
 
     const input = try parseSexpr(&raw_input, &pool);
     const expected = try parseSexpr(&raw_expected, &pool);
 
     var fnk_collection = FnkCollection.init(std.testing.allocator);
     defer fnk_collection.deinit();
-    try fnk_collection.put(&add_fnk.name, add_fnk);
-    const actual = try applyFnk(&fnk_collection, &add_fnk.name, &input, std.testing.allocator, &pool);
+    try fnk_collection.put(add_fnk.name, add_fnk.body);
+    const actual = try applyFnk(&fnk_collection, add_fnk.name, &input, std.testing.allocator, &pool);
 
     try std.testing.expect(Sexpr.equals(expected, actual));
 }
 
-fn applyFnk(all_fnks: *FnkCollection, name: *const Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !Sexpr {
-    if (name.*.equals(Sexpr.identity)) return input.*;
-    if (name.*.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
+fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !Sexpr {
+    if (name.equals(Sexpr.identity)) return input.*;
+    if (name.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
         .atom => Sexpr.fromBool(false),
         .pair => |p| Sexpr.fromBool(p.left.*.isAtom() and p.right.*.isAtom() and Sexpr.equals(p.left.*, p.right.*)),
     };
@@ -647,7 +647,7 @@ fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const 
             continue;
         }
         const argument = try fillTemplate(&case.template, bindings, pool);
-        const value = try applyFnk(all_fnks, &case.fn_name, argument, bindings.allocator, pool);
+        const value = try applyFnk(all_fnks, case.fn_name, argument, bindings.allocator, pool);
         if (case.next) |next| {
             return try applyMatchOptions(all_fnks, next, &value, bindings, pool);
         } else {
