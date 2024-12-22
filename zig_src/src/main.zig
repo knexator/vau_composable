@@ -32,6 +32,9 @@ const Sexpr = union(enum) {
     atom: Atom,
     pair: Pair,
 
+    const @"var" = Sexpr{ .atom = .{ .value = "var" } };
+    const atom = Sexpr{ .atom = .{ .value = "atom" } };
+    const nil = Sexpr{ .atom = .{ .value = "nil" } };
     const identity = Sexpr{ .atom = .{ .value = "identity" } };
     const @"eqAtoms?" = Sexpr{ .atom = .{ .value = "eqAtoms?" } };
     const @"true" = Sexpr{ .atom = .{ .value = "true" } };
@@ -171,7 +174,7 @@ pub fn main() !void {
         }
     }
 
-    const result = try applyFnk(&fnk_collection, fn_name, &input, temp_allocator, &pool);
+    const result = try applyFnk(&fnk_collection, fn_name, &input, temp_allocator, &pool, allocator);
     try stdout.print("result: ", .{});
     try writeSexpr(result, stdout.any(), temp_allocator);
     try stdout.print("\n", .{});
@@ -197,7 +200,8 @@ fn parseSexpr(input: *[]const u8, pool: *MemoryPool(Sexpr)) !Sexpr {
 }
 
 fn parseSexprTrue(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, BAD_INPUT }!struct { sexpr: Sexpr, rest: []const u8 } {
-    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    var rest = input;
+    skipWhitespace(&rest);
     if (rest[0] == '(') {
         const asdf = try parseSexprInsideParens(rest[1..], pool);
         return .{ .sexpr = asdf.sexpr, .rest = asdf.rest };
@@ -207,13 +211,15 @@ fn parseSexprTrue(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemor
 }
 
 fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct { sexpr: Sexpr, rest: []const u8 } {
-    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    var rest = input;
+    skipWhitespace(&rest);
     if (rest[0] == ')') {
         return .{ .sexpr = Sexpr{ .atom = Atom.nil }, .rest = rest[1..] };
     }
     if (rest[0] == '.') {
         const final_asdf = try parseSexprTrue(rest[1..], pool);
-        rest = std.mem.trimLeft(u8, final_asdf.rest, &std.ascii.whitespace);
+        rest = final_asdf.rest;
+        skipWhitespace(&rest);
         if (rest[0] != ')') return error.BAD_INPUT;
         return .{ .sexpr = final_asdf.sexpr, .rest = rest[1..] };
     }
@@ -535,7 +541,8 @@ fn parseFnk(input: *[]const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.All
 }
 
 fn parseFnkTrue(input: []const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.Allocator) !struct { fnk: Fnk, rest: []const u8 } {
-    var rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
+    var rest = input;
+    skipWhitespace(&rest);
     const name = try parseSexpr(&rest, pool);
     skipWhitespace(&rest);
     try parseChar(&rest, ':');
@@ -589,6 +596,9 @@ fn parseMatchCases(input: *[]const u8, pool: *MemoryPool(Sexpr), arena: *std.hea
 
 fn skipWhitespace(input: *[]const u8) void {
     input.* = std.mem.trimLeft(u8, input.*, &std.ascii.whitespace);
+    while (std.mem.startsWith(u8, input.*, "//")) {
+        input.* = input.*[(std.mem.indexOfScalar(u8, input.*, '\n').? + 1)..];
+    }
 }
 
 fn parseChar(input: *[]const u8, comptime expected: u8) !void {
@@ -624,12 +634,12 @@ test "apply flat fnk" {
     var fnk_collection = FnkCollection.init(std.testing.allocator);
     defer fnk_collection.deinit();
     try fnk_collection.put(add_fnk.name, add_fnk.body);
-    const actual = try applyFnk(&fnk_collection, add_fnk.name, &input, std.testing.allocator, &pool);
+    const actual = try applyFnk(&fnk_collection, add_fnk.name, &input, std.testing.allocator, &pool, std.testing.allocator);
 
     try std.testing.expect(Sexpr.equals(expected, actual));
 }
 
-fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !Sexpr {
+fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) !Sexpr {
     if (name.equals(Sexpr.identity)) return input.*;
     if (name.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
         .atom => Sexpr.fromBool(false),
@@ -640,10 +650,67 @@ fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bin
     var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
     defer bindings.deinit();
 
-    return try applyMatchOptions(all_fnks, fnk.cases, input, &bindings, pool);
+    return try applyMatchOptions(all_fnks, fnk.cases, input, &bindings, pool, allocator_for_new_fnks);
 }
 
-fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, NO_VALID_MATCH }!Sexpr {
+fn findFunktion(all_fnks: *FnkCollection, name: Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) !FnkBody {
+    _ = temp_bindings_allocator; // autofix
+    _ = pool; // autofix
+    _ = allocator_for_new_fnks; // autofix
+    if (all_fnks.get(name)) |fnk| {
+        return fnk;
+    } else switch (name) {
+        .atom => return null,
+        .pair => |p| {
+            _ = p; // autofix
+            return error.TODO;
+            // // try to compile it!
+            // const asdf = try applyFnk(all_fnks, p.left.*, p.right, temp_bindings_allocator, pool, allocator_for_new_fnks);
+            // const cases = try fnkFromSexpr(asdf);
+            // all_fnks.put(name, cases);
+        },
+    }
+}
+
+// fn fnkFromSexpr(s: Sexpr, allocator_for_new_fnks: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !FnkBody {
+//     var arena = std.heap.ArenaAllocator.init(allocator_for_new_fnks);
+//     var cases = std.ArrayListUnmanaged(MatchCaseDefinition){};
+//     var cur: Sexpr = s.pair.left;
+//     while (!cur.equals(Sexpr.nil)) {
+//         const pattern = try internalFromExternal(cur.pair.left, pool);
+//         const fn_name = cur.pair.right.pair.left;
+//         const template = cur.pair.right.pair.right.pair.left;
+//         const next = cur.pair.right.pair.right.pair.right;
+//         _ = pattern; // autofix
+//         _ = fn_name; // autofix
+//         _ = template; // autofix
+//         _ = next; // autofix
+//     }
+//     _ = cases; // autofix
+//     _ = arena; // autofix
+//     // const cases = try parseMatchCases(&rest, pool, &arena);
+//     // var asdf = std.ArrayList(*const Sexpr).init(temp_allocator);
+//     // defer asdf.deinit();
+
+//     // const sentinel = try asListPlusSentinel(s, &asdf);
+// }
+
+// // ((atom . aaa) . (var . bbb)) => (aaa . @bbb)
+// fn internalFromExternal(s: *const Sexpr, pool: *MemoryPool(Sexpr)) !Sexpr {
+//     _ = pool; // autofix
+//     switch (s.*) {
+//         .atom => return error.BAD_INPUT,
+//         .pair => |p| {
+//             if (p.left.equals(Sexpr.atom)) return p.right.*;
+//             if (p.left.equals(Sexpr.@"var")) {
+//                 const res: *Sexpr = try pool.create();
+//                 res.*
+//             }
+//         },
+//     }
+// }
+
+fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) error{ OutOfMemory, NO_VALID_MATCH }!Sexpr {
     const initial_bindings_count = bindings.count();
     for (cases.items) |case| {
         if (!try generateBindings(&case.pattern, input, bindings)) {
@@ -651,9 +718,16 @@ fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const 
             continue;
         }
         const argument = try fillTemplate(&case.template, bindings, pool);
-        const value = try applyFnk(all_fnks, case.fn_name, argument, bindings.allocator, pool);
+        const value = try applyFnk(
+            all_fnks,
+            case.fn_name,
+            argument,
+            bindings.allocator,
+            pool,
+            allocator_for_new_fnks,
+        );
         if (case.next) |next| {
-            return try applyMatchOptions(all_fnks, next, &value, bindings, pool);
+            return try applyMatchOptions(all_fnks, next, &value, bindings, pool, allocator_for_new_fnks);
         } else {
             return value;
         }
