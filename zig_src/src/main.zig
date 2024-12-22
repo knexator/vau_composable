@@ -34,6 +34,8 @@ const Sexpr = union(enum) {
 
     const identity = Sexpr{ .atom = .{ .value = "identity" } };
     const @"eqAtoms?" = Sexpr{ .atom = .{ .value = "eqAtoms?" } };
+    const @"true" = Sexpr{ .atom = .{ .value = "true" } };
+    const @"false" = Sexpr{ .atom = .{ .value = "false" } };
 
     pub fn equals(this: Sexpr, other: Sexpr) bool {
         return switch (this) {
@@ -46,6 +48,17 @@ const Sexpr = union(enum) {
                 .pair => this.pair.left.equals(other.pair.left.*) and this.pair.right.equals(other.pair.right.*),
             },
         };
+    }
+
+    pub fn isAtom(this: Sexpr) bool {
+        return switch (this) {
+            .atom => true,
+            .pair => false,
+        };
+    }
+
+    pub fn fromBool(b: bool) Sexpr {
+        return if (b) Sexpr.true else Sexpr.false;
     }
 };
 
@@ -547,7 +560,10 @@ test "apply flat fnk" {
 
 fn applyFnk(all_fnks: *FnkCollection, name: *const Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !Sexpr {
     if (name.*.equals(Sexpr.identity)) return input.*;
-    if (name.*.equals(Sexpr.@"eqAtoms?")) return error.TODO;
+    if (name.*.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
+        .atom => Sexpr.fromBool(false),
+        .pair => |p| Sexpr.fromBool(p.left.*.isAtom() and p.right.*.isAtom() and Sexpr.equals(p.left.*, p.right.*)),
+    };
     const fnk = all_fnks.get(name).?;
 
     var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
@@ -556,7 +572,7 @@ fn applyFnk(all_fnks: *FnkCollection, name: *const Sexpr, input: *const Sexpr, t
     return try applyMatchOptions(all_fnks, fnk.cases, input, &bindings, pool);
 }
 
-fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, TODO, NO_VALID_MATCH }!Sexpr {
+fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) error{ OutOfMemory, NO_VALID_MATCH }!Sexpr {
     const initial_bindings_count = bindings.count();
     for (cases.items) |case| {
         if (!try generateBindings(&case.pattern, input, bindings)) {
