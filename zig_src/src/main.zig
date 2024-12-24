@@ -688,15 +688,7 @@ test "apply nested fnk" {
     try fnk_collection.put(add_fnk.name, add_fnk.body);
     const actual = try applyFnk(&fnk_collection, add_fnk.name, &input, std.testing.allocator, &pool, std.testing.allocator);
 
-    // std.debug.print("\n\nactual: {any}\n\n", .{actual});
-
-    // std.debug.lockStdErr();
-    // defer std.debug.unlockStdErr();
-    // const stderr = std.io.getStdErr().writer();
-    // try writeSexpr(expected, stderr.any(), std.testing.allocator);
-
     try expectEqualSexprs(expected, actual);
-    try std.testing.expect(Sexpr.equals(expected, actual));
 }
 
 fn applyFnk(
@@ -718,12 +710,14 @@ fn applyFnk(
     var bindings = std.ArrayList(Binding).init(temp_bindings_allocator);
     defer bindings.deinit();
 
-    const stderr = std.io.getStdErr().writer();
-    stderr.print("\napplying fnk with name ", .{}) catch unreachable;
-    writeSexpr(name, stderr.any(), allocator_for_new_fnks) catch unreachable;
-    stderr.print(" on input ", .{}) catch unreachable;
-    writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
-    stderr.print("\n", .{}) catch unreachable;
+    if (DEBUG) {
+        const stderr = std.io.getStdErr().writer();
+        stderr.print("\napplying fnk with name ", .{}) catch unreachable;
+        writeSexpr(name, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(" on input ", .{}) catch unreachable;
+        writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print("\n", .{}) catch unreachable;
+    }
 
     // var buffer: [1000]u8 = undefined;
     // const result = writeSexprHelper(name, &buffer, std.heap.page_allocator) catch unreachable;
@@ -813,16 +807,18 @@ fn applyMatchOptions(
         }
         const argument = try fillTemplate(&case.template, bindings, pool);
 
-        const stderr = std.io.getStdErr().writer();
-        stderr.print("matched pattern ", .{}) catch unreachable;
-        writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(" with the input ", .{}) catch unreachable;
-        writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(" and template ", .{}) catch unreachable;
-        writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(", generating argument ", .{}) catch unreachable;
-        writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print("\n\n", .{}) catch unreachable;
+        if (DEBUG) {
+            const stderr = std.io.getStdErr().writer();
+            stderr.print("matched pattern ", .{}) catch unreachable;
+            writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(" with the input ", .{}) catch unreachable;
+            writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(" and template ", .{}) catch unreachable;
+            writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(", generating argument ", .{}) catch unreachable;
+            writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print("\n\n", .{}) catch unreachable;
+        }
 
         const value = try applyFnk(
             all_fnks,
@@ -833,22 +829,27 @@ fn applyMatchOptions(
             allocator_for_new_fnks,
         );
 
-        stderr.print("got the value: ", .{}) catch unreachable;
-        writeSexpr(value, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print("\n", .{}) catch unreachable;
+        if (DEBUG) {
+            const stderr = std.io.getStdErr().writer();
+            stderr.print("got the value: ", .{}) catch unreachable;
+            writeSexpr(value, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print("\n", .{}) catch unreachable;
 
-        stderr.print("reminder: matched pattern ", .{}) catch unreachable;
-        writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(" with the input ", .{}) catch unreachable;
-        writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(" and template ", .{}) catch unreachable;
-        writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print(", generating argument ", .{}) catch unreachable;
-        writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
-        stderr.print("\n\n", .{}) catch unreachable;
+            stderr.print("reminder: matched pattern ", .{}) catch unreachable;
+            writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(" with the input ", .{}) catch unreachable;
+            writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(" and template ", .{}) catch unreachable;
+            writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print(", generating argument ", .{}) catch unreachable;
+            writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+            stderr.print("\n\n", .{}) catch unreachable;
+        }
 
         if (case.next) |next| {
-            return try applyMatchOptions(all_fnks, next, &value, bindings, pool, allocator_for_new_fnks);
+            const asdf = try pool.create();
+            asdf.* = value;
+            return try applyMatchOptions(all_fnks, next, asdf, bindings, pool, allocator_for_new_fnks);
         } else {
             return value;
         }
@@ -862,6 +863,8 @@ fn applyMatchOptions(
     // std.debug.print("cases[0] pattern:", .{result});
     return error.NO_VALID_MATCH;
 }
+
+const DEBUG = false;
 
 fn undoLastBindings(bindings: *Bindings, original_count: usize) void {
     bindings.shrinkAndFree(original_count);
