@@ -38,6 +38,7 @@ const Sexpr = union(enum) {
     atom: Atom,
     pair: Pair,
 
+    const @"return" = Sexpr{ .atom = Atom.lit("return") };
     const @"var" = Sexpr{ .atom = Atom.lit("var") };
     const atom = Sexpr{ .atom = Atom.lit("atom") };
     const nil = Sexpr{ .atom = Atom.lit("nil") };
@@ -131,7 +132,9 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const deinit_status = gpa.deinit();
-        if (deinit_status == .leak) std.debug.panic("leaked memory!", .{});
+        _ = deinit_status; // autofix
+        // if (deinit_status == .leak) std.debug.panic("leaked memory!", .{});
+
     }
     const allocator = gpa.allocator();
 
@@ -151,6 +154,10 @@ pub fn main() !void {
     const save_file_name = args.next().?;
     var fn_name_raw = args.next().?;
     var input_raw: []const u8 = args.next().?;
+    var should_free_input_raw = false;
+    defer if (should_free_input_raw) {
+        allocator.free(input_raw);
+    };
     if (std.mem.eql(u8, input_raw, "file")) {
         const input_file_name = args.next().?;
 
@@ -158,8 +165,8 @@ pub fn main() !void {
         defer input_file.close();
 
         input_raw = try input_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+        should_free_input_raw = true;
     }
-    defer allocator.free(input_raw);
 
     const fn_name = try parseSexpr(&fn_name_raw, &pool);
     const input = try parseSexpr(&input_raw, &pool);
@@ -708,13 +715,14 @@ fn applyFnk(
     temp_bindings_allocator: std.mem.Allocator,
     pool: *MemoryPool(Sexpr),
     allocator_for_new_fnks: std.mem.Allocator,
-) !Sexpr {
+) error{ OutOfMemory, NO_VALID_MATCH, BAD_INPUT, TODO }!Sexpr {
     if (name.equals(Sexpr.identity)) return input.*;
     if (name.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
         .atom => Sexpr.fromBool(false),
         .pair => |p| Sexpr.fromBool(p.left.*.isAtom() and p.right.*.isAtom() and Sexpr.equals(p.left.*, p.right.*)),
     };
-    const fnk = all_fnks.get(name).?;
+    // const fnk = all_fnks.get(name).?;
+    const fnk = try findFunktion(all_fnks, name, temp_bindings_allocator, pool, allocator_for_new_fnks);
 
     // var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
     var bindings = std.ArrayList(Binding).init(temp_bindings_allocator);
@@ -743,61 +751,88 @@ fn findFunktion(
     pool: *MemoryPool(Sexpr),
     allocator_for_new_fnks: std.mem.Allocator,
 ) !FnkBody {
-    _ = temp_bindings_allocator; // autofix
-    _ = pool; // autofix
-    _ = allocator_for_new_fnks; // autofix
     if (all_fnks.get(name)) |fnk| {
         return fnk;
     } else switch (name) {
-        .atom => return null,
+        .atom => return error.BAD_INPUT,
         .pair => |p| {
-            _ = p; // autofix
-            return error.TODO;
-            // // try to compile it!
-            // const asdf = try applyFnk(all_fnks, p.left.*, p.right, temp_bindings_allocator, pool, allocator_for_new_fnks);
-            // const cases = try fnkFromSexpr(asdf);
-            // all_fnks.put(name, cases);
+            // try to compile it!
+            const asdf = try applyFnk(all_fnks, p.left.*, p.right, temp_bindings_allocator, pool, allocator_for_new_fnks);
+            const cases = try fnkFromSexpr(asdf, allocator_for_new_fnks, pool);
+            try all_fnks.put(name, cases);
+            return cases;
         },
     }
 }
 
-// fn fnkFromSexpr(s: Sexpr, allocator_for_new_fnks: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !FnkBody {
-//     var arena = std.heap.ArenaAllocator.init(allocator_for_new_fnks);
-//     var cases = std.ArrayListUnmanaged(MatchCaseDefinition){};
-//     var cur: Sexpr = s.pair.left;
-//     while (!cur.equals(Sexpr.nil)) {
-//         const pattern = try internalFromExternal(cur.pair.left, pool);
-//         const fn_name = cur.pair.right.pair.left;
-//         const template = cur.pair.right.pair.right.pair.left;
-//         const next = cur.pair.right.pair.right.pair.right;
-//         _ = pattern; // autofix
-//         _ = fn_name; // autofix
-//         _ = template; // autofix
-//         _ = next; // autofix
-//     }
-//     _ = cases; // autofix
-//     _ = arena; // autofix
-//     // const cases = try parseMatchCases(&rest, pool, &arena);
-//     // var asdf = std.ArrayList(*const Sexpr).init(temp_allocator);
-//     // defer asdf.deinit();
+fn fnkFromSexpr(s: Sexpr, allocator_for_new_fnks: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !FnkBody {
+    var arena = std.heap.ArenaAllocator.init(allocator_for_new_fnks);
+    const cases = (try fnkFromSexprHelper(s, arena.allocator(), pool)).?;
+    return .{ .cases = cases, .arena = arena };
+}
 
-//     // const sentinel = try asListPlusSentinel(s, &asdf);
-// }
+fn fnkFromSexprHelper(s: Sexpr, arena: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !?InnerCases {
+    var cases = std.ArrayListUnmanaged(MatchCaseDefinition){};
+    switch (s) {
+        .atom => return if (s.equals(Sexpr.@"return")) null else error.BAD_INPUT,
+        .pair => |p| {
+            var cur_parent = p;
+            while (true) {
+                const cur: Sexpr = cur_parent.left.*;
+                const pattern = try internalFromExternal(cur.pair.left, pool);
+                const fn_name = cur.pair.right.pair.left.*;
+                const template = try internalFromExternal(cur.pair.right.pair.right.pair.left, pool);
+                const next = try fnkFromSexprHelper(cur.pair.right.pair.right.pair.right.*, arena, pool);
+                try cases.append(arena, .{
+                    .pattern = pattern,
+                    .fn_name = fn_name,
+                    .template = template,
+                    .next = next,
+                });
+                switch (cur_parent.right.*) {
+                    .atom => |a| {
+                        if (a.equals(Sexpr.nil.atom)) {
+                            break;
+                        } else {
+                            return error.BAD_INPUT;
+                        }
+                    },
+                    .pair => |p2| {
+                        cur_parent = p2;
+                    },
+                }
+            }
+            return cases;
+        },
+    }
+}
 
-// // ((atom . aaa) . (var . bbb)) => (aaa . @bbb)
-// fn internalFromExternal(s: *const Sexpr, pool: *MemoryPool(Sexpr)) !Sexpr {
-//     _ = pool; // autofix
-//     switch (s.*) {
-//         .atom => return error.BAD_INPUT,
-//         .pair => |p| {
-//             if (p.left.equals(Sexpr.atom)) return p.right.*;
-//             if (p.left.equals(Sexpr.@"var")) {
-//                 const res: *Sexpr = try pool.create();
-//                 res.*
-//             }
-//         },
-//     }
-// }
+// ((atom . aaa) . (var . bbb)) => (aaa . @bbb)
+fn internalFromExternal(s: *const Sexpr, pool: *MemoryPool(Sexpr)) !Sexpr {
+    switch (s.*) {
+        .atom => return error.BAD_INPUT,
+        .pair => |p| {
+            if (p.left.equals(Sexpr.atom)) {
+                return p.right.*;
+            } else if (p.left.equals(Sexpr.@"var")) {
+                switch (p.right.*) {
+                    .pair => return error.BAD_INPUT,
+                    .atom => |a| {
+                        // TODO: this is a horrible hack
+                        const asdf: []u8 = try pool.arena.allocator().alloc(u8, a.value.len + 1);
+                        asdf[0] = '@';
+                        @memcpy(asdf[1..], a.value);
+                        const res: *Sexpr = try pool.create();
+                        res.* = Sexpr{ .atom = Atom{ .value = asdf } };
+                        return res.*;
+                    },
+                }
+            } else {
+                return error.TODO;
+            }
+        },
+    }
+}
 
 fn applyMatchOptions(
     all_fnks: *FnkCollection,
@@ -806,7 +841,7 @@ fn applyMatchOptions(
     bindings: *Bindings,
     pool: *MemoryPool(Sexpr),
     allocator_for_new_fnks: std.mem.Allocator,
-) error{ OutOfMemory, NO_VALID_MATCH, BAD_INPUT }!Sexpr {
+) !Sexpr {
     const initial_bindings_count = bindings.items.len;
     // defer undoLastBindings(bindings, initial_bindings_count) catch @panic("oops");
     defer undoLastBindings(bindings, initial_bindings_count);
