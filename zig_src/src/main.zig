@@ -1,6 +1,10 @@
 const std = @import("std");
 const MemoryPool = std.heap.MemoryPool;
 
+// zig build -Doptimize=ReleaseFast run -- ../save_no_meta.txt 'ssss' '(4 1 2 2 6 SPACE SPACE SPACE 6 9 1 9 0 NEWLINE 8 9 3 1 8 SPACE SPACE SPACE 1 0 1 0 0 NEWLINE 5 9 4 1 9 SPACE SPACE SPACE 2 3 8 8 0 NEWLINE)'
+
+// TODO: bug when the fnk name is a pair, it gets 0 cases
+
 // Design decision 1: strings live on the input buffer
 
 // const max_inlined_len = 12;
@@ -14,7 +18,9 @@ const MemoryPool = std.heap.MemoryPool;
 const Atom = struct {
     value: []const u8,
 
-    const nil: Atom = .{ .value = "nil" };
+    pub fn lit(v: []const u8) Atom {
+        return .{ .value = v };
+    }
 
     pub fn equals(this: Atom, other: Atom) bool {
         return std.mem.eql(u8, this.value, other.value);
@@ -32,23 +38,23 @@ const Sexpr = union(enum) {
     atom: Atom,
     pair: Pair,
 
-    const @"var" = Sexpr{ .atom = .{ .value = "var" } };
-    const atom = Sexpr{ .atom = .{ .value = "atom" } };
-    const nil = Sexpr{ .atom = .{ .value = "nil" } };
-    const identity = Sexpr{ .atom = .{ .value = "identity" } };
-    const @"eqAtoms?" = Sexpr{ .atom = .{ .value = "eqAtoms?" } };
-    const @"true" = Sexpr{ .atom = .{ .value = "true" } };
-    const @"false" = Sexpr{ .atom = .{ .value = "false" } };
+    const @"var" = Sexpr{ .atom = Atom.lit("var") };
+    const atom = Sexpr{ .atom = Atom.lit("atom") };
+    const nil = Sexpr{ .atom = Atom.lit("nil") };
+    const identity = Sexpr{ .atom = Atom.lit("identity") };
+    const @"eqAtoms?" = Sexpr{ .atom = Atom.lit("eqAtoms?") };
+    const @"true" = Sexpr{ .atom = Atom.lit("true") };
+    const @"false" = Sexpr{ .atom = Atom.lit("false") };
 
     pub fn equals(this: Sexpr, other: Sexpr) bool {
         return switch (this) {
-            .atom => switch (other) {
-                .atom => this.atom.equals(other.atom),
+            .atom => |this_atom| switch (other) {
+                .atom => |other_atom| this_atom.equals(other_atom),
                 .pair => false,
             },
-            .pair => switch (other) {
+            .pair => |this_pair| switch (other) {
                 .atom => false,
-                .pair => this.pair.left.equals(other.pair.left.*) and this.pair.right.equals(other.pair.right.*),
+                .pair => |other_pair| this_pair.left.equals(other_pair.left.*) and this_pair.right.equals(other_pair.right.*),
             },
         };
     }
@@ -73,7 +79,12 @@ const MatchCaseDefinition = struct {
     next: ?InnerCases,
 };
 
-const Bindings = std.StringArrayHashMap(*const Sexpr);
+// const Bindings = std.StringArrayHashMap(*const Sexpr);
+const Binding = struct {
+    name: []const u8,
+    value: *const Sexpr,
+};
+const Bindings = std.ArrayList(Binding);
 
 const Fnk = struct { name: Sexpr, body: FnkBody };
 
@@ -87,13 +98,13 @@ const FnkCollection = std.ArrayHashMap(Sexpr, FnkBody, struct {
         return switch (s) {
             .atom => |a| std.array_hash_map.hashString(a.value),
             .pair => |p| {
-                return std.hash.uint32(hash(self, p.left.*)) ^ hash(self, p.right.*);
-                // var hasher = std.hash.Wyhash.init(0);
-                // std.hash.autoHash(&hasher, struct {
-                //     left: u32,
-                //     right: u32,
-                // }{ .left = hash(self, p.left.*), .right = hash(self, p.right.*) });
-                // return @truncate(hasher.final());
+                // return std.hash.uint32(hash(self, p.left.*)) ^ hash(self, p.right.*);
+                var hasher = std.hash.Wyhash.init(0);
+                std.hash.autoHash(&hasher, struct {
+                    left: u32,
+                    right: u32,
+                }{ .left = hash(self, p.left.*), .right = hash(self, p.right.*) });
+                return @truncate(hasher.final());
             },
         };
     }
@@ -214,7 +225,7 @@ fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct {
     var rest = input;
     skipWhitespace(&rest);
     if (rest[0] == ')') {
-        return .{ .sexpr = Sexpr{ .atom = Atom.nil }, .rest = rest[1..] };
+        return .{ .sexpr = Sexpr.nil, .rest = rest[1..] };
     }
     if (rest[0] == '.') {
         const final_asdf = try parseSexprTrue(rest[1..], pool);
@@ -364,8 +375,8 @@ fn writeSexprHelper(sexpr: Sexpr, buffer: []u8, temp_allocator: std.mem.Allocato
 
 fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) !void {
     switch (s) {
-        .atom => {
-            try w.writeAll(s.atom.value);
+        .atom => |atom| {
+            try w.writeAll(atom.value);
         },
         .pair => {
             var asdf = std.ArrayList(*const Sexpr).init(temp_allocator);
@@ -379,7 +390,7 @@ fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) 
                     try w.writeAll(" ");
                 }
             }
-            if (sentinel.equals(Sexpr{ .atom = Atom.nil })) {
+            if (sentinel.equals(Sexpr.nil)) {
                 try w.writeAll(")");
             } else {
                 try w.writeAll(" . ");
@@ -393,9 +404,9 @@ fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) 
 fn asListPlusSentinel(s: Sexpr, l: *std.ArrayList(*const Sexpr)) !Sexpr {
     switch (s) {
         .atom => return s,
-        .pair => {
-            try l.append(s.pair.left);
-            return try asListPlusSentinel(s.pair.right.*, l);
+        .pair => |p| {
+            try l.append(p.left);
+            return try asListPlusSentinel(p.right.*, l);
         },
     }
 }
@@ -425,7 +436,8 @@ test "fill template" {
 }
 
 fn bindAndFill(pattern: *const Sexpr, value: *const Sexpr, template: *const Sexpr, pool: *MemoryPool(Sexpr), temp_allocator: std.mem.Allocator) !?*const Sexpr {
-    var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_allocator);
+    // var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_allocator);
+    var bindings = std.ArrayList(Binding).init(temp_allocator);
     defer bindings.deinit();
     const valid = try generateBindings(pattern, value, &bindings);
     if (!valid) return null;
@@ -435,12 +447,14 @@ fn bindAndFill(pattern: *const Sexpr, value: *const Sexpr, template: *const Sexp
     return try fillTemplate(template, &bindings, pool);
 }
 
-fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr)) !bool {
+// fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr)) !bool {
+fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *Bindings) !bool {
     switch (pattern.*) {
         .atom => |pat| {
             if (pat.isVar()) {
                 // TODO: return false if variable was already bound
-                try bindings.put(pat.value, value);
+                // try bindings.put(pat.value, value);
+                try bindings.append(.{ .name = pat.value, .value = value });
                 return true;
             } else {
                 switch (value.*) {
@@ -461,11 +475,19 @@ fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.S
     }
 }
 
-fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr), pool: *MemoryPool(Sexpr)) !*const Sexpr {
+// fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr), pool: *MemoryPool(Sexpr)) !*const Sexpr {
+fn fillTemplate(template: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) !*const Sexpr {
     switch (template.*) {
         .atom => |templ| {
             if (templ.isVar()) {
-                return bindings.get(templ.value).?;
+                // return bindings.get(templ.value).?;
+                for (0..bindings.items.len) |k| {
+                    const bind = bindings.items[bindings.items.len - k - 1];
+                    if (std.mem.eql(u8, bind.name, templ.value)) {
+                        return bind.value;
+                    }
+                }
+                return error.BAD_INPUT;
             } else {
                 return template;
             }
@@ -482,7 +504,7 @@ fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const
 
 test "parse flat fnk" {
     const raw_input =
-        \\ add: {
+        \\ add {
         \\  (nil . @b) -> @b;
         \\  ((S . @a) . @b) -> add: (@a . (S . @b));
         \\ }
@@ -504,7 +526,7 @@ test "parse flat fnk" {
 
 test "parse nested fnk" {
     const raw_input =
-        \\ senseless: {
+        \\ senseless {
         \\  (nil . @b) -> @b {
         \\      nil -> nil;
         \\      @a -> (asdf @a);
@@ -545,8 +567,8 @@ fn parseFnkTrue(input: []const u8, pool: *MemoryPool(Sexpr), allocator: std.mem.
     skipWhitespace(&rest);
     const name = try parseSexpr(&rest, pool);
     skipWhitespace(&rest);
-    try parseChar(&rest, ':');
-    skipWhitespace(&rest);
+    // try parseChar(&rest, ':');
+    // skipWhitespace(&rest);
     try parseChar(&rest, '{');
     var arena = std.heap.ArenaAllocator.init(allocator);
     const cases = try parseMatchCases(&rest, pool, &arena);
@@ -614,7 +636,7 @@ fn parseCharIfPossible(input: *[]const u8, comptime expected: u8) bool {
 
 test "apply flat fnk" {
     var raw_fnk: []const u8 =
-        \\ add: {
+        \\ add {
         \\  (nil . @b) -> @b;
         \\  ((S . @a) . @b) -> add: (@a . (S . @b));
         \\ }
@@ -639,7 +661,52 @@ test "apply flat fnk" {
     try std.testing.expect(Sexpr.equals(expected, actual));
 }
 
-fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) !Sexpr {
+test "apply nested fnk" {
+    var raw_fnk: []const u8 =
+        \\ binaryInc {
+        \\      nil -> (b1);
+        \\      (b0 . @rest) -> (b1 . @rest);
+        \\      (b1 . @rest) -> binaryInc: @rest {
+        \\          @new_rest -> (b0 . @new_rest);
+        \\      }
+        \\ }
+    ;
+    var raw_input: []const u8 = "(b1 b1)";
+    var raw_expected: []const u8 = "(b0 b0 b1)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const add_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    defer add_fnk.body.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+    try fnk_collection.put(add_fnk.name, add_fnk.body);
+    const actual = try applyFnk(&fnk_collection, add_fnk.name, &input, std.testing.allocator, &pool, std.testing.allocator);
+
+    // std.debug.print("\n\nactual: {any}\n\n", .{actual});
+
+    // std.debug.lockStdErr();
+    // defer std.debug.unlockStdErr();
+    // const stderr = std.io.getStdErr().writer();
+    // try writeSexpr(expected, stderr.any(), std.testing.allocator);
+
+    try expectEqualSexprs(expected, actual);
+    try std.testing.expect(Sexpr.equals(expected, actual));
+}
+
+fn applyFnk(
+    all_fnks: *FnkCollection,
+    name: Sexpr,
+    input: *const Sexpr,
+    temp_bindings_allocator: std.mem.Allocator,
+    pool: *MemoryPool(Sexpr),
+    allocator_for_new_fnks: std.mem.Allocator,
+) !Sexpr {
     if (name.equals(Sexpr.identity)) return input.*;
     if (name.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
         .atom => Sexpr.fromBool(false),
@@ -647,13 +714,31 @@ fn applyFnk(all_fnks: *FnkCollection, name: Sexpr, input: *const Sexpr, temp_bin
     };
     const fnk = all_fnks.get(name).?;
 
-    var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
+    // var bindings = std.StringArrayHashMap(*const Sexpr).init(temp_bindings_allocator);
+    var bindings = std.ArrayList(Binding).init(temp_bindings_allocator);
     defer bindings.deinit();
+
+    const stderr = std.io.getStdErr().writer();
+    stderr.print("\napplying fnk with name ", .{}) catch unreachable;
+    writeSexpr(name, stderr.any(), allocator_for_new_fnks) catch unreachable;
+    stderr.print(" on input ", .{}) catch unreachable;
+    writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+    stderr.print("\n", .{}) catch unreachable;
+
+    // var buffer: [1000]u8 = undefined;
+    // const result = writeSexprHelper(name, &buffer, std.heap.page_allocator) catch unreachable;
+    // std.debug.print("call fnk: {s}\n", .{result});
 
     return try applyMatchOptions(all_fnks, fnk.cases, input, &bindings, pool, allocator_for_new_fnks);
 }
 
-fn findFunktion(all_fnks: *FnkCollection, name: Sexpr, temp_bindings_allocator: std.mem.Allocator, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) !FnkBody {
+fn findFunktion(
+    all_fnks: *FnkCollection,
+    name: Sexpr,
+    temp_bindings_allocator: std.mem.Allocator,
+    pool: *MemoryPool(Sexpr),
+    allocator_for_new_fnks: std.mem.Allocator,
+) !FnkBody {
     _ = temp_bindings_allocator; // autofix
     _ = pool; // autofix
     _ = allocator_for_new_fnks; // autofix
@@ -710,14 +795,35 @@ fn findFunktion(all_fnks: *FnkCollection, name: Sexpr, temp_bindings_allocator: 
 //     }
 // }
 
-fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr), allocator_for_new_fnks: std.mem.Allocator) error{ OutOfMemory, NO_VALID_MATCH }!Sexpr {
-    const initial_bindings_count = bindings.count();
+fn applyMatchOptions(
+    all_fnks: *FnkCollection,
+    cases: InnerCases,
+    input: *const Sexpr,
+    bindings: *Bindings,
+    pool: *MemoryPool(Sexpr),
+    allocator_for_new_fnks: std.mem.Allocator,
+) error{ OutOfMemory, NO_VALID_MATCH, BAD_INPUT }!Sexpr {
+    const initial_bindings_count = bindings.items.len;
+    // defer undoLastBindings(bindings, initial_bindings_count) catch @panic("oops");
+    defer undoLastBindings(bindings, initial_bindings_count);
     for (cases.items) |case| {
         if (!try generateBindings(&case.pattern, input, bindings)) {
-            try undoLastBindings(bindings, initial_bindings_count);
+            undoLastBindings(bindings, initial_bindings_count);
             continue;
         }
         const argument = try fillTemplate(&case.template, bindings, pool);
+
+        const stderr = std.io.getStdErr().writer();
+        stderr.print("matched pattern ", .{}) catch unreachable;
+        writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(" with the input ", .{}) catch unreachable;
+        writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(" and template ", .{}) catch unreachable;
+        writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(", generating argument ", .{}) catch unreachable;
+        writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print("\n\n", .{}) catch unreachable;
+
         const value = try applyFnk(
             all_fnks,
             case.fn_name,
@@ -726,19 +832,68 @@ fn applyMatchOptions(all_fnks: *FnkCollection, cases: InnerCases, input: *const 
             pool,
             allocator_for_new_fnks,
         );
+
+        stderr.print("got the value: ", .{}) catch unreachable;
+        writeSexpr(value, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print("\n", .{}) catch unreachable;
+
+        stderr.print("reminder: matched pattern ", .{}) catch unreachable;
+        writeSexpr(case.pattern, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(" with the input ", .{}) catch unreachable;
+        writeSexpr(input.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(" and template ", .{}) catch unreachable;
+        writeSexpr(case.template, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print(", generating argument ", .{}) catch unreachable;
+        writeSexpr(argument.*, stderr.any(), allocator_for_new_fnks) catch unreachable;
+        stderr.print("\n\n", .{}) catch unreachable;
+
         if (case.next) |next| {
             return try applyMatchOptions(all_fnks, next, &value, bindings, pool, allocator_for_new_fnks);
         } else {
             return value;
         }
     }
+
+    // var buffer: [1000]u8 = undefined;
+    // const result = writeSexprHelper(input.*, &buffer, std.heap.page_allocator) catch unreachable;
+    // std.debug.print("no valid match for input: {s}\n", .{result});
+    // std.debug.print("cases len: {d}\n", .{cases.items.len});
+    // const result2= writeSexprHelper(.*, &buffer, std.heap.page_allocator) catch unreachable;
+    // std.debug.print("cases[0] pattern:", .{result});
     return error.NO_VALID_MATCH;
 }
 
-fn undoLastBindings(bindings: *Bindings, original_count: usize) !void {
-    const did_something = bindings.unmanaged.entries.len != original_count;
-    bindings.unmanaged.entries.shrinkRetainingCapacity(original_count);
-    if (did_something) {
-        try bindings.reIndex();
+fn undoLastBindings(bindings: *Bindings, original_count: usize) void {
+    bindings.shrinkAndFree(original_count);
+    // const did_something = bindings.unmanaged.entries.len != original_count;
+    // _ = did_something; // autofix
+    // bindings.unmanaged.entries.shrinkRetainingCapacity(original_count);
+    // try bindings.reIndex();
+    // if (did_something) {
+    //     try bindings.reIndex();
+    // }
+}
+
+pub fn expectEqualSexprs(expected: Sexpr, actual: Sexpr) !void {
+    switch (expected) {
+        .atom => |expected_atom| switch (actual) {
+            .atom => |actual_atom| {
+                return std.testing.expectEqualStrings(expected_atom.value, actual_atom.value);
+            },
+            .pair => |actual_pair| {
+                std.debug.print("expected atom '{s}' but found a pair {any}\n", .{ expected_atom.value, actual_pair });
+                return error.TestExpectedEqual;
+            },
+        },
+        .pair => |expected_pair| switch (actual) {
+            .atom => |actual_atom| {
+                std.debug.print("expected pair but found an atom '{s}'\n", .{actual_atom.value});
+                return error.TestExpectedEqual;
+            },
+            .pair => |actual_pair| {
+                try expectEqualSexprs(expected_pair.left.*, actual_pair.left.*);
+                try expectEqualSexprs(expected_pair.right.*, actual_pair.right.*);
+            },
+        },
     }
 }
