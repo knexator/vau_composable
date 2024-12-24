@@ -150,7 +150,16 @@ pub fn main() !void {
     _ = args.next().?;
     const save_file_name = args.next().?;
     var fn_name_raw = args.next().?;
-    var input_raw = args.next().?;
+    var input_raw: []const u8 = args.next().?;
+    if (std.mem.eql(u8, input_raw, "file")) {
+        const input_file_name = args.next().?;
+
+        const input_file = try std.fs.cwd().openFile(input_file_name, .{});
+        defer input_file.close();
+
+        input_raw = try input_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    }
+    defer allocator.free(input_raw);
 
     const fn_name = try parseSexpr(&fn_name_raw, &pool);
     const input = try parseSexpr(&input_raw, &pool);
@@ -620,6 +629,7 @@ fn skipWhitespace(input: *[]const u8) void {
     input.* = std.mem.trimLeft(u8, input.*, &std.ascii.whitespace);
     while (std.mem.startsWith(u8, input.*, "//")) {
         input.* = input.*[(std.mem.indexOfScalar(u8, input.*, '\n').? + 1)..];
+        input.* = std.mem.trimLeft(u8, input.*, &std.ascii.whitespace);
     }
 }
 
