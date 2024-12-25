@@ -147,7 +147,7 @@ interpreter {
     }
     ( (b1 . @a_rest) . (b1 . @b_rest) ) -> (binary . add): (@a_rest . @b_rest) {
         @naive_rest -> (binary . inc): @naive_rest {
-            @rest -> (b1 . @rest);
+            @rest -> (b0 . @rest);
         }
     }
 }
@@ -248,6 +248,25 @@ interpreter {
     nil -> true;
     (b1 . @rest) -> false;
     (b0 . @rest) -> (binary . isZero): @rest;
+}
+
+(advent day1 p1 . raw) {
+    @chars -> ((compiled . map) . ( compileMap . (
+        (x30 . 0)
+        (x31 . 1)
+        (x32 . 2)
+        (x33 . 3)
+        (x34 . 4)
+        (x35 . 5)
+        (x36 . 6)
+        (x37 . 7)
+        (x38 . 8)
+        (x39 . 9)
+        (x20 . SPACE)
+        (x0A . NEWLINE)
+    ) )): @chars {
+        @treated -> (advent day1 . p1): @treated;
+    }
 }
 
 // (sum (map (zip c1 c2) absDist))

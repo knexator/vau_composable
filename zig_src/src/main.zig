@@ -1,11 +1,13 @@
 const std = @import("std");
 const MemoryPool = std.heap.MemoryPool;
 
-// zig build -Doptimize=ReleaseFast run -- ../save_no_meta.txt 'ssss' '(4 1 2 2 6 SPACE SPACE SPACE 6 9 1 9 0 NEWLINE 8 9 3 1 8 SPACE SPACE SPACE 1 0 1 0 0 NEWLINE 5 9 4 1 9 SPACE SPACE SPACE 2 3 8 8 0 NEWLINE)'
-
-// TODO: bug when the fnk name is a pair, it gets 0 cases
+// zig build -Doptimize=ReleaseFast run -- ../save_no_meta.txt '(advent day1 . p1)' '(4 1 2 2 6 SPACE SPACE SPACE 6 9 1 9 0 NEWLINE 8 9 3 1 8 SPACE SPACE SPACE 1 0 1 0 0 NEWLINE 5 9 4 1 9 SPACE SPACE SPACE 2 3 8 8 0 NEWLINE)'
+// zig build -Doptimize=ReleaseFast run -- ../save.txt '(advent day1 p1 . raw)' raw_file ..\aoc_input_1_raw.txt
 
 // Design decision 1: strings live on the input buffer
+
+// TODO: change Atom to 'Var' & 'Lit'
+// TODO: don't run out of stack on bad inputs
 
 // const max_inlined_len = 12;
 // const Atom = union(enum) {
@@ -125,9 +127,9 @@ pub fn main() !void {
 
     const stdout = bw.writer();
 
-    try stdout.print("@sizeOf(Pair): {d}\n", .{@sizeOf(Pair)});
-    try stdout.print("@sizeOf(Atom): {d}\n", .{@sizeOf(Atom)});
-    try stdout.print("@sizeOf(Sexpr): {d}\n", .{@sizeOf(Sexpr)});
+    // try stdout.print("@sizeOf(Pair): {d}\n", .{@sizeOf(Pair)});
+    // try stdout.print("@sizeOf(Atom): {d}\n", .{@sizeOf(Atom)});
+    // try stdout.print("@sizeOf(Sexpr): {d}\n", .{@sizeOf(Sexpr)});
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
@@ -154,10 +156,9 @@ pub fn main() !void {
     const save_file_name = args.next().?;
     var fn_name_raw = args.next().?;
     var input_raw: []const u8 = args.next().?;
-    var should_free_input_raw = false;
-    defer if (should_free_input_raw) {
-        allocator.free(input_raw);
-        std.debug.print("freeing input_raw\n", .{});
+    var original_input_raw: ?[]const u8 = null;
+    defer if (original_input_raw) |asdf| {
+        allocator.free(asdf);
     };
     if (std.mem.eql(u8, input_raw, "file")) {
         const input_file_name = args.next().?;
@@ -165,8 +166,8 @@ pub fn main() !void {
         const input_file = try std.fs.cwd().openFile(input_file_name, .{});
         defer input_file.close();
 
-        input_raw = try input_file.readToEndAlloc(allocator, std.math.maxInt(usize));
-        should_free_input_raw = true;
+        original_input_raw = try input_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+        input_raw = original_input_raw.?;
     } else if (std.mem.eql(u8, input_raw, "raw_file")) {
         const input_file_name = args.next().?;
 
@@ -186,20 +187,20 @@ pub fn main() !void {
             try contents.append(' ');
         }
         try contents.append(')');
-        input_raw = try contents.toOwnedSlice();
-        should_free_input_raw = true;
+        original_input_raw = try contents.toOwnedSlice();
+        input_raw = original_input_raw.?;
     }
 
     const fn_name = try parseSexpr(&fn_name_raw, &pool);
     const input = try parseSexpr(&input_raw, &pool);
 
-    try stdout.print("fn name: ", .{});
-    try writeSexpr(fn_name, stdout.any(), temp_allocator);
-    try stdout.print("\n", .{});
+    // try stdout.print("fn name: ", .{});
+    // try writeSexpr(fn_name, stdout.any(), temp_allocator);
+    // try stdout.print("\n", .{});
 
-    try stdout.print("input: ", .{});
-    try writeSexpr(input, stdout.any(), temp_allocator);
-    try stdout.print("\n", .{});
+    // try stdout.print("input: ", .{});
+    // try writeSexpr(input, stdout.any(), temp_allocator);
+    // try stdout.print("\n", .{});
 
     var fnk_collection = FnkCollection.init(allocator);
     defer fnk_collection.deinit();
