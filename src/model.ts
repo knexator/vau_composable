@@ -864,3 +864,106 @@ export class PersistenceStuff {
         return JSON.stringify({ fnks, cells });
     }
 }
+
+export class Scorer {
+    public total_time: number = 0;
+    public max_stack: number = 0;
+    public total_code_size: number = 0;
+
+    private used_fnks: SexprLiteral[] = [];
+
+    constructor(
+        public player_fnks: FunktionDefinition[],
+    ) { }
+
+    // calc total_code_size
+    end() {
+        let total_size = 0;
+        const seen_fnks = new Set<string>();
+        for (const name of this.used_fnks) {
+            const str = sexprToString(name, '@');
+            if (!seen_fnks.has(str)) {
+                seen_fnks.add(str);
+                const fnk = findFunktion(this.player_fnks, name);
+                total_size += sizeOfFnk(fnk);
+            }
+        }
+
+        function sizeOfFnk(fnk: FunktionDefinition): number {
+            return fnk.cases.map(sizeOfMatch).reduce((a, b) => a + b, 0);
+
+            function sizeOfMatch(m: MatchCaseDefinition): number {
+                if (m.next === 'return') {
+                    return 1;
+                }
+                else {
+                    return 1 + m.next.map(sizeOfMatch).reduce((a, b) => a + b, 0);
+                }
+            }
+        }
+
+        this.total_code_size = total_size;
+    }
+
+    applyFunktion(fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
+        const used_fnks = this.used_fnks;
+        const player_fnks = this.player_fnks;
+
+        const asdf = helperFnk(fnk_name, argument);
+        this.total_time += asdf.number_of_succesful_matches;
+        this.max_stack = Math.max(this.max_stack, asdf.max_stack);
+        return asdf.result;
+
+        function helperFnk(fnk_name: SexprLiteral, argument: SexprLiteral): {
+            result: SexprLiteral,
+            max_stack: number,
+            number_of_succesful_matches: number,
+        } {
+            if (isAtom(fnk_name, 'identity')) return {
+                result: argument,
+                max_stack: 0,
+                number_of_succesful_matches: 0,
+            };
+            if (isAtom(fnk_name, 'eqAtoms?')) return {
+                result: builtIn_eqAtoms(argument),
+                max_stack: 0,
+                number_of_succesful_matches: 0,
+            };
+            const fnk = findFunktion(player_fnks, fnk_name);
+            used_fnks.push(fnk_name);
+            return helperMatch(fnk.cases, argument, []);
+        }
+
+        function helperMatch(cases: MatchCaseDefinition[], argument: SexprLiteral, parent_bindings: Binding[]): {
+            result: SexprLiteral,
+            max_stack: number,
+            number_of_succesful_matches: number,
+        } {
+            for (const match_case_definition of cases) {
+                const cur_bindings = generateBindings(argument, match_case_definition.pattern);
+                if (cur_bindings === null) continue;
+                const all_bindings = parent_bindings.concat(cur_bindings);
+                const next_fn_name = fillTemplate(match_case_definition.fn_name_template, all_bindings);
+                const next_arg = fillTemplate(match_case_definition.template, all_bindings);
+                const next_value = helperFnk(next_fn_name, next_arg);
+                if (match_case_definition.next === 'return') {
+                    return {
+                        max_stack: next_value.max_stack + 1,
+                        number_of_succesful_matches: next_value.number_of_succesful_matches + 1,
+                        result: next_value.result,
+                    };
+                }
+                else {
+                    const next_stuff = helperMatch(match_case_definition.next, next_value.result, all_bindings);
+
+                    return {
+                        max_stack: Math.max(next_value.max_stack + 1, next_stuff.max_stack + 1),
+                        number_of_succesful_matches: next_value.number_of_succesful_matches + 1 + next_stuff.number_of_succesful_matches,
+                        result: next_stuff.result,
+                    };
+                }
+            }
+            throw new Error(`No matching cases for argument ${sexprToString(argument)}; cases are [${cases.map(x => sexprToString(x.pattern)).join(', ')}]`);
+        }
+    }
+}

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff, LevelDescription, casesFromSexpr, sexprFromCases } from './model';
+import { FunktionDefinition, applyFunktion, assertLiteral, equalSexprs, sexprToString, fnkToString, parseFnks, parseSexprLiteral, parseSexprTemplate, SexprTemplate, doAtom, doVar, knownVariables, getCasesAfter, getNamesAfter, PersistenceStuff, LevelDescription, casesFromSexpr, sexprFromCases, Scorer } from './model';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Camera, computeOffset, offsetView, SexprView } from './drawer';
@@ -223,6 +223,45 @@ test('repr of sexpr', () => {
 //     const back = fnks.map(f => fnkToString(f)).join('\n');
 //     expect(back).toBe(fileContent);
 // });
+
+test('scoring bubbleUp', () => {
+    const bubbleUp: FunktionDefinition = {
+        name: { type: 'atom', value: 'bubbleUp' },
+        cases: [
+            {
+                pattern: parseSexprTemplate(`(#X . rest)`),
+                template: parseSexprTemplate(`(#X . rest)`),
+                fn_name_template: parseSexprTemplate(`#identity`),
+                next: 'return',
+            },
+            {
+                pattern: parseSexprTemplate(`(a . b)`),
+                template: parseSexprTemplate(`b`),
+                fn_name_template: parseSexprTemplate(`#bubbleUp`),
+                next: [
+                    {
+                        pattern: parseSexprTemplate(`(#X . rest)`),
+                        template: parseSexprTemplate(`(#X a . rest)`),
+                        fn_name_template: parseSexprTemplate(`#identity`),
+                        next: 'return',
+                    },
+                ],
+            },
+        ],
+    };
+
+    const input = parseSexprLiteral(`(#a #b #X #c #d)`);
+    const expected_output = parseSexprLiteral(`(#X #a #b #c #d)`);
+
+    const scorer = new Scorer([bubbleUp]);
+    const actual_output = scorer.applyFunktion(bubbleUp.name, input);
+    scorer.end();
+
+    expect(actual_output).toStrictEqual(expected_output);
+    expect(scorer.max_stack).toBe(3);
+    expect(scorer.total_time).toBe(5);
+    expect(scorer.total_code_size).toBe(3);
+});
 
 test('camera stuff', () => {
     const screen_side = 123;
