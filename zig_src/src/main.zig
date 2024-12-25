@@ -6,7 +6,6 @@ const MemoryPool = std.heap.MemoryPool;
 
 // Design decision 1: strings live on the input buffer
 
-// TODO: change Atom to 'Var' & 'Lit'
 // TODO: don't run out of stack on bad inputs
 
 // const max_inlined_len = 12;
@@ -508,8 +507,7 @@ fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *Bindi
         .atom_lit => |pat| {
             switch (value.*) {
                 .pair => return false,
-                // TODO: use Atom.equals
-                .atom_lit => |val| return std.mem.eql(u8, pat.value, val.value),
+                .atom_lit => |val| return val.equals(pat),
                 .atom_var => return error.BAD_INPUT,
             }
         },
