@@ -157,6 +157,7 @@ pub fn main() !void {
     var should_free_input_raw = false;
     defer if (should_free_input_raw) {
         allocator.free(input_raw);
+        std.debug.print("freeing input_raw\n", .{});
     };
     if (std.mem.eql(u8, input_raw, "file")) {
         const input_file_name = args.next().?;
@@ -165,6 +166,27 @@ pub fn main() !void {
         defer input_file.close();
 
         input_raw = try input_file.readToEndAlloc(allocator, std.math.maxInt(usize));
+        should_free_input_raw = true;
+    } else if (std.mem.eql(u8, input_raw, "raw_file")) {
+        const input_file_name = args.next().?;
+
+        const input_file = try std.fs.cwd().openFile(input_file_name, .{});
+        defer input_file.close();
+        var br = std.io.bufferedReader(input_file.reader());
+
+        var contents = std.ArrayList(u8).init(allocator);
+        defer contents.deinit();
+        try contents.append('(');
+        while (true) {
+            const cur_byte = br.reader().readByte() catch break;
+            if (cur_byte == 0x0D) continue; // ignore the CR char, assuming that it will be followed by a NL
+            try contents.append('x');
+            try contents.append(std.fmt.digitToChar(cur_byte >> 4, .upper));
+            try contents.append(std.fmt.digitToChar(cur_byte & 0x0F, .upper));
+            try contents.append(' ');
+        }
+        try contents.append(')');
+        input_raw = try contents.toOwnedSlice();
         should_free_input_raw = true;
     }
 
@@ -828,7 +850,11 @@ fn internalFromExternal(s: *const Sexpr, pool: *MemoryPool(Sexpr)) !Sexpr {
                     },
                 }
             } else {
-                return error.TODO;
+                const left = try pool.create();
+                left.* = try internalFromExternal(p.left, pool);
+                const right = try pool.create();
+                right.* = try internalFromExternal(p.right, pool);
+                return Sexpr{ .pair = Pair{ .left = left, .right = right } };
             }
         },
     }
