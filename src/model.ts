@@ -668,11 +668,11 @@ export function* allCases(cases: MatchCaseDefinition[], parent_address: MatchCas
     }
 }
 
-export function fnkToString(fnk: FunktionDefinition): string {
+export function fnkToString(fnk: FunktionDefinition, mode: '@' | '#' = '#'): string {
     function caseToString(match_case: MatchCaseDefinition, depth: number): string {
-        const body = '\t'.repeat(depth) + sexprToString(match_case.pattern) + ' -> '
-            + sexprToString(match_case.fn_name_template) + ': '
-            + sexprToString(match_case.template);
+        const body = '\t'.repeat(depth) + sexprToString(match_case.pattern, mode) + ' -> '
+            + sexprToString(match_case.fn_name_template, mode) + ': '
+            + sexprToString(match_case.template, mode);
         if (match_case.next === 'return') {
             return body + ';';
         }
@@ -681,7 +681,7 @@ export function fnkToString(fnk: FunktionDefinition): string {
         }
     }
 
-    return sexprToString(fnk.name) + ' {\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n') + '\n}';
+    return sexprToString(fnk.name, mode) + ' {\n' + fnk.cases.map(c => caseToString(c, 1)).join('\n') + '\n}';
 }
 
 export function parseFnks(input: string, mode: '#' | '@' = '#'): FunktionDefinition[] {

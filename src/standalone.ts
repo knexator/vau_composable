@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { applyFunktion, findFunktion, parseFnks, parseSexprLiteral, sexprFromCases, sexprToString } from './model';
+import { applyFunktion, casesFromSexpr, doAtom, findFunktion, fnkToString, parseFnks, parseSexprLiteral, sexprFromCases, sexprToString } from './model';
 
 function fileContents(filePath: string | undefined): string {
     if (filePath === undefined) {
@@ -16,6 +16,11 @@ if (process.argv[2] === 'fnk2val') {
     const fnk_name = parseSexprLiteral(process.argv[4], '@');
     const fnk = findFunktion(all_fnks, fnk_name);
     console.log(sexprToString(sexprFromCases(fnk.cases), '@'));
+}
+else if (process.argv[2] === 'val2fnk') {
+    const raw = parseSexprLiteral(process.argv[3], '@');
+    const cases = casesFromSexpr(raw);
+    console.log(fnkToString({ name: doAtom('aaa'), cases: cases }, '@'));
 }
 else {
     const all_fnks = parseFnks(fileContents(process.argv[2]), '@');
