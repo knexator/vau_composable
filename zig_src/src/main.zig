@@ -20,16 +20,8 @@ const MemoryPool = std.heap.MemoryPool;
 const Atom = struct {
     value: []const u8,
 
-    pub fn lit(v: []const u8) Atom {
-        return .{ .value = v };
-    }
-
     pub fn equals(this: Atom, other: Atom) bool {
         return std.mem.eql(u8, this.value, other.value);
-    }
-
-    pub fn isVar(this: Atom) bool {
-        return this.value.len > 1 and this.value[0] == '@';
     }
 };
 const Pair = struct {
@@ -37,35 +29,44 @@ const Pair = struct {
     right: *const Sexpr,
 };
 const Sexpr = union(enum) {
-    atom: Atom,
+    atom_var: Atom,
+    atom_lit: Atom,
     pair: Pair,
 
-    const @"return" = Sexpr{ .atom = Atom.lit("return") };
-    const @"var" = Sexpr{ .atom = Atom.lit("var") };
-    const atom = Sexpr{ .atom = Atom.lit("atom") };
-    const nil = Sexpr{ .atom = Atom.lit("nil") };
-    const identity = Sexpr{ .atom = Atom.lit("identity") };
-    const @"eqAtoms?" = Sexpr{ .atom = Atom.lit("eqAtoms?") };
-    const @"true" = Sexpr{ .atom = Atom.lit("true") };
-    const @"false" = Sexpr{ .atom = Atom.lit("false") };
+    const @"return" = Sexpr.lit("return");
+    const @"var" = Sexpr.lit("var");
+    const atom = Sexpr.lit("atom");
+    const nil = Sexpr.lit("nil");
+    const identity = Sexpr.lit("identity");
+    const @"eqAtoms?" = Sexpr.lit("eqAtoms?");
+    const @"true" = Sexpr.lit("true");
+    const @"false" = Sexpr.lit("false");
+
+    pub fn lit(v: []const u8) Sexpr {
+        return .{ .atom_lit = .{ .value = v } };
+    }
 
     pub fn equals(this: Sexpr, other: Sexpr) bool {
         return switch (this) {
-            .atom => |this_atom| switch (other) {
-                .atom => |other_atom| this_atom.equals(other_atom),
-                .pair => false,
+            .atom_lit => |this_atom| switch (other) {
+                .atom_lit => |other_atom| this_atom.equals(other_atom),
+                else => false,
+            },
+            .atom_var => |this_atom| switch (other) {
+                .atom_var => |other_atom| this_atom.equals(other_atom),
+                else => false,
             },
             .pair => |this_pair| switch (other) {
-                .atom => false,
                 .pair => |other_pair| this_pair.left.equals(other_pair.left.*) and this_pair.right.equals(other_pair.right.*),
+                else => false,
             },
         };
     }
 
-    pub fn isAtom(this: Sexpr) bool {
+    pub fn isLit(this: Sexpr) bool {
         return switch (this) {
-            .atom => true,
-            .pair => false,
+            .atom_lit => true,
+            else => false,
         };
     }
 
@@ -99,7 +100,8 @@ const FnkBody = struct {
 const FnkCollection = std.ArrayHashMap(Sexpr, FnkBody, struct {
     pub fn hash(self: @This(), s: Sexpr) u32 {
         return switch (s) {
-            .atom => |a| std.array_hash_map.hashString(a.value),
+            .atom_lit => |a| std.array_hash_map.hashString(a.value),
+            .atom_var => |a| std.hash.uint32(std.array_hash_map.hashString(a.value)),
             .pair => |p| {
                 // return std.hash.uint32(hash(self, p.left.*)) ^ hash(self, p.right.*);
                 var hasher = std.hash.Wyhash.init(0);
@@ -257,7 +259,11 @@ fn parseSexprTrue(input: []const u8, pool: *MemoryPool(Sexpr)) error{ OutOfMemor
         return .{ .sexpr = asdf.sexpr, .rest = asdf.rest };
     }
     const asdf = try parseAtom(rest);
-    return .{ .sexpr = Sexpr{ .atom = asdf.atom }, .rest = asdf.rest };
+    if (asdf.is_var) {
+        return .{ .sexpr = Sexpr{ .atom_var = asdf.atom }, .rest = asdf.rest };
+    } else {
+        return .{ .sexpr = Sexpr{ .atom_lit = asdf.atom }, .rest = asdf.rest };
+    }
 }
 
 fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct { sexpr: Sexpr, rest: []const u8 } {
@@ -284,32 +290,34 @@ fn parseSexprInsideParens(input: []const u8, pool: *MemoryPool(Sexpr)) !struct {
     return .{ .sexpr = .{ .pair = .{ .left = left, .right = right } }, .rest = rest_asdf.rest };
 }
 
-fn parseAtom(input: []const u8) !struct { atom: Atom, rest: []const u8 } {
+fn parseAtom(input: []const u8) !struct { atom: Atom, is_var: bool, rest: []const u8 } {
     const word_breaks = .{ '(', ')', ':', '.', ';' } ++ std.ascii.whitespace;
     const rest = std.mem.trimLeft(u8, input, &std.ascii.whitespace);
     const word_end = std.mem.indexOfAnyPos(u8, rest, 0, &word_breaks) orelse rest.len;
+    const is_variable = rest[0] == '@';
     return .{
-        .atom = Atom{ .value = rest[0..word_end] },
+        .atom = Atom{ .value = rest[(if (is_variable) 1 else 0)..word_end] },
+        .is_var = is_variable,
         .rest = rest[word_end..],
     };
 }
 
 test "parse atom" {
-    const raw_input = "hello there";
+    const raw_input = "hello @there";
 
     var pool = MemoryPool(Sexpr).init(std.testing.allocator);
     defer pool.deinit();
 
     var remaining: []const u8 = raw_input;
     const asdf1 = try parseSexprTrue(remaining, &pool);
-    const atom1 = asdf1.sexpr.atom;
+    const atom1 = asdf1.sexpr;
     remaining = asdf1.rest;
     const asdf2 = try parseSexprTrue(remaining, &pool);
-    const atom2 = asdf2.sexpr.atom;
+    const atom2 = asdf2.sexpr;
     remaining = asdf2.rest;
 
-    try std.testing.expectEqualStrings("hello", atom1.value);
-    try std.testing.expectEqualStrings("there", atom2.value);
+    try expectEqualSexprs(.{ .atom_lit = .{ .value = "hello" } }, atom1);
+    try expectEqualSexprs(.{ .atom_var = .{ .value = "there" } }, atom2);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -323,8 +331,8 @@ test "helper function" {
     const sexpr1 = try parseSexpr(&remaining, &pool);
     const sexpr2 = try parseSexpr(&remaining, &pool);
 
-    try std.testing.expectEqualStrings("hello", sexpr1.atom.value);
-    try std.testing.expectEqualStrings("there", sexpr2.atom.value);
+    try expectEqualSexprs(.{ .atom_lit = .{ .value = "hello" } }, sexpr1);
+    try expectEqualSexprs(.{ .atom_lit = .{ .value = "there" } }, sexpr2);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -336,11 +344,9 @@ test "parse pair" {
 
     var remaining: []const u8 = raw_input;
     const sexpr = try parseSexpr(&remaining, &pool);
-    const atom1 = sexpr.pair.left.atom;
-    const atom2 = sexpr.pair.right.atom;
 
-    try std.testing.expectEqualStrings("hello", atom1.value);
-    try std.testing.expectEqualStrings("there", atom2.value);
+    try expectEqualSexprs(.{ .atom_lit = .{ .value = "hello" } }, sexpr.pair.left.*);
+    try expectEqualSexprs(.{ .atom_lit = .{ .value = "there" } }, sexpr.pair.right.*);
     try std.testing.expectEqualStrings("", remaining);
 }
 
@@ -352,9 +358,9 @@ test "parse nested" {
 
     var remaining: []const u8 = raw_input;
     const sexpr = try parseSexpr(&remaining, &pool);
-    const atom1 = sexpr.pair.left.atom;
-    const atom2 = sexpr.pair.right.pair.left.atom;
-    const atom3 = sexpr.pair.right.pair.right.atom;
+    const atom1 = sexpr.pair.left.atom_lit;
+    const atom2 = sexpr.pair.right.pair.left.atom_lit;
+    const atom3 = sexpr.pair.right.pair.right.atom_lit;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("there", atom2.value);
@@ -370,8 +376,8 @@ test "parse one element list" {
 
     var remaining: []const u8 = raw_input;
     const sexpr = try parseSexpr(&remaining, &pool);
-    const atom1 = sexpr.pair.left.atom;
-    const atom2 = sexpr.pair.right.atom;
+    const atom1 = sexpr.pair.left.atom_lit;
+    const atom2 = sexpr.pair.right.atom_lit;
 
     try std.testing.expectEqualStrings("hello", atom1.value);
     try std.testing.expectEqualStrings("nil", atom2.value);
@@ -414,7 +420,11 @@ fn writeSexprHelper(sexpr: Sexpr, buffer: []u8, temp_allocator: std.mem.Allocato
 
 fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) !void {
     switch (s) {
-        .atom => |atom| {
+        .atom_lit => |atom| {
+            try w.writeAll(atom.value);
+        },
+        .atom_var => |atom| {
+            try w.writeAll("@");
             try w.writeAll(atom.value);
         },
         .pair => {
@@ -442,7 +452,7 @@ fn writeSexpr(s: Sexpr, w: std.io.AnyWriter, temp_allocator: std.mem.Allocator) 
 
 fn asListPlusSentinel(s: Sexpr, l: *std.ArrayList(*const Sexpr)) !Sexpr {
     switch (s) {
-        .atom => return s,
+        .atom_lit, .atom_var => return s,
         .pair => |p| {
             try l.append(p.left);
             return try asListPlusSentinel(p.right.*, l);
@@ -489,23 +499,24 @@ fn bindAndFill(pattern: *const Sexpr, value: *const Sexpr, template: *const Sexp
 // fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr)) !bool {
 fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *Bindings) !bool {
     switch (pattern.*) {
-        .atom => |pat| {
-            if (pat.isVar()) {
-                // TODO: return false if variable was already bound
-                // try bindings.put(pat.value, value);
-                try bindings.append(.{ .name = pat.value, .value = value });
-                return true;
-            } else {
-                switch (value.*) {
-                    .pair => return false,
-                    // TODO: use Atom.equals
-                    .atom => |val| return std.mem.eql(u8, pat.value, val.value),
-                }
+        .atom_var => |pat| {
+            // TODO: return false if variable was already bound
+            // try bindings.put(pat.value, value);
+            try bindings.append(.{ .name = pat.value, .value = value });
+            return true;
+        },
+        .atom_lit => |pat| {
+            switch (value.*) {
+                .pair => return false,
+                // TODO: use Atom.equals
+                .atom_lit => |val| return std.mem.eql(u8, pat.value, val.value),
+                .atom_var => return error.BAD_INPUT,
             }
         },
         .pair => |pat| {
             switch (value.*) {
-                .atom => return false,
+                .atom_lit => return false,
+                .atom_var => return error.BAD_INPUT,
                 .pair => |val| {
                     return (try generateBindings(pat.left, val.left, bindings)) and (try generateBindings(pat.right, val.right, bindings));
                 },
@@ -517,20 +528,17 @@ fn generateBindings(pattern: *const Sexpr, value: *const Sexpr, bindings: *Bindi
 // fn fillTemplate(template: *const Sexpr, bindings: *std.StringArrayHashMap(*const Sexpr), pool: *MemoryPool(Sexpr)) !*const Sexpr {
 fn fillTemplate(template: *const Sexpr, bindings: *Bindings, pool: *MemoryPool(Sexpr)) !*const Sexpr {
     switch (template.*) {
-        .atom => |templ| {
-            if (templ.isVar()) {
-                // return bindings.get(templ.value).?;
-                for (0..bindings.items.len) |k| {
-                    const bind = bindings.items[bindings.items.len - k - 1];
-                    if (std.mem.eql(u8, bind.name, templ.value)) {
-                        return bind.value;
-                    }
+        .atom_var => |templ| {
+            // return bindings.get(templ.value).?;
+            for (0..bindings.items.len) |k| {
+                const bind = bindings.items[bindings.items.len - k - 1];
+                if (std.mem.eql(u8, bind.name, templ.value)) {
+                    return bind.value;
                 }
-                return error.BAD_INPUT;
-            } else {
-                return template;
             }
+            return error.BAD_INPUT;
         },
+        .atom_lit => return template,
         .pair => |templ| {
             const left = try fillTemplate(templ.left, bindings, pool);
             const right = try fillTemplate(templ.right, bindings, pool);
@@ -556,9 +564,9 @@ test "parse flat fnk" {
     const fnk = try parseFnk(&remaining, &pool, std.testing.allocator);
     defer fnk.body.arena.deinit();
 
-    try std.testing.expectEqualStrings("add", fnk.name.atom.value);
+    try std.testing.expectEqualStrings("add", fnk.name.atom_lit.value);
     try std.testing.expectEqual(2, fnk.body.cases.items.len);
-    try std.testing.expectEqualStrings("@a", fnk.body.cases.items[1].pattern.pair.left.pair.right.atom.value);
+    try std.testing.expectEqualStrings("a", fnk.body.cases.items[1].pattern.pair.left.pair.right.atom_var.value);
     try std.testing.expectEqual(null, fnk.body.cases.items[1].next);
     try std.testing.expectEqualStrings("", remaining);
 }
@@ -741,8 +749,8 @@ fn applyFnk(
 ) error{ OutOfMemory, NO_VALID_MATCH, BAD_INPUT, TODO }!Sexpr {
     if (name.equals(Sexpr.identity)) return input.*;
     if (name.equals(Sexpr.@"eqAtoms?")) return switch (input.*) {
-        .atom => Sexpr.fromBool(false),
-        .pair => |p| Sexpr.fromBool(p.left.*.isAtom() and p.right.*.isAtom() and Sexpr.equals(p.left.*, p.right.*)),
+        .atom_lit, .atom_var => Sexpr.fromBool(false),
+        .pair => |p| Sexpr.fromBool(p.left.*.isLit() and p.right.*.isLit() and Sexpr.equals(p.left.*, p.right.*)),
     };
     // const fnk = all_fnks.get(name).?;
     const fnk = try findFunktion(all_fnks, name, temp_bindings_allocator, pool, allocator_for_new_fnks);
@@ -777,7 +785,7 @@ fn findFunktion(
     if (all_fnks.get(name)) |fnk| {
         return fnk;
     } else switch (name) {
-        .atom => return error.BAD_INPUT,
+        .atom_lit, .atom_var => return error.BAD_INPUT,
         .pair => |p| {
             // try to compile it!
             const asdf = try applyFnk(all_fnks, p.left.*, p.right, temp_bindings_allocator, pool, allocator_for_new_fnks);
@@ -797,7 +805,8 @@ fn fnkFromSexpr(s: Sexpr, allocator_for_new_fnks: std.mem.Allocator, pool: *Memo
 fn fnkFromSexprHelper(s: Sexpr, arena: std.mem.Allocator, pool: *MemoryPool(Sexpr)) !?InnerCases {
     var cases = std.ArrayListUnmanaged(MatchCaseDefinition){};
     switch (s) {
-        .atom => return if (s.equals(Sexpr.@"return")) null else error.BAD_INPUT,
+        .atom_lit => return if (s.equals(Sexpr.@"return")) null else error.BAD_INPUT,
+        .atom_var => return error.BAD_INPUT,
         .pair => |p| {
             var cur_parent = p;
             while (true) {
@@ -813,13 +822,14 @@ fn fnkFromSexprHelper(s: Sexpr, arena: std.mem.Allocator, pool: *MemoryPool(Sexp
                     .next = next,
                 });
                 switch (cur_parent.right.*) {
-                    .atom => |a| {
-                        if (a.equals(Sexpr.nil.atom)) {
+                    .atom_lit => |a| {
+                        if (a.equals(Sexpr.nil.atom_lit)) {
                             break;
                         } else {
                             return error.BAD_INPUT;
                         }
                     },
+                    .atom_var => return error.BAD_INPUT,
                     .pair => |p2| {
                         cur_parent = p2;
                     },
@@ -833,20 +843,17 @@ fn fnkFromSexprHelper(s: Sexpr, arena: std.mem.Allocator, pool: *MemoryPool(Sexp
 // ((atom . aaa) . (var . bbb)) => (aaa . @bbb)
 fn internalFromExternal(s: *const Sexpr, pool: *MemoryPool(Sexpr)) !Sexpr {
     switch (s.*) {
-        .atom => return error.BAD_INPUT,
+        .atom_var, .atom_lit => return error.BAD_INPUT,
         .pair => |p| {
             if (p.left.equals(Sexpr.atom)) {
                 return p.right.*;
             } else if (p.left.equals(Sexpr.@"var")) {
                 switch (p.right.*) {
                     .pair => return error.BAD_INPUT,
-                    .atom => |a| {
-                        // TODO: this is a horrible hack
-                        const asdf: []u8 = try pool.arena.allocator().alloc(u8, a.value.len + 1);
-                        asdf[0] = '@';
-                        @memcpy(asdf[1..], a.value);
+                    .atom_var => return error.BAD_INPUT,
+                    .atom_lit => |a| {
                         const res: *Sexpr = try pool.create();
-                        res.* = Sexpr{ .atom = Atom{ .value = asdf } };
+                        res.* = Sexpr{ .atom_var = a };
                         return res.*;
                     },
                 }
@@ -951,18 +958,39 @@ fn undoLastBindings(bindings: *Bindings, original_count: usize) void {
 
 pub fn expectEqualSexprs(expected: Sexpr, actual: Sexpr) !void {
     switch (expected) {
-        .atom => |expected_atom| switch (actual) {
-            .atom => |actual_atom| {
+        .atom_lit => |expected_atom| switch (actual) {
+            .atom_lit => |actual_atom| {
+                return std.testing.expectEqualStrings(expected_atom.value, actual_atom.value);
+            },
+            .atom_var => |actual_atom| {
+                std.debug.print("expected literal '{s}' but found variable '{s}'\n", .{ expected_atom.value, actual_atom.value });
+                return error.TestExpectedEqual;
+            },
+            .pair => |actual_pair| {
+                std.debug.print("expected literal '{s}' but found a pair {any}\n", .{ expected_atom.value, actual_pair });
+                return error.TestExpectedEqual;
+            },
+        },
+        .atom_var => |expected_atom| switch (actual) {
+            .atom_lit => |actual_atom| {
+                std.debug.print("expected variable '{s}' but found literal '{s}'\n", .{ expected_atom.value, actual_atom.value });
+                return error.TestExpectedEqual;
+            },
+            .atom_var => |actual_atom| {
                 return std.testing.expectEqualStrings(expected_atom.value, actual_atom.value);
             },
             .pair => |actual_pair| {
-                std.debug.print("expected atom '{s}' but found a pair {any}\n", .{ expected_atom.value, actual_pair });
+                std.debug.print("expected variable '{s}' but found a pair {any}\n", .{ expected_atom.value, actual_pair });
                 return error.TestExpectedEqual;
             },
         },
         .pair => |expected_pair| switch (actual) {
-            .atom => |actual_atom| {
-                std.debug.print("expected pair but found an atom '{s}'\n", .{actual_atom.value});
+            .atom_lit => |actual_atom| {
+                std.debug.print("expected pair but found literal '{s}'\n", .{actual_atom.value});
+                return error.TestExpectedEqual;
+            },
+            .atom_var => |actual_atom| {
+                std.debug.print("expected pair but found literal '{s}'\n", .{actual_atom.value});
                 return error.TestExpectedEqual;
             },
             .pair => |actual_pair| {
