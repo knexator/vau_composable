@@ -685,9 +685,26 @@ export function fnkToString(fnk: FunktionDefinition, mode: '@' | '#' = '#'): str
 }
 
 export function parseFnks(input: string, mode: '#' | '@' = '#'): FunktionDefinition[] {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    const raw_thing = parser.parse(input) as FunktionDefinition[];
-    return raw_thing.map(f => asdf(f));
+    try {
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        const raw_thing = parser.parse(input) as FunktionDefinition[];
+        return raw_thing.map(f => asdf(f));
+    }
+    catch (e) {
+        // @ts-expect-error xxx
+        if (typeof e.format === 'function') {
+            // @ts-expect-error xxx
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+            console.log(e.format([
+                // { source: 'main.pegjs', text: '' },
+                { source: 'input.js', text: input },
+            ]));
+            throw e;
+        }
+        else {
+            throw e;
+        }
+    }
 
     function asdf(f: FunktionDefinition): FunktionDefinition {
         return {
