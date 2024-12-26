@@ -28,7 +28,7 @@ export type SexprNullable =
     | { type: 'pair', left: SexprNullable, right: SexprNullable };
 
 export function assertLiteral(x: SexprTemplate): SexprLiteral {
-    if (x.type === 'variable') throw new Error('Template is not fully resolved');
+    if (x.type === 'variable') throw new Error(`Template is not fully resolved, found variable ${x.value}`);
     if (x.type === 'pair') {
         return {
             type: 'pair',
@@ -241,6 +241,13 @@ export function equalSexprs(a: SexprLiteral, b: SexprLiteral): boolean {
         return equalSexprs(a.left, b.left) && equalSexprs(a.right, b.right);
     }
     return false;
+}
+
+export function findFunktionWithoutCompiling(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): FunktionDefinition {
+    for (const fnk of all_fnks) {
+        if (equalSexprs(fnk.name, fnk_name)) return fnk;
+    }
+    throw new Error('couldn\'t find fnk');
 }
 
 export function findFunktion(all_fnks: FunktionDefinition[], fnk_name: SexprLiteral): FunktionDefinition {
@@ -870,44 +877,17 @@ export class Scorer {
     public max_stack: number = 0;
     public total_code_size: number = 0;
 
-    private used_fnks: SexprLiteral[] = [];
+    private used_fnks: Set<string> = new Set();
 
     constructor(
         public player_fnks: FunktionDefinition[],
     ) { }
 
-    // calc total_code_size
-    end() {
-        let total_size = 0;
-        const seen_fnks = new Set<string>();
-        for (const name of this.used_fnks) {
-            const str = sexprToString(name, '@');
-            if (!seen_fnks.has(str)) {
-                seen_fnks.add(str);
-                const fnk = findFunktion(this.player_fnks, name);
-                total_size += sizeOfFnk(fnk);
-            }
-        }
-
-        function sizeOfFnk(fnk: FunktionDefinition): number {
-            return fnk.cases.map(sizeOfMatch).reduce((a, b) => a + b, 0);
-
-            function sizeOfMatch(m: MatchCaseDefinition): number {
-                if (m.next === 'return') {
-                    return 1;
-                }
-                else {
-                    return 1 + m.next.map(sizeOfMatch).reduce((a, b) => a + b, 0);
-                }
-            }
-        }
-
-        this.total_code_size = total_size;
-    }
-
     applyFunktion(fnk_name: SexprLiteral, argument: SexprLiteral): SexprLiteral {
         const used_fnks = this.used_fnks;
         const player_fnks = this.player_fnks;
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const that = this;
 
         const asdf = helperFnk(fnk_name, argument);
         this.total_time += asdf.number_of_succesful_matches;
@@ -929,8 +909,17 @@ export class Scorer {
                 max_stack: 0,
                 number_of_succesful_matches: 0,
             };
-            const fnk = findFunktion(player_fnks, fnk_name);
-            used_fnks.push(fnk_name);
+
+            const str = sexprToString(fnk_name, '@');
+            if (!used_fnks.has(str)) {
+                used_fnks.add(str);
+                const { time, size } = seeFnkForTheFirstTime(fnk_name);
+                that.total_time += time;
+                that.total_code_size += size;
+            }
+
+            const fnk = findFunktionWithoutCompiling(player_fnks, fnk_name);
+
             return helperMatch(fnk.cases, argument, []);
         }
 
@@ -964,6 +953,42 @@ export class Scorer {
                 }
             }
             throw new Error(`No matching cases for argument ${sexprToString(argument)}; cases are [${cases.map(x => sexprToString(x.pattern)).join(', ')}]`);
+        }
+
+        function seeFnkForTheFirstTime(fnk_name: SexprLiteral): {
+            res: FunktionDefinition,
+            time: number,
+            size: number,
+        } {
+            for (const fnk of player_fnks) {
+                if (equalSexprs(fnk.name, fnk_name)) {
+                    return { res: fnk, time: 0, size: sizeOfFnk(fnk) };
+                };
+            }
+            if (fnk_name.type === 'pair') {
+                const asdf = helperFnk(fnk_name.left, fnk_name.right);
+                const new_fnk = { name: fnk_name, cases: casesFromSexpr(asdf.result) };
+                player_fnks.push(new_fnk);
+                return {
+                    res: new_fnk,
+                    time: asdf.number_of_succesful_matches,
+                    size: 0,
+                };
+            }
+            throw new Error(`Couldn't find or compile the requested funktion: ${sexprToString(fnk_name)}`);
+
+            function sizeOfFnk(fnk: FunktionDefinition): number {
+                return fnk.cases.map(sizeOfMatch).reduce((a, b) => a + b, 0);
+
+                function sizeOfMatch(m: MatchCaseDefinition): number {
+                    if (m.next === 'return') {
+                        return 1;
+                    }
+                    else {
+                        return 1 + m.next.map(sizeOfMatch).reduce((a, b) => a + b, 0);
+                    }
+                }
+            }
         }
     }
 }

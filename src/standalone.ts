@@ -42,7 +42,6 @@ else if (process.argv[2] === 'score') {
             }
         });
     });
-    scorer.end();
     console.log(`max depth: ${scorer.max_stack}`);
     console.log(`total time: ${scorer.total_time}`);
     console.log(`total size: ${scorer.total_code_size}`);

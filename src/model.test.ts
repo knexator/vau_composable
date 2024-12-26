@@ -255,12 +255,54 @@ test('scoring bubbleUp', () => {
 
     const scorer = new Scorer([bubbleUp]);
     const actual_output = scorer.applyFunktion(bubbleUp.name, input);
-    scorer.end();
 
     expect(actual_output).toStrictEqual(expected_output);
     expect(scorer.max_stack).toBe(3);
     expect(scorer.total_time).toBe(5);
     expect(scorer.total_code_size).toBe(3);
+});
+
+test('scoring comptime', () => {
+    const fnks = parseFnks(`
+
+compileMap {
+    nil -> nil;
+    ((@key . @value) . @rest) -> compileMap: @rest {
+        // TODO: what if value is not an atom?
+        @rest_compiled -> ( ((atom . @key) identity (atom . @value) . return) . @rest_compiled );
+    }
+}
+
+(binary . fromHexadecimal) {
+    @digit -> (compileMap . ( 
+        (0 . ()) 
+        (1 . (b1)) 
+        (2 . (b0 b1)) 
+        (3 . (b1 b1))
+        (4 . (b0 b0 b1))
+        (5 . (b1 b0 b1))
+        (6 . (b0 b1 b1))
+        (7 . (b1 b1 b1))
+        (8 . (b0 b0 b0 b1))
+        (9 . (b1 b0 b0 b1))
+        (a . (b0 b1 b0 b1))
+        (b . (b1 b1 b0 b1))
+        (c . (b0 b0 b1 b1))
+        (d . (b1 b0 b1 b1))
+        (e . (b0 b1 b1 b1))
+        (f . (b1 b1 b1 b1))
+    )): @digit;
+}`, '@');
+    const input = parseSexprLiteral(`7`, '@');
+    const expected_output = parseSexprLiteral(`(b1 b1 b1)`, '@');
+
+    const scorer = new Scorer(fnks);
+    const actual_output = scorer.applyFunktion(fnks[1].name, input);
+
+    expect(actual_output).toStrictEqual(expected_output);
+    // expect(scorer.max_stack).toBe(3);
+    // expect(scorer.total_time).toBe(5);
+    expect(scorer.total_code_size).toBe(4);
 });
 
 test('camera stuff', () => {
