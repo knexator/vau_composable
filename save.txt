@@ -336,7 +336,10 @@ interpreter {
 }
 
 (advent day1 p1 . final) {
-    (nil nil . @acc) -> (hexadecimal . fromBinary): @acc;
+    (nil nil . @acc) -> (decimal . fromBinary): @acc {
+        @r -> reverse: @r;
+    }
+    // (nil nil . @acc) -> (hexadecimal . fromBinary): @acc;
     ((@c1_first . @c1_rest) (@c2_first . @c2_rest) . @acc) -> (binary . absDist): (@c1_first . @c2_first) {
         @diff -> (binary . add): (@diff . @acc) {
             @new_acc -> (advent day1 p1 . final): (@c1_rest @c2_rest . @new_acc);
@@ -427,6 +430,93 @@ reverse {
             ((b1 b1 b1 b1) . (f) )
         )): @stuff;
     }
+}
+
+(decimal . multiplyByTwo) {
+    nil -> nil;
+    (0 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (0 . @b);
+    }
+    (1 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (2 . @b);
+    }
+    (2 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (4 . @b);
+    }
+    (3 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (6 . @b);
+    }
+    (4 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (8 . @b);
+    }
+    (5 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (decimal . inc): @b {
+            @c -> (0 . @c);
+        }
+    }
+    (6 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (decimal . inc): @b {
+            @c -> (2 . @c);
+        }
+    }
+    (7 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (decimal . inc): @b {
+            @c -> (4 . @c);
+        }
+    }
+    (8 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (decimal . inc): @b {
+            @c -> (6 . @c);
+        }
+    }
+    (9 . @rest) -> (decimal . multiplyByTwo): @rest {
+        @b -> (decimal . inc): @b {
+            @c -> (8 . @c);
+        }
+    }
+}
+
+// TODO: comptime magic
+(decimal . inc) {
+    nil -> (1);
+    (0 . @rest) -> (1 . @rest);
+    (1 . @rest) -> (2 . @rest);
+    (2 . @rest) -> (3 . @rest);
+    (3 . @rest) -> (4 . @rest);
+    (4 . @rest) -> (5 . @rest);
+    (5 . @rest) -> (6 . @rest);
+    (6 . @rest) -> (7 . @rest);
+    (7 . @rest) -> (8 . @rest);
+    (8 . @rest) -> (9 . @rest);
+    (9 . @rest) -> (decimal . inc): @rest {
+        @rest2 -> (0 . @rest2);
+    }
+}
+
+(decimal . fromBinary) {
+    nil -> nil;
+    (b0 . @rest) -> (decimal . fromBinary): @rest {
+        @rest2 -> (decimal . multiplyByTwo): @rest2;
+    }
+    (b1 . @rest) -> (decimal . fromBinary): @rest {
+        @rest2 -> (decimal . multiplyByTwo): @rest2 {
+            @rest3 -> (decimal . inc): @rest3;
+        }
+    }
+
+
+    // @raw_stuff -> (binary . removeLeadingZeros): @raw_stuff {
+        // () -> (0);
+        // (b1) -> (1);
+        // (b0 b1) -> (2);
+        // (b1 b1) -> (3);
+        // (b0 b0 b1) -> (4);
+        // (b1 b0 b1) -> (5);
+        // (b0 b1 b1) -> (6);
+        // (b1 b1 b1) -> (7);
+        // (b0 b0 b0 b1) -> (8);
+        // (b1 b0 b0 b1) -> (9);
+    // }
 }
 
 // 3   4
