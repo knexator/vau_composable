@@ -225,7 +225,33 @@ pub fn main() !void {
         }
     }
 
-    const result = try applyFnk(&fnk_collection, fn_name, &input, temp_allocator, &pool, allocator);
+    // plain way
+    //const result = try applyFnk(&fnk_collection, fn_name, &input, temp_allocator, &pool, allocator);
+
+    // bounded stack
+    var state_pool = MemoryPool(ExecutionState).init(allocator);
+    defer state_pool.deinit();
+    var state = try ExecutionState.start(
+        &fnk_collection,
+        fn_name,
+        input,
+        .{
+            .pool = &pool,
+            .allocator_for_new_fnks = allocator,
+            .temp_bindings_allocator = temp_allocator,
+            .state_pool = &state_pool,
+        },
+    );
+    while (!state.isDone()) {
+        state = try state.nextStep(&fnk_collection, .{
+            .pool = &pool,
+            .allocator_for_new_fnks = allocator,
+            .temp_bindings_allocator = temp_allocator,
+            .state_pool = &state_pool,
+        });
+    }
+    const result = state.cur_value;
+
     try stdout.print("result: ", .{});
     try writeSexpr(result, stdout.any(), temp_allocator);
     try stdout.print("\n", .{});
@@ -737,6 +763,57 @@ test "apply nested fnk" {
     try expectEqualSexprs(expected, actual);
 }
 
+test "apply fnk with comptime" {
+    var raw_fnk: []const u8 =
+        \\ stuff {
+        \\      @digit -> (compileMap . ( 
+        \\          (0 . ()) 
+        \\          (1 . (b1)) 
+        \\          (2 . (b0 b1)) 
+        \\          (3 . (b1 b1))
+        \\      )): @digit;
+        \\ }
+    ;
+    var raw_fnk_compileMap: []const u8 =
+        \\ compileMap {
+        \\      nil -> nil;
+        \\      ((@key . @value) . @rest) -> compileMap: @rest {
+        \\          @rest_compiled -> ( ((atom . @key) identity (atom . @value) . return) . @rest_compiled );
+        \\      }
+        \\ }
+    ;
+    var raw_input: []const u8 = "2";
+    var raw_expected: []const u8 = "(b0 b1)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const main_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    // defer main_fnk.body.arena.deinit();
+    const compiletime_fnk = try parseFnk(&raw_fnk_compileMap, &pool, std.testing.allocator);
+    // defer compiletime_fnk.body.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+
+    defer {
+        var it = fnk_collection.iterator();
+        while (it.next()) |x| {
+            x.value_ptr.arena.deinit();
+        }
+    }
+
+    try fnk_collection.put(main_fnk.name, main_fnk.body);
+    try fnk_collection.put(compiletime_fnk.name, compiletime_fnk.body);
+
+    const actual = try applyFnk(&fnk_collection, main_fnk.name, &input, std.testing.allocator, &pool, std.testing.allocator);
+
+    try expectEqualSexprs(expected, actual);
+}
+
 fn applyFnk(
     all_fnks: *FnkCollection,
     name: Sexpr,
@@ -997,4 +1074,298 @@ pub fn expectEqualSexprs(expected: Sexpr, actual: Sexpr) !void {
             },
         },
     }
+}
+
+const MemStuff = struct {
+    temp_bindings_allocator: std.mem.Allocator,
+    pool: *MemoryPool(Sexpr),
+    state_pool: *MemoryPool(ExecutionState),
+    allocator_for_new_fnks: std.mem.Allocator,
+};
+
+const ExecutionState = struct {
+    cur_value: Sexpr,
+    cur_cases: ?InnerCases,
+    cur_bindings: Bindings,
+
+    parent: ?*ExecutionState,
+    // pub fn next() void {}
+
+    pub fn isDone(this: ExecutionState) bool {
+        return this.cur_cases == null and this.parent == null;
+    }
+
+    pub fn nextStep(this: *ExecutionState, all_fnks: *FnkCollection, mem: MemStuff) !*ExecutionState {
+        if (this.cur_cases) |cases| {
+            const initial_bindings_count = this.cur_bindings.items.len;
+            for (cases.items) |case| {
+                if (!try generateBindings(&case.pattern, &this.cur_value, &this.cur_bindings)) {
+                    undoLastBindings(&this.cur_bindings, initial_bindings_count);
+                    continue;
+                }
+                const argument = try fillTemplate(&case.template, &this.cur_bindings, mem.pool);
+
+                var inner_execution = try ExecutionState.start(all_fnks, case.fn_name, argument.*, mem);
+
+                // const value = try applyFnk(
+                //     all_fnks,
+                //     case.fn_name,
+                //     argument,
+                //     bindings.allocator,
+                //     pool,
+                //     allocator_for_new_fnks,
+                // );
+
+                if (case.next) |next| {
+                    // const asdf = try pool.create();
+                    // asdf.* = value;
+                    // return try applyMatchOptions(all_fnks, next, asdf, bindings, pool, allocator_for_new_fnks);
+                    this.cur_cases = next;
+                    this.cur_value = undefined;
+                    inner_execution.parent = this;
+                    return inner_execution;
+                } else {
+                    inner_execution.parent = this.parent;
+                    this.cur_bindings.deinit();
+                    return inner_execution;
+                }
+            }
+            return error.BAD_INPUT;
+        } else if (this.parent) |parent| {
+            // no cases left
+            this.cur_bindings.deinit();
+            parent.cur_value = this.cur_value;
+            return parent;
+        } else {
+            return this;
+        }
+    }
+
+    // TODO: start(input string, fnks string, main allocator)
+    pub fn start(all_fnks: *FnkCollection, fn_name: Sexpr, input: Sexpr, mem: MemStuff) !*ExecutionState {
+        const bindings = std.ArrayList(Binding).init(mem.temp_bindings_allocator);
+
+        if (fn_name.equals(Sexpr.identity)) {
+            const res: ExecutionState = .{
+                .cur_value = input,
+                .cur_cases = null,
+                .cur_bindings = bindings,
+                .parent = null,
+            };
+
+            const asdf = try mem.state_pool.create();
+            asdf.* = res;
+            return asdf;
+        }
+        if (fn_name.equals(Sexpr.@"eqAtoms?")) {
+            const val = switch (input) {
+                .atom_lit, .atom_var => Sexpr.fromBool(false),
+                .pair => |p| Sexpr.fromBool(p.left.*.isLit() and p.right.*.isLit() and Sexpr.equals(p.left.*, p.right.*)),
+            };
+
+            const res: ExecutionState = .{
+                .cur_value = val,
+                .cur_cases = null,
+                .cur_bindings = bindings,
+                .parent = null,
+            };
+
+            const asdf = try mem.state_pool.create();
+            asdf.* = res;
+            return asdf;
+        }
+
+        const fnk = try findFunktion(all_fnks, fn_name, mem.temp_bindings_allocator, mem.pool, mem.allocator_for_new_fnks);
+
+        const res: ExecutionState = .{
+            .cur_value = input,
+            .cur_cases = fnk.cases,
+            .cur_bindings = bindings,
+            .parent = null,
+        };
+
+        const asdf = try mem.state_pool.create();
+        asdf.* = res;
+        return asdf;
+    }
+};
+
+test "apply flat fnk, with ExecutionState" {
+    var raw_fnk: []const u8 =
+        \\ add {
+        \\  (nil . @b) -> @b;
+        \\  ((S . @a) . @b) -> add: (@a . (S . @b));
+        \\ }
+    ;
+    var raw_input: []const u8 = "( (S S) . (S S) )";
+    var raw_expected: []const u8 = "(S S S S)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const add_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    defer add_fnk.body.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+    try fnk_collection.put(add_fnk.name, add_fnk.body);
+
+    var state_pool = MemoryPool(ExecutionState).init(std.testing.allocator);
+    defer state_pool.deinit();
+
+    var state = try ExecutionState.start(
+        &fnk_collection,
+        add_fnk.name,
+        input,
+        .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        },
+    );
+
+    while (!state.isDone()) {
+        state = try state.nextStep(&fnk_collection, .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        });
+    }
+
+    const actual = state.cur_value;
+
+    try std.testing.expect(Sexpr.equals(expected, actual));
+}
+
+test "apply nested fnk, with ExecutionState" {
+    var raw_fnk: []const u8 =
+        \\ binaryInc {
+        \\      nil -> (b1);
+        \\      (b0 . @rest) -> (b1 . @rest);
+        \\      (b1 . @rest) -> binaryInc: @rest {
+        \\          @new_rest -> (b0 . @new_rest);
+        \\      }
+        \\ }
+    ;
+    var raw_input: []const u8 = "(b1 b1)";
+    var raw_expected: []const u8 = "(b0 b0 b1)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const add_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    defer add_fnk.body.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+    try fnk_collection.put(add_fnk.name, add_fnk.body);
+
+    var state_pool = MemoryPool(ExecutionState).init(std.testing.allocator);
+    defer state_pool.deinit();
+
+    var state = try ExecutionState.start(
+        &fnk_collection,
+        add_fnk.name,
+        input,
+        .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        },
+    );
+
+    while (!state.isDone()) {
+        state = try state.nextStep(&fnk_collection, .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        });
+    }
+
+    const actual = state.cur_value;
+
+    try std.testing.expect(Sexpr.equals(expected, actual));
+}
+
+test "apply fnk with comptime, with ExecutionState" {
+    var raw_fnk: []const u8 =
+        \\ stuff {
+        \\      @digit -> (compileMap . ( 
+        \\          (0 . ()) 
+        \\          (1 . (b1)) 
+        \\          (2 . (b0 b1)) 
+        \\          (3 . (b1 b1))
+        \\      )): @digit;
+        \\ }
+    ;
+    var raw_fnk_compileMap: []const u8 =
+        \\ compileMap {
+        \\      nil -> nil;
+        \\      ((@key . @value) . @rest) -> compileMap: @rest {
+        \\          @rest_compiled -> ( ((atom . @key) identity (atom . @value) . return) . @rest_compiled );
+        \\      }
+        \\ }
+    ;
+    var raw_input: []const u8 = "2";
+    var raw_expected: []const u8 = "(b0 b1)";
+
+    var pool = MemoryPool(Sexpr).init(std.testing.allocator);
+    defer pool.deinit();
+
+    const main_fnk = try parseFnk(&raw_fnk, &pool, std.testing.allocator);
+    // defer main_fnk.body.arena.deinit();
+    const compiletime_fnk = try parseFnk(&raw_fnk_compileMap, &pool, std.testing.allocator);
+    // defer compiletime_fnk.body.arena.deinit();
+
+    const input = try parseSexpr(&raw_input, &pool);
+    const expected = try parseSexpr(&raw_expected, &pool);
+
+    var fnk_collection = FnkCollection.init(std.testing.allocator);
+    defer fnk_collection.deinit();
+
+    defer {
+        var it = fnk_collection.iterator();
+        while (it.next()) |x| {
+            x.value_ptr.arena.deinit();
+        }
+    }
+
+    try fnk_collection.put(main_fnk.name, main_fnk.body);
+    try fnk_collection.put(compiletime_fnk.name, compiletime_fnk.body);
+
+    var state_pool = MemoryPool(ExecutionState).init(std.testing.allocator);
+    defer state_pool.deinit();
+
+    var state = try ExecutionState.start(
+        &fnk_collection,
+        main_fnk.name,
+        input,
+        .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        },
+    );
+    while (!state.isDone()) {
+        state = try state.nextStep(&fnk_collection, .{
+            .pool = &pool,
+            .allocator_for_new_fnks = std.testing.allocator,
+            .temp_bindings_allocator = std.testing.allocator,
+            .state_pool = &state_pool,
+        });
+    }
+    const actual = state.cur_value;
+
+    try expectEqualSexprs(expected, actual);
 }
